@@ -14,6 +14,9 @@ updates:
       # typescript-eslint supports TypeScript versions below 6.1.
       - dependency-name: typescript
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Node.js's types follow the Node.js version Nether runs on, 24.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: gomod
     directory: /apps/desktop
