@@ -66,6 +66,7 @@ export {
   uuidV7,
 } from "./ids.ts";
 export { type JsonObject, type JsonValue } from "./json.ts";
+export { type Link, extractLinks } from "./links.ts";
 export {
   type NewNote,
   type Note,
