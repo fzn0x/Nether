@@ -1,0 +1,9 @@
+# Prose is wrapped by hand, and lockfiles and generated code are not ours
+# to format.
+**/*.md
+pnpm-lock.yaml
+LICENSE
+apps/desktop/src/mygo.ts
+
+# Evidence kept exactly as the spike produced it
+docs/adr/0002-editor-spike/
