@@ -41,9 +41,10 @@ editions, no license keys and no seat limits, and nothing phones home.
 
 ## Where it stands
 
-Nether is in its first phase, foundations: the decisions, the repository
-and the data model. The [roadmap](../roadmap/) lists what each phase
-delivers.
+Nether has finished its first phase, foundations: the decisions, the
+repository and the data model. The next one brings the desktop app with
+the vault and the editor; the [roadmap](../roadmap/) lists what each
+phase delivers.
 
 The full requirements, the architecture and the decision records live in
 the [repository](https://github.com/fzn0x/nether/tree/main/docs).
