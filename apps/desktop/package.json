@@ -1,0 +1,31 @@
+{
+  "name": "@nether/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The Nether desktop app for Windows, macOS and Linux, built with MyGO.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "go tool mygo dev",
+    "build": "vite build",
+    "build:app": "go tool mygo build",
+    "generate": "go tool mygo generate",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test:go": "go test ./...",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "mygo-runtime": "0.6.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.5"
+  }
+}

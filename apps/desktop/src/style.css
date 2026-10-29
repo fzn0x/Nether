@@ -1,0 +1,76 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f5f0;
+  --text: #1b1822;
+  --muted: #5f5a66;
+  --accent: #c43d18;
+  --rule: #e3ddd3;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+
+/* Matches BackgroundColor in main.go, so the window never flashes. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131118;
+    --text: #ece8e1;
+    --muted: #a39da8;
+    --accent: #ff7a50;
+    --rule: #2a2631;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.shell {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 18vh 2rem 2rem;
+}
+
+.mark {
+  width: 3rem;
+  height: 3rem;
+  /* The mark's own corner radius, with a ring that keeps it apart from a dark page. */
+  border-radius: 22%;
+  box-shadow: 0 0 0 1px var(--rule);
+}
+
+h1 {
+  margin: 1rem 0 0.5rem;
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+}
+
+.lead {
+  margin: 0 0 2rem;
+  font-size: 1.125rem;
+}
+
+.status {
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.status strong {
+  color: var(--accent);
+}
+
+.about {
+  color: var(--muted);
+  font-size: 0.875rem;
+}

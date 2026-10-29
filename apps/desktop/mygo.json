@@ -1,0 +1,17 @@
+{
+  "name": "Nether",
+  "identifier": "io.github.fzn0x.nether",
+  "version": "0.0.0",
+  "copyright": "© 2026 Nether contributors",
+  "devUrl": "http://localhost:5173",
+  "devCommand": "pnpm exec vite",
+  "buildCommand": "pnpm exec vite build",
+  "frontendDist": "dist",
+  "bindings": "src/mygo.ts",
+  "out": "build",
+  "linux": {
+    "comment": "Markdown notes with databases, offline first",
+    "categories": ["Office", "Utility"],
+    "command": "nether"
+  }
+}
