@@ -39,12 +39,15 @@ what set Nether apart from both Notion and Obsidian.
 
 ## Phase 0: Foundations
 
-- [ ] ADR 0001: one license for the whole repository, and the DCO for contributions
-- [ ] ADR 0002: the editor library, with a spike comparing Markdown round trips
-- [ ] ADR 0003: the CRDT and sync approach, and how Markdown files on disk stay in step with it
-- [ ] ADR 0004: the desktop app on MyGO
-- [ ] The monorepo: pnpm, Turborepo, strict TypeScript, ESLint, Prettier, Vitest, Playwright
-- [ ] CI: lint, types, tests, license scan, desktop and server builds, and a server run with every enterprise feature off
-- [ ] `LICENSE`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
-- [ ] The core data model: note, block, property, database, view, link and workspace, with stable IDs and serialization tests
-- [ ] A generator of the reference 50,000-note vault for the performance tests
+Done on 2026-10-30; the [report](reports/phase-0.md) says what shipped,
+what was deferred and the plan for Phase 1.
+
+- [x] ADR 0001: one license for the whole repository, and the DCO for contributions
+- [x] ADR 0002: the editor library, with a spike comparing Markdown round trips
+- [x] ADR 0003: the CRDT and sync approach, and how Markdown files on disk stay in step with it
+- [x] ADR 0004: the desktop app on MyGO
+- [x] The monorepo: pnpm, Turborepo, strict TypeScript, ESLint, Prettier, Vitest, Playwright
+- [x] CI: lint, types, tests, license scan, desktop and server builds, and a server run with every enterprise feature off
+- [x] `LICENSE`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
+- [x] The core data model: note, block, property, database, view, link and workspace, with stable IDs and serialization tests
+- [x] A generator of the reference 50,000-note vault for the performance tests
