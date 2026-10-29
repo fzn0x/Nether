@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Nether collects no telemetry, and neither do its tools here.
+  TURBO_TELEMETRY_DISABLED: "1"
+  ASTRO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  check:
+    name: Lint, types, tests and builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Formatting
+        run: pnpm format:check
+      - name: Types
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+      - name: Build the server, the desktop page and the documentation site
+        run: pnpm build
+      # The Phase 0 gate: the server runs with every enterprise feature off.
+      - name: Run the server with every enterprise feature off
+        run: pnpm --filter @nether/server smoke
+
+  go:
+    name: Desktop Go (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: apps/desktop
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/desktop/go.mod
+          cache-dependency-path: apps/desktop/go.sum
+      - name: Formatting
+        if: runner.os == 'Linux'
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - name: Vet for Linux, Windows and macOS
+        run: |
+          GOOS=linux go vet ./...
+          GOOS=windows go vet ./...
+          GOOS=darwin go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: The generated TypeScript client is up to date
+        if: runner.os == 'Linux'
+        run: |
+          go tool mygo generate
+          git diff --exit-code -- src/mygo.ts
+
+  desktop:
+    name: Desktop app (${{ matrix.name }})
+    needs: [check, go]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-amd64, platform: linux/amd64 }
+          - { name: windows-amd64, platform: windows/amd64 }
+          - { name: darwin-universal, platform: darwin/universal }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/desktop/go.mod
+          cache-dependency-path: apps/desktop/go.sum
+      - run: pnpm install --frozen-lockfile
+      - name: Install NSIS, for the Windows installer
+        if: matrix.name == 'windows-amd64'
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      # MyGO needs no cgo, so Linux builds every platform. These builds are
+      # not signed; releases sign theirs.
+      - name: Build
+        working-directory: apps/desktop
+        run: go tool mygo build -platform "${{ matrix.platform }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nether-desktop-${{ matrix.name }}
+          path: apps/desktop/build/
+          retention-days: 7
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium
+        run: pnpm --filter @nether/desktop exec playwright install --with-deps chromium
+      - name: The desktop page in Chromium
+        run: pnpm --filter @nether/desktop test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/desktop/playwright-report/
+          retention-days: 7
+
+  commits:
+    name: Commit messages and sign-offs
+    # Dependabot's updates carry no sign-off: the DCO is for contributions.
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Conventional Commits, and the Signed-off-by line the DCO asks for.
+      - name: Check every commit of the pull request
+        run: >-
+          pnpm exec commitlint --verbose
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
