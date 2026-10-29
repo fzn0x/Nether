@@ -43,6 +43,26 @@ jobs:
       - name: Run the server with every enterprise feature off
         run: pnpm --filter @nether/server smoke
 
+  licenses:
+    name: Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/desktop/go.mod
+          cache-dependency-path: apps/desktop/go.sum
+      - run: pnpm install --frozen-lockfile
+      - name: Test the license policy
+        run: node --test ".github/scripts/*.test.mjs"
+      - name: Check every dependency's license against ADR 0001
+        run: node .github/scripts/check-licenses.mjs
+
   go:
     name: Desktop Go (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
