@@ -1,0 +1,6 @@
+# Architecture Decision Records
+
+Each significant decision gets a record here: `NNNN-title.md`, numbered in
+order, with its context, the decision, the alternatives considered and the
+consequences. A record is never rewritten to change its decision; a newer
+record supersedes it and says so.
