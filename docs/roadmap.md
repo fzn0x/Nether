@@ -1,0 +1,50 @@
+# Roadmap
+
+Nether ships in six phases. Each one ends with a usable app and a gate, a
+test that must pass before the next phase starts. Phase numbers match the
+Phase column of the [requirements](requirements.md). Phases have no fixed
+dates; the maintainer sets them after Phase 0.
+
+```mermaid
+flowchart LR
+  p0["0. Foundations"] --> p1["1. Local-first notes"]
+  p1 --> p2["2. Databases and structure"]
+  p2 --> p3["3. Sync and collaboration<br/>first public release"]
+  p3 --> p4["4. Platform"]
+  p4 --> p5["5. Enterprise, mobile and scale"]
+  style p3 stroke-width:3px
+```
+
+| Phase | Scope | Gate |
+| --- | --- | --- |
+| 0. Foundations | First ADRs, monorepo scaffold, CI, license setup, core data model, 50,000-note test vault | CI is green, including a server run with every enterprise feature off |
+| 1. Local-first notes (the Obsidian core) | Vault on disk, block and Markdown editor, links, backlinks, tags, search, templates, export, desktop app | A 50,000-note vault edits offline within the [performance targets](requirements.md#non-functional-requirements) |
+| 2. Databases and structure (the Notion core) | Databases, six views, relations, rollups, formulas, synced blocks, graph view, themes, importers | An Obsidian vault and a Notion export import with no lost text |
+| 3. Self-hosted sync and collaboration (first public release) | Server, end-to-end encrypted sync, history, co-editing, comments, permissions, web app, canvas, backups | `docker compose up` works; two users co-edit offline and online with no lost edits |
+| 4. Platform | Plugin API and sandbox, bring-your-own AI, share links, web publishing, REST API, web clipper, automations | Third-party plugins run sandboxed; a published site loads on a custom domain |
+| 5. Enterprise, mobile and scale | Free enterprise features (SSO, SCIM, audit logs, data policies, high availability), Helm chart, mobile apps, integrations | A self-hosted install runs air-gapped with SSO and audit logs on, and no license key |
+
+Phase 3 is the first public release, because sync and self-hosting are
+what set Nether apart from both Notion and Obsidian.
+
+## How a phase runs
+
+- One phase at a time, and inside a phase one feature at a time. Each
+  feature is one branch and one pull request, whose description starts
+  with a plan: the requirement, the design, the files it touches and how
+  it is tested.
+- Significant decisions become [Architecture Decision Records](adr/).
+- At the end of each phase a short report says what shipped, what was
+  deferred, the known issues, and the plan for the next phase.
+
+## Phase 0: Foundations
+
+- [ ] ADR 0001: one license for the whole repository, and the DCO for contributions
+- [ ] ADR 0002: the editor library, with a spike comparing Markdown round trips
+- [ ] ADR 0003: the CRDT and sync approach, and how Markdown files on disk stay in step with it
+- [ ] ADR 0004: the desktop app on MyGO
+- [ ] The monorepo: pnpm, Turborepo, strict TypeScript, ESLint, Prettier, Vitest, Playwright
+- [ ] CI: lint, types, tests, license scan, desktop and server builds, and a server run with every enterprise feature off
+- [ ] `LICENSE`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
+- [ ] The core data model: note, block, property, database, view, link and workspace, with stable IDs and serialization tests
+- [ ] A generator of the reference 50,000-note vault for the performance tests
