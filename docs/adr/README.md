@@ -5,3 +5,7 @@ order, with its context, the decision, the alternatives considered and the
 consequences. A record is never rewritten to change its decision; a newer
 record supersedes it and says so. Start a new one from
 [template.md](template.md).
+
+| Record | Decision | Status |
+| --- | --- | --- |
+| [0001](0001-license-agpl-and-dco.md) | License the whole repository under the AGPL-3.0-or-later, with the DCO | Accepted |
