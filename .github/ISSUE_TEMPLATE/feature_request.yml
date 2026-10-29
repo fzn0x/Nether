@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest something Nether could do
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Nether keeps notes as plain Markdown files you own, works offline
+        with no account, and keeps every feature free. The
+        [requirements](https://github.com/fzn0x/nether/blob/main/docs/requirements.md)
+        list what is planned and in which phase; a large change is easier
+        to agree on here before anyone writes it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The job first, then how you would like it to work.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What do you do today instead?
