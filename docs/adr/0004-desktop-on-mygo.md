@@ -73,10 +73,9 @@ page took 288 to 301 MB and the native window 47 to 51 MB.
 
 - **Native UI for the whole app**, as MixMusic moved to. In the probe it
   opened about 200 ms sooner once warm and idled about 55 MB lower, but
-  the editor
-  needs a browser engine, the UI would be written twice (Go here, React
-  for web and mobile), and plugins that add views or panels would need a
-  second API.
+  the editor needs a browser engine, the UI would be written twice (Go
+  here, React for web and mobile), and plugins that add views or panels
+  would need a second API.
 - **A native shell with a web view for the editor only.** Any window
   that shows the editor pays the webview's cost, about 53 MB more than
   the native window above, so drawing the sidebar and panels natively
