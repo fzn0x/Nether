@@ -10,6 +10,7 @@
     "build": "vite build",
     "build:app": "go tool mygo build",
     "generate": "go tool mygo generate",
+    "icon": "node scripts/render-icon.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test:go": "go test ./...",
