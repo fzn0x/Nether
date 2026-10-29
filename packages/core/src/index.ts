@@ -86,3 +86,12 @@ export {
   optionColors,
   propertyTypes,
 } from "./properties.ts";
+export {
+  type EncryptionMode,
+  type Workspace,
+  createWorkspace,
+  encryptionModes,
+  parseWorkspace,
+  serializeWorkspace,
+  workspaceFromJson,
+} from "./workspaces.ts";
