@@ -1,0 +1,28 @@
+{
+  "name": "nether",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Open-source workspace that joins Obsidian's local-first Markdown notes with Notion's databases and collaboration, on a server you control.",
+  "license": "AGPL-3.0-or-later",
+  "author": "fzn0x",
+  "homepage": "https://fzn0x.github.io/nether/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fzn0x/nether.git"
+  },
+  "bugs": "https://github.com/fzn0x/nether/issues",
+  "type": "module",
+  "packageManager": "pnpm@10.29.3",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.0",
+    "typescript": "~6.0.2"
+  }
+}

@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+  - enterprise/*
+  - tools/*
+
+# Supply-chain hardening: only resolve versions that have been public for 7 days.
+minimumReleaseAge: 10080
