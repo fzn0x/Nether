@@ -1,0 +1,15 @@
+# Git hooks: https://lefthook.dev
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm exec commitlint --edit {1}
+
+pre-commit:
+  parallel: true
+  commands:
+    prettier:
+      glob: "*.{js,mjs,cjs,ts,tsx,json,yml,yaml,css}"
+      run: pnpm exec prettier --check --ignore-unknown {staged_files}
+    eslint:
+      glob: "*.{js,mjs,cjs,ts,tsx}"
+      run: pnpm exec eslint --no-warn-ignored {staged_files}
