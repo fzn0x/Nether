@@ -89,6 +89,7 @@ flowchart TB
 | [`packages/plugin-api`](../packages/plugin-api/) | The public, versioned plugin SDK |
 | [`packages/ai`](../packages/ai/) | The provider-agnostic AI adapter |
 | [`packages/ui`](../packages/ui/) | Shared components, themes and design tokens |
+| [`tools/vault-generator`](../tools/vault-generator/) | The generator of the 50,000-note reference vault for performance tests |
 | [`enterprise`](../enterprise/) | SSO, SCIM, audit logs, policies, the admin console, high availability: free, same license |
 | [`deploy`](../deploy/) | The Docker image, Compose file and Helm chart |
 | [`docs/adr`](adr/) | Architecture Decision Records |
