@@ -20,6 +20,7 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "vault:generate": "pnpm --filter @nether/vault-generator generate",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
