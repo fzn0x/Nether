@@ -1,0 +1,266 @@
+{
+  "TipTap": {
+    "01-basics.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "02-lists.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "03-blocks.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "04-obsidian.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "broke: wiki link, embed, callout"
+    },
+    "05-frontmatter.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "frontmatter changed",
+      "obsidian": "n/a"
+    },
+    "06-math-diagrams.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": null
+    },
+    "07-extended.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "broke: footnote"
+    },
+    "08-escapes.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": "lost words: 1",
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    }
+  },
+  "BlockNote": {
+    "01-basics.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "02-lists.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "03-blocks.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "04-obsidian.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": null
+    },
+    "05-frontmatter.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "frontmatter changed",
+      "obsidian": "n/a"
+    },
+    "06-math-diagrams.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "broke: math"
+    },
+    "07-extended.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": "link targets changed",
+      "frontmatter": "n/a",
+      "obsidian": null
+    },
+    "08-escapes.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": "lost words: 1",
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    }
+  },
+  "Lexical": {
+    "01-basics.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "02-lists.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "03-blocks.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "04-obsidian.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "broke: wiki link, embed, callout"
+    },
+    "05-frontmatter.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "frontmatter changed",
+      "obsidian": "n/a"
+    },
+    "06-math-diagrams.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "broke: math"
+    },
+    "07-extended.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": null,
+      "links": "link targets changed",
+      "frontmatter": "n/a",
+      "obsidian": "broke: footnote"
+    },
+    "08-escapes.md": {
+      "exact": "differs",
+      "rendering": "renders differently as CommonMark",
+      "text": "lost words: 1",
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    }
+  },
+  "remark": {
+    "01-basics.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "02-lists.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "03-blocks.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    },
+    "04-obsidian.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "broke: wiki link, embed, callout"
+    },
+    "05-frontmatter.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": null,
+      "obsidian": "n/a"
+    },
+    "06-math-diagrams.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": null
+    },
+    "07-extended.md": {
+      "exact": null,
+      "rendering": null,
+      "text": null,
+      "links": null,
+      "frontmatter": "n/a",
+      "obsidian": null
+    },
+    "08-escapes.md": {
+      "exact": "differs",
+      "rendering": null,
+      "text": null,
+      "links": "n/a",
+      "frontmatter": "n/a",
+      "obsidian": "n/a"
+    }
+  }
+}
