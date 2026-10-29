@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Builds and caches
+dist/
+build/
+.turbo/
+.astro/
+*.tsbuildinfo
+coverage/
+
+# Desktop app: MyGO's development app, Windows resources and stray builds
+/apps/desktop/.mygo/
+/apps/desktop/*.exe
+mygo_windows_*.syso
+
+# Test output
+test-results/
+playwright-report/
+blob-report/
+
+# Reference vaults written by the vault generator
+/.vaults/
+
+# Local environment
+.env
+.env.*
+!.env.example
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+*.swp
