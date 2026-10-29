@@ -1,0 +1,43 @@
+---
+title: Nether
+description: An open-source workspace that joins Obsidian's local-first Markdown notes with Notion's databases and collaboration, on a server you control.
+template: splash
+banner:
+  content: Nether is in early development. Nothing is ready to install yet; the roadmap shows what comes when.
+hero:
+  tagline: Notes that stay plain Markdown files you own, with the databases, wikis and real-time collaboration of a team workspace, on a server you control.
+  image:
+    file: ../../assets/mark.svg
+  actions:
+    - text: What Nether is
+      link: introduction/
+      icon: right-arrow
+    - text: Roadmap
+      link: roadmap/
+      variant: minimal
+    - text: Source on GitHub
+      link: https://github.com/fzn0x/nether
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from "@astrojs/starlight/components";
+
+<CardGrid>
+  <Card title="Files you own" icon="document">
+    Every note is a Markdown file with YAML frontmatter, in a folder you choose, readable by
+    Obsidian and any text editor. Export never loses text.
+  </Card>
+  <Card title="Structure when you want it" icon="list-format">
+    The same notes become databases, with table, board, calendar, timeline, gallery and list views,
+    relations and formulas.
+  </Card>
+  <Card title="A server you run" icon="laptop">
+    Sync, sharing and real-time co-editing come from a server you start with one `docker compose
+    up`, or from no server at all.
+  </Card>
+  <Card title="Free, all of it" icon="approve-check">
+    One open-source license, the AGPL, covers everything, enterprise features included. No paid
+    editions, no license keys.
+  </Card>
+</CardGrid>

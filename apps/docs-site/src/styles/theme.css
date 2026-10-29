@@ -1,0 +1,12 @@
+/* Nether's ember accent on Starlight's default theme: dark first, then light. */
+:root {
+  --sl-color-accent-low: #3a1a10;
+  --sl-color-accent: #e5502a;
+  --sl-color-accent-high: #ffcfbf;
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #ffd8cc;
+  --sl-color-accent: #c43d18;
+  --sl-color-accent-high: #5a1d0b;
+}

@@ -36,6 +36,12 @@ export default defineConfig(
     },
   },
   {
+    // The site's types come from `astro sync`, which needs a newer Node.js
+    // than the rest of the repository; its typecheck script covers them.
+    files: ["apps/docs-site/**"],
+    extends: [tseslint.configs.disableTypeChecked],
+  },
+  {
     // Enterprise features plug in through extension points; nothing
     // outside enterprise/ may depend on them (docs/requirements.md#editions).
     ignores: ["enterprise/**"],
