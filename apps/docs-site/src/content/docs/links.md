@@ -44,7 +44,9 @@ this one, read only: `![[Roadmap]]` shows all of it, `![[Roadmap#Next
 steps]]` the heading and what follows it up to the next heading as high or
 higher, and `![[Roadmap#^b1]]` the one block. Click the embed's title to
 open the note. Embeds inside an embed show one level deeper; deeper ones
-show as their links, so notes that embed each other end.
+show as their links, so notes that embed each other end. An embed within
+a line of text shows as you wrote it, and still links: the note it names
+lists this one among its backlinks, as in Obsidian.
 
 ## Outline, backlinks and tags
 

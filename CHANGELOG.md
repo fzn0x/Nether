@@ -128,6 +128,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   link, which the backlinks panel reads for the notes it shows
   ([ADR 0014](docs/adr/0014-load-a-vaults-links-lean-and-after-its-note.md)).
   The vault's index moves to schema version 6.
+- Saving a note moves only its own backlinks, so typing in a large vault
+  no longer stops each time the note saves while every backlink is
+  worked out again.
 
 ### Fixed
 
@@ -140,5 +143,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the light theme, meet WCAG AA's contrast.
 - While the link index read notes for the first time, the backlinks
   panel could miss the text around their links.
+- An embed within a line of text, as `Today: ![[Roadmap]]`, counts as a
+  link: the note it names lists it among its backlinks, and renaming that
+  note rewrites it.
 
 [Unreleased]: https://github.com/fzn0x/Nether/commits/main
