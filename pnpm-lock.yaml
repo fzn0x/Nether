@@ -356,6 +356,9 @@ importers:
       '@nether/core':
         specifier: workspace:*
         version: link:../core
+      '@nether/search':
+        specifier: workspace:*
+        version: link:../search
     devDependencies:
       '@types/node':
         specifier: ^24.19.2

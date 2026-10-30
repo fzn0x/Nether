@@ -14,7 +14,8 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "@nether/core": "workspace:*"
+    "@nether/core": "workspace:*",
+    "@nether/search": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

@@ -31,7 +31,15 @@ export type NoteDocuments = Pick<
 >;
 
 /** Where a vault keeps what the link index and search read of its notes. */
-export type NoteIndexes = Pick<IndexStore, "noteIndexes" | "putNoteIndexes" | "deleteNoteIndexes">;
+export type NoteIndexes = Pick<
+  IndexStore,
+  | "noteIndexes"
+  | "putNoteIndexes"
+  | "deleteNoteIndexes"
+  | "putNoteTexts"
+  | "deleteNoteTexts"
+  | "searchText"
+>;
 
 export interface VaultOptions {
   /** Makes the ID of a note seen for the first time; a UUID version 7 by default. */

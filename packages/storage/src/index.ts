@@ -26,8 +26,12 @@ export {
   type IndexStore,
   MemoryStore,
   type NoteIndexRow,
+  type NoteTextRow,
   type StoredDocument,
   type StoredUpdate,
+  type TextHit,
+  matchEnd,
+  matchStart,
 } from "./store.ts";
 export {
   type NoteDocuments,

@@ -7,9 +7,12 @@ import type {
   IndexChange,
   IndexStore,
   NoteIndexRow,
+  NoteTextRow,
   StoredDocument,
   StoredUpdate,
+  TextHit,
 } from "./store.ts";
+import { type SearchQuery, ftsMatch } from "@nether/search";
 
 export type SqlValue = string | number | bigint | Uint8Array | null;
 
@@ -65,6 +68,19 @@ const migrations: readonly (readonly string[])[] = [
       modified INTEGER NOT NULL,
       data TEXT NOT NULL
     ) WITHOUT ROWID`,
+  ],
+  [
+    // Each note's title and text for full-text search, case and accents
+    // aside, with prefixes of two and three letters indexed for typing.
+    `CREATE VIRTUAL TABLE note_texts USING fts5(
+      note UNINDEXED,
+      title,
+      body,
+      tokenize = 'unicode61 remove_diacritics 2',
+      prefix = '2 3'
+    )`,
+    // Every note is read again, to fill it.
+    "DELETE FROM note_indexes",
   ],
 ];
 
@@ -238,6 +254,45 @@ export class SqliteStore implements IndexStore {
     for (let start = 0; start < statements.length; start += chunk) {
       await this.#database.transaction(statements.slice(start, start + chunk));
     }
+  }
+
+  async putNoteTexts(rows: readonly NoteTextRow[]): Promise<void> {
+    const statements = rows.flatMap((row) => [
+      { sql: "DELETE FROM note_texts WHERE note = ?", params: [row.note] },
+      {
+        sql: "INSERT INTO note_texts (note, title, body) VALUES (?, ?, ?)",
+        params: [row.note, row.title, row.body],
+      },
+    ]);
+    for (let start = 0; start < statements.length; start += chunk) {
+      await this.#database.transaction(statements.slice(start, start + chunk));
+    }
+  }
+
+  async deleteNoteTexts(notes: readonly NoteId[]): Promise<void> {
+    const statements = notes.map((note) => ({
+      sql: "DELETE FROM note_texts WHERE note = ?",
+      params: [note],
+    }));
+    for (let start = 0; start < statements.length; start += chunk) {
+      await this.#database.transaction(statements.slice(start, start + chunk));
+    }
+  }
+
+  async searchText(query: SearchQuery, limit: number): Promise<readonly TextHit[]> {
+    const match = ftsMatch(query);
+    if (match === undefined) return [];
+    // A title's match counts ten times its text's; the snippet marks matches as MemoryStore does.
+    const { rows } = await this.#database.query(
+      `SELECT note, snippet(note_texts, 2, char(2), char(3), '…', 16)
+        FROM note_texts WHERE note_texts MATCH ?
+        ORDER BY bm25(note_texts, 0.0, 10.0, 1.0) LIMIT ?`,
+      [match, limit],
+    );
+    return rows.map(([note, snippet]) => ({
+      note: text(note) as NoteId,
+      snippet: typeof snippet === "string" ? snippet : "",
+    }));
   }
 
   close(): Promise<void> {
