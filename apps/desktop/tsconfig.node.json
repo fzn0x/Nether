@@ -6,5 +6,12 @@
     // The end-to-end tests pass functions to page.evaluate, which run in the page.
     "lib": ["es2024", "dom"]
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "playwright.config.ts", "e2e"]
+  "include": [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "playwright.perf.config.ts",
+    "e2e",
+    "perf"
+  ]
 }
