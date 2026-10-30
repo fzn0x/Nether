@@ -74,3 +74,12 @@ test("closing the vault goes back to the welcome screen", async ({ page }) => {
   await page.getByRole("button", { name: "Close vault" }).click();
   await expect(page.getByRole("button", { name: "Open a folder" })).toBeVisible();
 });
+
+test("a vault opens again to the note open when it was closed", async ({ page }) => {
+  const notes = await openSample(page);
+  await notes.getByRole("button", { name: /Roadmap/ }).click();
+  await expect(page.locator("#note-title")).toHaveText("Roadmap");
+  await page.getByRole("button", { name: "Close vault" }).click();
+  await page.getByRole("button", { name: "Open a folder" }).click();
+  await expect(page.locator("#note-title")).toHaveText("Roadmap");
+});

@@ -127,6 +127,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
+  const lastNoteKey = `nether.lastNote.${info.id}`;
   // Where a link to a heading or block asked to go, in the note it opened.
   const [focus, setFocus] = useState<(NotePart & { readonly key: number }) | undefined>();
   // Blocks or source, kept from note to note.
@@ -439,6 +440,27 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
     const keys = keysOf(id);
     return keys === undefined ? undefined : ariaKeys(keys);
   };
+
+  // The note open when the vault was last open opens again, found by its path.
+  useEffect(() => {
+    if (vault === undefined) return;
+    try {
+      const path = localStorage.getItem(lastNoteKey);
+      const note = path === null ? undefined : vault.noteAt(path);
+      if (note !== undefined) setSelected((current) => current ?? note.id);
+    } catch {
+      // Storage closed to the page: the vault opens to no note.
+    }
+  }, [vault, lastNoteKey]);
+  const selectedPath = selected === undefined ? undefined : vault?.note(selected)?.path;
+  useEffect(() => {
+    if (selectedPath === undefined) return;
+    try {
+      localStorage.setItem(lastNoteKey, selectedPath);
+    } catch {
+      // Not remembered: the vault opens to no note next time.
+    }
+  }, [selectedPath, lastNoteKey]);
 
   const shown = useMemo(() => {
     if (tag === undefined || graph === undefined) return notes;
