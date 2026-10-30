@@ -41,8 +41,23 @@ view** adds one. Each view keeps its own settings:
 - **Group by** a property shows the rows under each of its values: a
   select's options in their order, then the rows with no value.
 
-Boards, calendars, timelines, galleries and lists come next, with relations
-between databases, rollups and formulas.
+## Boards, lists and galleries
+
+**Layout** shows a view's rows another way, each with its own filter and
+sort:
+
+- A **board** has a column for each value of a select, multi-select,
+  checkbox or person property, chosen under **Columns**, and a card for
+  each row. Drag a card to another column, or choose its column in its
+  **Move to** menu, and its value changes; **New in** a column adds a row
+  with that column's value. A row with several values of a multi-select
+  shows in each of their columns.
+- A **list** shows each row's name, with its visible properties beside it.
+- A **gallery** shows each row as a card, with a **Cover**: the image a file
+  property names, as `[[photo.png]]` or a web address.
+
+Lists and galleries group by a property too. Calendars and timelines come
+next, with relations between databases, rollups and formulas.
 
 ## How a database is written
 

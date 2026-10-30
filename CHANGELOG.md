@@ -131,6 +131,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and shown or hidden, rows added and opened, and values edited in their
   cells, each written to its row's frontmatter. Each view sorts by a
   column, filters by conditions, all or any, and groups by a property.
+- Boards, lists and galleries: a view's layout shows its rows as a board
+  with a column for each value of a select, multi-select, checkbox or
+  person, its cards moved by dragging or by their Move to menu; as a list;
+  or as a gallery of cards with a cover a file property names.
 - An Obsidian base beside each database, `Projects.base`, so Obsidian shows
   its rows and views: written from the database when it changes, and
   moved with it. A view's columns, grouping and filter changed in
