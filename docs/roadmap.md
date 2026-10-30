@@ -64,6 +64,7 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] The quick switcher and full-text search
 - [x] Properties: typed properties above each note, kept in its Yjs document and its frontmatter
 - [x] Templates and daily, weekly and monthly notes, with Obsidian's variables and settings ([ADR 0011](adr/0011-templates-and-periodic-notes.md))
-- [ ] The trash and export
+- [x] The trash: restore where a note was, and deletion for good after 30 days or as set
+- [ ] Export: notes, folders and the vault to Markdown (ZIP), HTML and PDF
 - [ ] The app's interface: sidebar, command palette and keyboard shortcuts
 - [ ] The performance harness on the reference vault, which the gate runs

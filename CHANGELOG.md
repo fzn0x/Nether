@@ -76,5 +76,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   from their templates the first time. A vault moved from Obsidian starts
   from Obsidian's settings for them
   ([ADR 0011](docs/adr/0011-templates-and-periodic-notes.md)).
+- The trash: Move to trash sends a note to the vault's `.trash` folder,
+  with Restore offered at once. The Trash tab lists what was deleted,
+  restores a note where it was as the same note, and deletes notes for
+  good, one at a time or all at once. Notes are deleted for good after 30
+  days, or as many as the vault sets.
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main
