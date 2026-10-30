@@ -67,7 +67,7 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] The trash: restore where a note was, and deletion for good after 30 days or as set
 - [x] Export: notes, folders and the vault to Markdown (ZIP), HTML and PDF ([ADR 0012](adr/0012-export-from-the-page.md)); databases to CSV come with databases in Phase 2
 - [x] Renaming and moving notes, with every link to them rewritten
-- [ ] Folders and nested pages in the sidebar: the file tree and the page tree
+- [x] Folders and nested pages in the sidebar: the file tree and the page tree ([ADR 0013](adr/0013-pages-in-the-folder-beside-a-note.md))
 - [ ] The command palette, Ctrl/Cmd+P, and a shortcut for every action
 - [ ] Block links made from `[[`, writing the block's `^id` into its note
 - [ ] Previews of web links, fetched only when asked

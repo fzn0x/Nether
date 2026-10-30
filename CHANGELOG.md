@@ -89,5 +89,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Renaming a note from its name above it: every link to it, wiki or
   Markdown, in notes and in frontmatter, is rewritten to find it, keeping
   its heading, block and alias.
+- The sidebar shows notes as folders, as pages within pages, or as a list.
+  A note's pages are the notes in the folder beside it with its name, as
+  Notion exports them ([ADR 0013](docs/adr/0013-pages-in-the-folder-beside-a-note.md)).
+  The trees open and close by click or key; dragging a note or folder
+  moves it, a page with its pages, with every link rewritten; **+** makes a
+  note in a folder or a page.
 
 [Unreleased]: https://github.com/fzn0x/Nether/commits/main

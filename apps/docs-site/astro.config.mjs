@@ -21,6 +21,7 @@ export default defineConfig({
           label: "Notes",
           items: [
             "vaults",
+            "folders",
             "writing",
             "properties",
             "templates",
