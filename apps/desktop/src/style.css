@@ -2087,3 +2087,138 @@ kbd {
   margin: 0;
   color: var(--text);
 }
+
+/* A calendar's month and a timeline's weeks, each under a bar that moves
+   them; a timeline's rows are its name column, then one column a day. */
+.database-period {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.database-period h3 {
+  min-inline-size: 10rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.database-month {
+  inline-size: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.database-month th {
+  padding: 0.25rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: start;
+}
+
+.database-month td {
+  position: relative;
+  block-size: 5.5rem;
+  padding: 0.25rem;
+  border: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+.database-month td[data-outside] {
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+}
+
+.database-month td[data-outside] .database-day {
+  color: var(--muted);
+}
+
+.database-month td[data-today] .database-day {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.database-month ul {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.database-month li {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.database-day-add {
+  position: absolute;
+  inset-block-start: 0.1rem;
+  inset-inline-end: 0.1rem;
+  padding: 0 0.35rem;
+  opacity: 0;
+}
+
+.database-month td:hover .database-day-add,
+.database-day-add:focus-visible {
+  opacity: 1;
+}
+
+.database-timeline-grid {
+  display: grid;
+  gap: 0.25rem;
+  min-inline-size: 40rem;
+}
+
+.database-timeline-weeks,
+.database-timeline-rows li {
+  display: grid;
+  grid-template-columns: minmax(8rem, 12rem) repeat(var(--days), minmax(0.5rem, 1fr));
+  align-items: center;
+}
+
+.database-timeline-weeks {
+  position: relative;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.database-timeline-weeks span {
+  padding-inline-start: 0.2rem;
+  border-inline-start: 1px solid var(--rule);
+}
+
+.database-timeline-today {
+  block-size: 100%;
+  border-inline-start: 2px solid var(--accent);
+}
+
+.database-timeline-rows {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.database-timeline-rows .database-row-title {
+  grid-column: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.database-bar {
+  grid-row: 1;
+  block-size: 1.1rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* At least 24 pixels to aim at, as WCAG 2.2 asks of every target. */
+.database-row-title,
+.database-day-add,
+.database-period button {
+  min-block-size: 1.5rem;
+}

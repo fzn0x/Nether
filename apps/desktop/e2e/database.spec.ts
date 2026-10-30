@@ -214,3 +214,84 @@ test("a view shows its rows as a board, a list or a gallery, and a card moves be
   expect(results.violations.map((violation) => violation.id)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("a calendar places rows on their days, and a timeline from their date to their end", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await page.clock.setFixedTime(new Date("2026-11-12T10:00:00"));
+  await openSample(page);
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("new database");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#note-title")).toHaveText("Untitled database");
+  const database = page.getByRole("region", { name: "Database" });
+  await database.getByRole("button", { name: "Properties" }).click();
+  for (const name of ["Due", "End"]) {
+    await database.getByRole("textbox", { name: "Property name" }).fill(name);
+    await database.getByRole("combobox", { name: "Type of the new property" }).selectOption("Date");
+    await database.getByRole("button", { name: "Add a property" }).click();
+  }
+  await database.getByRole("button", { name: "New row" }).click();
+  await database.getByRole("button", { name: "New row" }).click();
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveText([
+    "Untitled",
+    "Untitled 2",
+  ]);
+  for (const [name, value] of [
+    ["Due", "2026-11-10"],
+    ["End", "2026-11-14"],
+  ] as const) {
+    await database.getByLabel(`${name} of Untitled`, { exact: true }).fill(value);
+    await database.getByLabel(`${name} of Untitled`, { exact: true }).press("Enter");
+  }
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled.md"))
+    .toBe("---\nDue: 2026-11-10\nEnd: 2026-11-14\n---\n");
+
+  // A calendar of this month, by the first date property.
+  await database.getByRole("combobox", { name: "Layout" }).selectOption("calendar");
+  await expect(database.getByRole("combobox", { name: "Date" })).toHaveValue("Due");
+  await expect(database.getByRole("heading", { name: "November 2026" })).toBeVisible();
+  const day = (name: string) => database.getByRole("cell").filter({ hasText: name });
+  await expect(
+    day("Tuesday, November 10, 2026").getByRole("button", { name: "Untitled" }),
+  ).toBeVisible();
+  await expect(database.getByRole("region", { name: "No date" })).toContainText("Untitled 2");
+  // A row made on a day has that date.
+  await database.getByRole("button", { name: "New on Friday, November 13, 2026" }).click();
+  await expect(
+    day("Friday, November 13, 2026").getByRole("button", { name: "Untitled 3" }),
+  ).toBeVisible();
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled 3.md"))
+    .toBe("---\nDue: 2026-11-13\n---\n");
+  await database.getByRole("button", { name: "Next month" }).click();
+  await expect(database.getByRole("heading", { name: "December 2026" })).toBeVisible();
+  await database.getByRole("button", { name: "Today" }).click();
+  await expect(database.getByRole("heading", { name: "November 2026" })).toBeVisible();
+  const violations = async () =>
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+        .analyze()
+    ).violations.map(
+      (violation) =>
+        `${violation.id}: ${violation.nodes.map((node) => node.target.join(" ")).join(", ")}`,
+    );
+  expect(await violations()).toEqual([]);
+
+  // A timeline, each bar from its date to its end.
+  await database.getByRole("combobox", { name: "Layout" }).selectOption("timeline");
+  await database.getByRole("combobox", { name: "End" }).selectOption("End");
+  const bars = database.locator(".database-timeline-rows");
+  await expect(bars.getByRole("listitem").filter({ hasText: "Untitled" }).first()).toContainText(
+    "Tuesday, November 10, 2026 to Saturday, November 14, 2026",
+  );
+  await expect(bars.getByRole("listitem").filter({ hasText: "Untitled 3" })).toContainText(
+    "Friday, November 13, 2026",
+  );
+  await expect(database.getByRole("region", { name: "No date" })).toContainText("Untitled 2");
+  expect(await violations()).toEqual([]);
+  expect(errors).toEqual([]);
+});

@@ -31,8 +31,10 @@ import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react"
 import type * as Y from "yjs";
 import {
   BoardLayout,
+  CalendarLayout,
   GalleryLayout,
   ListLayout,
+  TimelineLayout,
   boardTypes,
   groupLabel,
   valueText,
@@ -549,8 +551,31 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
       }
       next = { ...next, groupBy: columns.key };
     }
+    if (layout === "calendar" || layout === "timeline") {
+      const date =
+        current.date ??
+        schema.properties.find((property) => property.type === "date")?.key ??
+        "$created";
+      next = {
+        ...next,
+        date,
+        ...(layout === "timeline" && current.end !== undefined ? { end: current.end } : {}),
+      };
+    }
     setError(undefined);
     saveView(next);
+  };
+  /** Makes a row on a calendar's day, with its date. */
+  const createOn = (day: string) => {
+    const key = view?.date;
+    setError(undefined);
+    createRow(vault, path, t("untitled"))
+      .then((created) =>
+        key === undefined || key.startsWith("$")
+          ? undefined
+          : setNoteProperty(vault, created.id, key, day),
+      )
+      .catch(fail);
   };
   /** Moves a card to another column: the value it is grouped by becomes the column's. */
   const move = (row: NoteId, from: JsonValue, to: JsonValue) => {
@@ -687,18 +712,18 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
             <label>
               {t("layout")}
               <select
-                value={
-                  view.layout === "calendar" || view.layout === "timeline" ? "table" : view.layout
-                }
+                value={view.layout}
                 onChange={(event) => {
                   changeLayout(view, event.target.value as View["layout"]);
                 }}
               >
-                {(["table", "board", "gallery", "list"] as const).map((layout) => (
-                  <option key={layout} value={layout}>
-                    {t(`layout_${layout}`)}
-                  </option>
-                ))}
+                {(["table", "board", "gallery", "list", "calendar", "timeline"] as const).map(
+                  (layout) => (
+                    <option key={layout} value={layout}>
+                      {t(`layout_${layout}`)}
+                    </option>
+                  ),
+                )}
               </select>
             </label>
             <button
@@ -713,30 +738,80 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                 ? t("filter")
                 : t("filterCount", { count: flatFilter(view.filter)?.conditions.length ?? 1 })}
             </button>
-            <label>
-              {view.layout === "board" ? t("columns") : t("groupBy")}
-              <select
-                value={view.groupBy ?? ""}
-                onChange={(event) => {
-                  const rest = without(view, "groupBy");
-                  saveView(
-                    event.target.value === "" ? rest : { ...rest, groupBy: event.target.value },
-                  );
-                }}
-              >
-                {/* A board always groups, and only by what can make columns. */}
-                {view.layout === "board" ? null : <option value="">{t("groupByNone")}</option>}
-                {schema.properties
-                  .filter(
-                    (property) => view.layout !== "board" || boardTypes.includes(property.type),
-                  )
-                  .map((property) => (
-                    <option key={property.key} value={property.key}>
-                      {property.key}
+            {view.layout === "calendar" || view.layout === "timeline" ? (
+              <label>
+                {t("dateProperty")}
+                <select
+                  value={view.date ?? "$created"}
+                  onChange={(event) => {
+                    saveView({ ...view, date: event.target.value });
+                  }}
+                >
+                  {[
+                    ...schema.properties
+                      .filter((property) => property.type === "date")
+                      .map((property) => property.key),
+                    "$created",
+                    "$updated",
+                  ].map((key) => (
+                    <option key={key} value={key}>
+                      {key.startsWith("$")
+                        ? t(key === "$created" ? "builtIn_created" : "builtIn_updated")
+                        : key}
                     </option>
                   ))}
-              </select>
-            </label>
+                </select>
+              </label>
+            ) : null}
+            {view.layout === "timeline" ? (
+              <label>
+                {t("endProperty")}
+                <select
+                  value={view.end ?? ""}
+                  onChange={(event) => {
+                    const rest = without(view, "end");
+                    saveView(
+                      event.target.value === "" ? rest : { ...rest, end: event.target.value },
+                    );
+                  }}
+                >
+                  <option value="">{t("endNone")}</option>
+                  {schema.properties
+                    .filter((property) => property.type === "date")
+                    .map((property) => (
+                      <option key={property.key} value={property.key}>
+                        {property.key}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : null}
+            {view.layout === "calendar" || view.layout === "timeline" ? null : (
+              <label>
+                {view.layout === "board" ? t("columns") : t("groupBy")}
+                <select
+                  value={view.groupBy ?? ""}
+                  onChange={(event) => {
+                    const rest = without(view, "groupBy");
+                    saveView(
+                      event.target.value === "" ? rest : { ...rest, groupBy: event.target.value },
+                    );
+                  }}
+                >
+                  {/* A board always groups, and only by what can make columns. */}
+                  {view.layout === "board" ? null : <option value="">{t("groupByNone")}</option>}
+                  {schema.properties
+                    .filter(
+                      (property) => view.layout !== "board" || boardTypes.includes(property.type),
+                    )
+                    .map((property) => (
+                      <option key={property.key} value={property.key}>
+                        {property.key}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
             {view.layout === "gallery" ? (
               <label>
                 {t("cover")}
@@ -840,6 +915,26 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                 onOpen: onOpenNote,
               }}
               coverOf={coverOf}
+            />
+          ) : view.layout === "calendar" ? (
+            <CalendarLayout
+              view={view}
+              rows={result.rows}
+              visible={visible}
+              onOpen={onOpenNote}
+              dateKey={view.date ?? "$created"}
+              {...(view.date === undefined || view.date.startsWith("$")
+                ? {}
+                : { onCreate: createOn })}
+            />
+          ) : view.layout === "timeline" ? (
+            <TimelineLayout
+              view={view}
+              rows={result.rows}
+              visible={visible}
+              onOpen={onOpenNote}
+              dateKey={view.date ?? "$created"}
+              {...(view.end === undefined ? {} : { endKey: view.end })}
             />
           ) : view.layout === "list" ? (
             <ListLayout

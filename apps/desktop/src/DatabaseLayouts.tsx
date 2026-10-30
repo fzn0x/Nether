@@ -2,10 +2,18 @@
 // table is the database view's own. A board's columns are the groups of
 // the property it groups by, and a card moves between them by dragging or
 // by its Move to menu, which changes that property in the row's file.
-import type { JsonValue, NoteId, PropertyDefinition, PropertyType, View } from "@nether/core";
-import { type Group, type Row, rowTitle } from "@nether/database";
-import { type DragEvent, type ReactNode, useState } from "react";
-import { t } from "./messages.ts";
+import {
+  type JsonValue,
+  type NoteId,
+  type PropertyDefinition,
+  type PropertyType,
+  type View,
+  addToDate,
+  startOfPeriod,
+} from "@nether/core";
+import { type Group, type Row, rowDate, rowTitle } from "@nether/database";
+import { type CSSProperties, type DragEvent, type ReactNode, useState } from "react";
+import { language, t } from "./messages.ts";
 
 /** The properties a board's columns can come from, as core allows. */
 export const boardTypes: readonly PropertyType[] = ["select", "multiSelect", "checkbox", "person"];
@@ -234,6 +242,276 @@ export function BoardLayout(
           </section>
         );
       })}
+    </div>
+  );
+}
+
+/** A day as rows write it, `YYYY-MM-DD`, where the user is. */
+export function dayKey(date: Date): string {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** The date a `YYYY-MM-DD` names, at midnight where the user is. */
+function dateOf(day: string): Date {
+  const [year = 0, month = 1, date = 1] = day.split("-").map(Number);
+  return new Date(year, month - 1, date);
+}
+
+/** How many days from one day to another, across changes of the clocks. */
+function daysBetween(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000);
+}
+
+const fullDate = new Intl.DateTimeFormat(language, { dateStyle: "full" });
+const shortDate = new Intl.DateTimeFormat(language, { day: "numeric", month: "short" });
+
+/** The rows without a date, under the calendar or timeline that cannot place them. */
+function Undated(props: { readonly rows: readonly Row[]; readonly onOpen: (row: NoteId) => void }) {
+  if (props.rows.length === 0) return null;
+  return (
+    <section className="database-section" aria-label={t("noDate")}>
+      <h3>
+        {t("noDate")} <span className="count">{props.rows.length}</span>
+      </h3>
+      <ul className="database-list">
+        {props.rows.map((row) => (
+          <li key={row.id}>
+            <Title row={row} onOpen={props.onOpen} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * A month of rows, each on the day of its date, the weeks from Monday as
+ * the periodic notes have them. A day's New makes a row on that day.
+ */
+export function CalendarLayout(
+  props: LayoutProps & {
+    readonly dateKey: string;
+    /** Makes a row on a day; absent when the date is a file's, which a row cannot be given. */
+    readonly onCreate?: (day: string) => void;
+  },
+) {
+  const { rows, onOpen, dateKey, onCreate } = props;
+  const [month, setMonth] = useState(() => startOfPeriod(new Date(), "month"));
+  const byDay = new Map<string, Row[]>();
+  const undated: Row[] = [];
+  for (const row of rows) {
+    const day = rowDate(row, dateKey);
+    if (day === undefined) undated.push(row);
+    else byDay.set(day, [...(byDay.get(day) ?? []), row]);
+  }
+  const first = startOfPeriod(month, "week");
+  const weeks: Date[][] = [];
+  for (let week = 0; week < 6; week++) {
+    const days = Array.from({ length: 7 }, (_, index) => addToDate(first, week * 7 + index, "d"));
+    // Only the weeks the month has a day in.
+    if (week > 0 && days.every((day) => day.getMonth() !== month.getMonth())) break;
+    weeks.push(days);
+  }
+  const today = dayKey(new Date());
+  const title = new Intl.DateTimeFormat(language, { month: "long", year: "numeric" }).format(month);
+  const weekday = (style: "short" | "long") =>
+    new Intl.DateTimeFormat(language, { weekday: style });
+  return (
+    <div className="database-calendar">
+      <div className="database-period">
+        <button
+          type="button"
+          className="quiet"
+          aria-label={t("previousMonth")}
+          onClick={() => {
+            setMonth(addToDate(month, -1, "M"));
+          }}
+        >
+          ‹
+        </button>
+        <h3 aria-live="polite">{title}</h3>
+        <button
+          type="button"
+          className="quiet"
+          aria-label={t("nextMonth")}
+          onClick={() => {
+            setMonth(addToDate(month, 1, "M"));
+          }}
+        >
+          ›
+        </button>
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => {
+            setMonth(startOfPeriod(new Date(), "month"));
+          }}
+        >
+          {t("today")}
+        </button>
+      </div>
+      <table className="database-month">
+        <caption className="visually-hidden">{title}</caption>
+        <thead>
+          <tr>
+            {(weeks[0] ?? []).map((day) => (
+              <th key={day.getDay()} scope="col" abbr={weekday("long").format(day)}>
+                {weekday("short").format(day)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {weeks.map((week) => (
+            <tr key={dayKey(week[0] ?? first)}>
+              {week.map((day) => {
+                const key = dayKey(day);
+                const placed = byDay.get(key) ?? [];
+                return (
+                  <td
+                    key={key}
+                    data-outside={day.getMonth() === month.getMonth() ? undefined : ""}
+                    data-today={key === today ? "" : undefined}
+                  >
+                    <span className="database-day" aria-hidden="true">
+                      {day.getDate()}
+                    </span>
+                    <span className="visually-hidden">{fullDate.format(day)}</span>
+                    {placed.length === 0 ? null : (
+                      <ul>
+                        {placed.map((row) => (
+                          <li key={row.id}>
+                            <Title row={row} onOpen={onOpen} />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {onCreate === undefined ? null : (
+                      <button
+                        type="button"
+                        className="quiet database-day-add"
+                        aria-label={t("newOnDay", { date: fullDate.format(day) })}
+                        onClick={() => {
+                          onCreate(key);
+                        }}
+                      >
+                        +
+                      </button>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <Undated rows={undated} onOpen={onOpen} />
+    </div>
+  );
+}
+
+/** How many days a timeline shows, and how far Earlier and Later move it. */
+const span = 42;
+const step = 28;
+
+/**
+ * Rows as bars from their date to their end, on six weeks of days that
+ * Earlier and Later move; a row without an end is a day long.
+ */
+export function TimelineLayout(
+  props: LayoutProps & { readonly dateKey: string; readonly endKey?: string },
+) {
+  const { rows, onOpen, dateKey, endKey } = props;
+  const [start, setStart] = useState(() => addToDate(startOfPeriod(new Date(), "week"), -7, "d"));
+  const end = addToDate(start, span - 1, "d");
+  const undated: Row[] = [];
+  let outside = 0;
+  const bars: { row: Row; from: number; to: number; label: string }[] = [];
+  for (const row of rows) {
+    const first = rowDate(row, dateKey);
+    if (first === undefined) {
+      undated.push(row);
+      continue;
+    }
+    const lastDay = endKey === undefined ? undefined : rowDate(row, endKey);
+    const last = lastDay !== undefined && lastDay > first ? lastDay : first;
+    const from = daysBetween(start, dateOf(first));
+    const to = daysBetween(start, dateOf(last));
+    if (to < 0 || from >= span) {
+      outside++;
+      continue;
+    }
+    const label =
+      first === last
+        ? fullDate.format(dateOf(first))
+        : t("fromTo", { from: fullDate.format(dateOf(first)), to: fullDate.format(dateOf(last)) });
+    bars.push({ row, from: Math.max(0, from), to: Math.min(span - 1, to), label });
+  }
+  const today = daysBetween(start, startOfPeriod(new Date(), "day"));
+  const weekStarts = Array.from({ length: span / 7 }, (_, week) => addToDate(start, week * 7, "d"));
+  const range = t("fromTo", { from: shortDate.format(start), to: shortDate.format(end) });
+  return (
+    <div className="database-timeline">
+      <div className="database-period">
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => {
+            setStart(addToDate(start, -step, "d"));
+          }}
+        >
+          {t("earlier")}
+        </button>
+        <h3 aria-live="polite">{range}</h3>
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => {
+            setStart(addToDate(start, step, "d"));
+          }}
+        >
+          {t("later")}
+        </button>
+        <button
+          type="button"
+          className="quiet"
+          onClick={() => {
+            setStart(addToDate(startOfPeriod(new Date(), "week"), -7, "d"));
+          }}
+        >
+          {t("today")}
+        </button>
+      </div>
+      <div className="database-timeline-grid" style={{ "--days": span } as CSSProperties}>
+        <div className="database-timeline-weeks" aria-hidden="true">
+          {weekStarts.map((week, index) => (
+            <span key={dayKey(week)} style={{ gridColumn: `${String(index * 7 + 2)} / span 7` }}>
+              {shortDate.format(week)}
+            </span>
+          ))}
+          {today >= 0 && today < span ? (
+            <span className="database-timeline-today" style={{ gridColumn: String(today + 2) }} />
+          ) : null}
+        </div>
+        <ul className="database-timeline-rows">
+          {bars.map(({ row, from, to, label }) => (
+            <li key={row.id}>
+              <Title row={row} onOpen={onOpen} />
+              <span
+                className="database-bar"
+                style={{ gridColumn: `${String(from + 2)} / ${String(to + 3)}` }}
+              >
+                <span className="visually-hidden">{label}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {outside === 0 ? null : (
+        <p className="placeholder">{t("outsideTimeline", { count: outside })}</p>
+      )}
+      <Undated rows={undated} onOpen={onOpen} />
     </div>
   );
 }
