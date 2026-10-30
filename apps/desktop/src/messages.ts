@@ -19,6 +19,11 @@ export const messages = {
   noNotes: "This vault has no notes yet.",
   binaryNote: "This file is not UTF-8 text, so Nether leaves it as it is.",
   missingNote: "This note is no longer in the vault.",
+  noteBody: "{title}, note text",
+  emptyNote: "Write something, or type / for blocks",
+  conflict:
+    "Another app changed this note while you were editing it. Your version is kept as {path}.",
+  saveFailed: "The note could not be saved: {error}",
   errorTitle: "Something went wrong",
   dismiss: "Dismiss",
 } as const;

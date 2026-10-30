@@ -277,15 +277,6 @@ button {
   margin-top: 0;
 }
 
-.markdown {
-  margin: 0;
-  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 /* Below this width the notes sit above the note. */
 @media (max-width: 40rem) {
   .vault {
@@ -297,4 +288,271 @@ button {
     border-right: 0;
     border-bottom: 1px solid var(--rule);
   }
+}
+
+/* The editor. */
+.notice {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.nether-editor {
+  min-height: 50vh;
+  outline: none;
+  font-size: 1rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.nether-editor > * + * {
+  margin-top: 0.75em;
+}
+
+.nether-editor p {
+  margin: 0;
+}
+
+.nether-editor h1,
+.nether-editor h2,
+.nether-editor h3,
+.nether-editor h4,
+.nether-editor h5,
+.nether-editor h6 {
+  margin: 1.4em 0 0.4em;
+  line-height: 1.25;
+}
+
+.nether-editor p.is-editor-empty:first-child::before {
+  float: left;
+  height: 0;
+  color: var(--muted);
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.nether-editor ul,
+.nether-editor ol {
+  margin-bottom: 0;
+  padding-left: 1.5rem;
+}
+
+.nether-editor li > ul,
+.nether-editor li > ol {
+  margin-top: 0;
+}
+
+.nether-editor ul[data-type="taskList"] {
+  padding-left: 0.25rem;
+  list-style: none;
+}
+
+.nether-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.nether-editor ul[data-type="taskList"] li > label {
+  flex: none;
+  user-select: none;
+}
+
+.nether-editor ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.nether-editor li[data-checked="true"] > div > p {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.nether-editor blockquote {
+  margin-left: 0;
+  padding-left: 1rem;
+  border-left: 3px solid var(--rule);
+  color: var(--muted);
+}
+
+.nether-editor code {
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--rule);
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+}
+
+.nether-editor pre {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--rule) 60%, transparent);
+  overflow-x: auto;
+}
+
+.nether-editor pre code {
+  padding: 0;
+  background: none;
+}
+
+.nether-editor mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, #f5d547 55%, transparent);
+  color: inherit;
+}
+
+.nether-editor .comment {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.nether-editor a {
+  color: var(--accent);
+}
+
+.nether-editor hr {
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.nether-editor .callout {
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.nether-editor .callout-title {
+  font-weight: 600;
+}
+
+.nether-editor .callout::before {
+  display: block;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  content: attr(data-kind);
+}
+
+.nether-editor table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.nether-editor th,
+.nether-editor td {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.nether-editor th {
+  font-weight: 600;
+}
+
+.nether-editor .columns {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nether-editor .column {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.nether-editor [data-type="details"] {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.nether-editor [data-type="details"] > button {
+  flex: none;
+  width: 1.25rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.nether-editor [data-type="details"] > button::before {
+  content: "▸";
+}
+
+.nether-editor [data-type="details"].is-open > button::before {
+  content: "▾";
+}
+
+.nether-editor [data-type="details"] > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.nether-editor [data-type="details"] summary {
+  font-weight: 600;
+  list-style: none;
+}
+
+.nether-editor .chip {
+  padding: 0 0.25em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+}
+
+.nether-editor .chip-rawInline,
+.nether-editor .chip-mathInline {
+  background: var(--rule);
+  color: var(--text);
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+}
+
+.nether-editor .card,
+.nether-editor .math-block {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+.nether-editor .card::before {
+  font-weight: 600;
+  content: attr(data-type) " ";
+}
+
+.nether-editor .card-file::before {
+  content: "File " attr(data-src);
+}
+
+.nether-editor .card-embed::before {
+  content: "Embed " attr(data-target);
+}
+
+.nether-editor .card-bookmark::before {
+  content: attr(data-url);
+}
+
+.nether-editor .card-rawBlock::before {
+  content: attr(data-text);
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  font-weight: 400;
+}
+
+.nether-editor .math-block {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+.nether-editor img.image {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.nether-editor .ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

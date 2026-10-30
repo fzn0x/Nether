@@ -19,6 +19,8 @@
   "dependencies": {
     "@mygo-plugins/sqlite": "0.6.2",
     "@nether/core": "workspace:*",
+    "@nether/editor": "workspace:*",
+    "@nether/markdown": "workspace:*",
     "@nether/storage": "workspace:*",
     "mygo-runtime": "0.6.2",
     "react": "^19.3.1",

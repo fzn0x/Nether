@@ -1,52 +1,16 @@
-// An open vault: its notes on the left, the selected note on the right. The
-// note shows as its Markdown until the editor arrives.
+// An open vault: its notes on the left, the selected note in the editor on
+// the right.
 import type { NoteId } from "@nether/core";
-import type { FileText, Vault } from "@nether/storage";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { NoteList } from "./NoteList.tsx";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
-function NoteView(props: { readonly vault: Vault; readonly id: NoteId }) {
-  const { vault, id } = props;
-  const [text, setText] = useState<FileText | Error | undefined>();
-  const note = vault.note(id);
-  const modified = note?.modified;
-
-  useEffect(() => {
-    let current = true;
-    setText(undefined);
-    vault.read(id).then(
-      (read) => {
-        if (current) setText(read);
-      },
-      (error: unknown) => {
-        if (current) setText(error instanceof Error ? error : new Error(String(error)));
-      },
-    );
-    return () => {
-      current = false;
-    };
-    // Read again when another app changes the file.
-  }, [vault, id, modified]);
-
-  if (note === undefined) return <p className="placeholder">{t("missingNote")}</p>;
-  return (
-    <article className="note" aria-labelledby="note-title">
-      <h1 id="note-title">{note.title}</h1>
-      {text instanceof Error ? (
-        <p role="alert">{text.message}</p>
-      ) : text?.binary === true ? (
-        <p className="placeholder">{t("binaryNote")}</p>
-      ) : text?.missing === true ? (
-        <p className="placeholder">{t("missingNote")}</p>
-      ) : (
-        <pre className="markdown">{text?.text}</pre>
-      )}
-    </article>
-  );
-}
+// The editor and the Markdown parser load on their own, so the vault's notes
+// show while they do.
+const loadNoteView = () => import("./NoteView.tsx");
+const NoteView = lazy(loadNoteView);
 
 const numbers = new Intl.NumberFormat();
 
@@ -56,6 +20,11 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const vault = state.status === "open" ? state.vault : undefined;
   const notes = useNotes(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
+
+  useEffect(() => {
+    // Start loading the editor as the vault opens, before a note is picked.
+    void loadNoteView();
+  }, []);
 
   return (
     <div className="vault">
@@ -87,7 +56,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       </aside>
       <main className="pane">
         {vault !== undefined && selected !== undefined ? (
-          <NoteView vault={vault} id={selected} />
+          <Suspense fallback={null}>
+            <NoteView vault={vault} id={selected} />
+          </Suspense>
         ) : (
           <p className="placeholder">{t("selectNote")}</p>
         )}
