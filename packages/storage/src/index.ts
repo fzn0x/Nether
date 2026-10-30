@@ -34,6 +34,13 @@ export {
   matchStart,
 } from "./store.ts";
 export {
+  type TrashItem,
+  defaultKeepDays,
+  numberedPath,
+  readTrashRecord,
+  trashFolder,
+} from "./trash.ts";
+export {
   type NoteDocuments,
   type NoteEntry,
   type NoteIndexes,

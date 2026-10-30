@@ -14,6 +14,14 @@ import {
 } from "./files.ts";
 import { LinkIndex } from "./links.ts";
 import type { FileRecord, IndexChange, IndexStore } from "./store.ts";
+import {
+  type TrashItem,
+  type TrashRecord,
+  isKeepDays,
+  numberedPath,
+  readTrashRecord,
+  trashFolder,
+} from "./trash.ts";
 
 /** A note in the vault. */
 export interface NoteEntry {
@@ -44,7 +52,14 @@ export type NoteIndexes = Pick<
 export interface VaultOptions {
   /** Makes the ID of a note seen for the first time; a UUID version 7 by default. */
   readonly newId?: () => NoteId;
+  /** The time, in milliseconds since 1970, as the trash records it; the system's by default. */
+  readonly now?: () => number;
 }
+
+const dayLength = 86_400_000;
+
+/** Where the vault records its trash, in `.nether`. */
+const trashData = "trash";
 
 /** Sorts as a file explorer does: case aside, and numbers by their value. */
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -77,6 +92,7 @@ export class Vault {
   readonly #files: VaultFiles;
   readonly #store: IndexStore;
   readonly #newId: () => NoteId;
+  readonly #now: () => number;
   readonly #records = new Map<string, FileRecord>();
   readonly #paths = new Map<NoteId, string>();
   readonly #listeners = new Set<() => void>();
@@ -88,6 +104,7 @@ export class Vault {
     this.#files = files;
     this.#store = store;
     this.#newId = options.newId ?? newNoteId;
+    this.#now = options.now ?? Date.now;
   }
 
   /** Where the vault keeps its notes' documents. */
@@ -333,7 +350,7 @@ export class Vault {
     return this.note(id) ?? this.#fail(path);
   }
 
-  /** Moves a note to the vault's trash and returns where it went. */
+  /** Moves a note to the vault's trash, recording where it was, and returns where it went. */
   remove(id: NoteId): Promise<string> {
     return this.#serial(() => this.#remove(id));
   }
@@ -342,7 +359,160 @@ export class Vault {
     const path = this.#need(id);
     const where = await this.#files.remove(path);
     await this.#commit({ remove: [path] });
+    const record = readTrashRecord(await this.readData(trashData));
+    await this.writeData(trashData, {
+      ...record,
+      items: [
+        ...record.items.filter((item) => item.path !== where),
+        { path: where, from: path, deleted: this.#now(), note: id },
+      ],
+    });
     return where;
+  }
+
+  /**
+   * The files in the vault's trash, the latest first. A file another app
+   * put there is recorded as gone when the vault first finds it.
+   */
+  trash(): Promise<readonly TrashItem[]> {
+    return this.#serial(async () =>
+      [...(await this.#trashRecord()).items].sort((a, b) => b.deleted - a.deleted),
+    );
+  }
+
+  /**
+   * Puts a file in the trash back where it was, or beside it under a free
+   * name when a file is there now, and returns where it went. A note is the
+   * same note again, with its ID and its document.
+   */
+  restore(path: string): Promise<string> {
+    return this.#serial(async () => {
+      const record = await this.#trashRecord();
+      const item = record.items.find((entry) => entry.path === path);
+      if (item === undefined) throw new Error(`${path} is not in the trash.`);
+      const target = await this.#freePath(item.from);
+      const info = await this.#files.rename(path, target);
+      const note = isNotePath(target)
+        ? item.note !== undefined && !this.#paths.has(item.note)
+          ? item.note
+          : this.#newId()
+        : undefined;
+      await this.#commit({
+        upsert: [
+          {
+            path: target,
+            ...(note === undefined ? {} : { note }),
+            size: info.size,
+            modified: info.modified,
+          },
+        ],
+      });
+      await this.writeData(trashData, {
+        ...record,
+        items: record.items.filter((entry) => entry !== item),
+      });
+      return target;
+    });
+  }
+
+  /** Deletes a file in the trash for good, and the document of the note it was. */
+  erase(path: string): Promise<void> {
+    return this.#serial(async () => {
+      const record = await this.#trashRecord();
+      const item = record.items.find((entry) => entry.path === path);
+      if (item === undefined) throw new Error(`${path} is not in the trash.`);
+      await this.#erase(record, [item]);
+    });
+  }
+
+  /**
+   * Deletes for good every file in the trash, or those that went there
+   * before a time, in milliseconds since 1970; returns how many.
+   */
+  emptyTrash(before?: number): Promise<number> {
+    return this.#serial(async () => {
+      const record = await this.#trashRecord();
+      const items = record.items.filter((item) => before === undefined || item.deleted < before);
+      await this.#erase(record, items);
+      return items.length;
+    });
+  }
+
+  /** Deletes for good what has been in the trash longer than the vault keeps it; returns how many. */
+  async purgeTrash(): Promise<number> {
+    const days = await this.trashDays();
+    return this.emptyTrash(this.#now() - days * dayLength);
+  }
+
+  /** How many days a file stays in the trash before it is deleted for good: 30 unless set. */
+  async trashDays(): Promise<number> {
+    return readTrashRecord(await this.readData(trashData)).keepDays;
+  }
+
+  /** Sets how many days a file stays in the trash, a whole number from 1. */
+  setTrashDays(days: number): Promise<void> {
+    if (!isKeepDays(days)) {
+      return Promise.reject(
+        new Error(`${String(days)} is not a number of days to keep the trash.`),
+      );
+    }
+    return this.#serial(async () => {
+      const record = readTrashRecord(await this.readData(trashData));
+      await this.writeData(trashData, { ...record, keepDays: days });
+    });
+  }
+
+  /** The trash's record, brought in line with the files the trash holds. */
+  async #trashRecord(): Promise<TrashRecord> {
+    const record = readTrashRecord(await this.readData(trashData));
+    const files: FileInfo[] = [];
+    await this.#files.list(trashFolder, (batch) => {
+      files.push(...batch);
+    });
+    const known = new Map(record.items.map((item) => [item.path, item]));
+    const items = files.map(
+      (file): TrashItem =>
+        known.get(file.path) ?? {
+          path: file.path,
+          from: file.path.slice(trashFolder.length + 1),
+          deleted: this.#now(),
+        },
+    );
+    const next = { ...record, items };
+    if (items.length !== record.items.length || items.some((item) => !known.has(item.path))) {
+      await this.writeData(trashData, next);
+    }
+    return next;
+  }
+
+  async #erase(record: TrashRecord, items: readonly TrashItem[]): Promise<void> {
+    const gone = new Set<TrashItem>();
+    try {
+      for (const item of items) {
+        await this.#files.erase(item.path);
+        gone.add(item);
+        // A note restored from another copy keeps its document.
+        if (item.note !== undefined && !this.#paths.has(item.note)) {
+          await this.#store.deleteDocument(item.note);
+        }
+      }
+    } finally {
+      if (gone.size > 0) {
+        await this.writeData(trashData, {
+          ...record,
+          items: record.items.filter((item) => !gone.has(item)),
+        });
+      }
+    }
+  }
+
+  /** The path itself when nothing is there, else the first free one like it, `name 2.md` and on. */
+  async #freePath(path: string): Promise<string> {
+    for (let n = 1; ; n++) {
+      const candidate = numberedPath(path, n);
+      if (this.#records.has(candidate)) continue;
+      if ((await this.#files.stat([candidate])).length === 0) return candidate;
+    }
   }
 
   /** Brings the index in line with the folder, or one folder in it. */
