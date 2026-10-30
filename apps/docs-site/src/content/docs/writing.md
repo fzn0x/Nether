@@ -116,6 +116,13 @@ exact bytes, so a note you also edit in another app, or keep in Git, shows
 only your real changes. See [Your notes as Markdown](../markdown/) for the
 syntax Nether reads and writes.
 
-If another app changes a note while you are editing it, Nether does not
-overwrite that change: your version is saved beside it, as
-`Note (conflict 2026-10-30 153000).md`, and the note shows what is on disk.
+Every change you make is kept in the vault's index on your computer as
+you type, before it is written to the file, so a crash or a power cut
+loses nothing.
+
+If another app changes a note, whether Nether is open or not, Nether
+merges that change into the note: what the other app changed and what
+you typed meanwhile both stay, even in the same paragraph. A paragraph
+both of you rewrote keeps both versions, one after the other, for you to
+choose between. Sync your vault with one tool only, Nether's own sync or
+another, so that no change arrives twice.
