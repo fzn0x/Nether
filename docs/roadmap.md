@@ -54,6 +54,9 @@ what was deferred and the plan for Phase 1.
 
 ## Phase 1: Local-first notes
 
+Done on 2026-10-31; the [report](reports/phase-1.md) says what shipped,
+what was deferred and the plan for Phase 2.
+
 The Obsidian core, one feature per pull request, in this order:
 
 - [x] `packages/markdown`: Markdown to and from Nether's notes, with Obsidian's syntax and a round trip that keeps unchanged blocks byte for byte ([ADR 0006](adr/0006-markdown-file-format.md))
@@ -73,3 +76,23 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] Previews of web links, fetched only when asked
 - [x] The desktop packages: AppImage, deb and Flatpak on Linux, and updates that can be turned off (they start once a maintainer adds the update key)
 - [x] The performance harness on the reference vault, which the gate runs ([tools/perf](../tools/perf/), [ADR 0014](adr/0014-load-a-vaults-links-lean-and-after-its-note.md))
+- [x] Accessibility: every screen checked against WCAG 2.2 AA in the end-to-end tests, and the layout right to left ([ADR 0015](adr/0015-check-accessibility-and-lay-out-by-direction.md))
+
+## Phase 2: Databases and structure
+
+The Notion core, one feature per pull request, in this order:
+
+- [ ] The desktop app's start, memory and pickup measured in CI, on Windows (carried over from Phase 1)
+- [ ] `packages/database`: a database as a note with a schema, its rows as notes with properties, and how both are stored as Markdown and frontmatter
+- [ ] The table view, with each view's filters, sorts, grouping and visible properties
+- [ ] The board, list and gallery views
+- [ ] The calendar and timeline views
+- [ ] Relations between databases, both ways, and rollups
+- [ ] Formulas: a documented, sandboxed expression language
+- [ ] Query blocks: a live table or list of the notes a folder, tag or property finds
+- [ ] Databases exported to CSV
+- [ ] Synced blocks: one block embedded in several notes, the same everywhere
+- [ ] Unlinked mentions, each made a link in one click
+- [ ] The graph view, global and local, filtered by tag, folder and property, smooth at 10,000 notes
+- [ ] Themes and CSS snippets
+- [ ] Importers: Obsidian vaults, Notion exports, Logseq, plain Markdown, HTML and CSV
