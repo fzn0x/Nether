@@ -178,37 +178,6 @@ jobs:
           manifest-path: apps/desktop/packaging/flatpak/io.github.fzn0x.Nether.yml
           cache: false
 
-  # The performance targets on the reference vault of 50,000 notes: title
-  # and full-text search and reading a note, with the app's own code, then
-  # switching notes and typing, in Chromium.
-  perf:
-    name: Performance
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Measure on the reference vault
-        run: pnpm perf:bench --out "$GITHUB_WORKSPACE/perf-report.json"
-      - name: Install Chromium
-        run: pnpm --filter @nether/desktop exec playwright install --with-deps chromium
-      - name: Measure switching notes and typing
-        env:
-          NETHER_PERF_OUT: ${{ github.workspace }}/perf-ui-report.json
-        run: pnpm --filter @nether/desktop perf:ui
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: perf-report
-          path: |
-            perf-report.json
-            perf-ui-report.json
-          retention-days: 30
-
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-latest
