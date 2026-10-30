@@ -386,7 +386,8 @@ export const NetherTable = Table.extend({
   },
 });
 
-const lowlight = createLowlight(common);
+/** The languages code blocks are highlighted in: lowlight's common ones. */
+export const lowlight = createLowlight(common);
 
 /** The language of a code fence's info string, such as `ts` in `ts title="a.ts"`. */
 export function codeLanguage(info: string): string {
