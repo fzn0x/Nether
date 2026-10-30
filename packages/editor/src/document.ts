@@ -2,7 +2,7 @@
 // blocks read out, and blocks written in as the few edits Yjs needs, so
 // an edit merged from the note's file joins the edits made meanwhile in
 // the app, character by character.
-import type { BlockId, ContentBlock } from "@nether/core";
+import type { BlockId, ContentBlock, JsonValue, PropertyEntry } from "@nether/core";
 import { getSchema } from "@tiptap/core";
 import type { Schema } from "@tiptap/pm/model";
 import { updateYFragment, yXmlFragmentToProseMirrorRootNode } from "@tiptap/y-tiptap";
@@ -55,4 +55,39 @@ export function setDocumentBlocks(
     mapping: new Map(),
     isOMark: new Map(),
   });
+}
+
+/** The parts of a note's document that hold its properties: each key's value, and the keys' order. */
+export const propertiesField = "properties";
+export const propertyOrderField = "propertyOrder";
+
+/** A note's properties as its document holds them, in their order; keys not ordered go last, sorted. */
+export function documentProperties(document: Y.Doc): PropertyEntry[] {
+  const values = document.getMap<JsonValue>(propertiesField);
+  const order = document.getArray<string>(propertyOrderField).toArray();
+  const ordered = order.filter((key, index) => values.has(key) && order.indexOf(key) === index);
+  const rest = [...values.keys()].filter((key) => !ordered.includes(key)).sort();
+  return [...ordered, ...rest].map((key) => ({ key, value: values.get(key) ?? null }));
+}
+
+/** Changes a note's document to hold `entries` as its properties, changing only the keys that differ. */
+export function setDocumentProperties(
+  document: Y.Doc,
+  entries: readonly PropertyEntry[],
+  origin?: unknown,
+): void {
+  document.transact(() => {
+    const values = document.getMap<JsonValue>(propertiesField);
+    const wanted = new Map(entries.map((entry) => [entry.key, entry.value]));
+    for (const key of [...values.keys()]) if (!wanted.has(key)) values.delete(key);
+    for (const { key, value } of entries) {
+      if (JSON.stringify(values.get(key)) !== JSON.stringify(value)) values.set(key, value);
+    }
+    const order = document.getArray<string>(propertyOrderField);
+    const keys = entries.map((entry) => entry.key);
+    if (JSON.stringify(order.toArray()) !== JSON.stringify(keys)) {
+      order.delete(0, order.length);
+      order.insert(0, keys);
+    }
+  }, origin);
 }

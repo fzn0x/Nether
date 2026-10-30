@@ -2,10 +2,16 @@
 // A note's Yjs document: blocks in and out unchanged, and blocks written in
 // as small edits, so changes made to two copies of a note merge, even two
 // changes to one paragraph.
-import type { BlockId, ContentBlock } from "@nether/core";
+import type { BlockId, ContentBlock, PropertyEntry } from "@nether/core";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { documentBlocks, isEmptyDocument, setDocumentBlocks } from "../src/document.ts";
+import {
+  documentBlocks,
+  documentProperties,
+  isEmptyDocument,
+  setDocumentBlocks,
+  setDocumentProperties,
+} from "../src/document.ts";
 
 const newId = () => "new" as BlockId;
 const paragraph = (id: string, text: string): ContentBlock => ({
@@ -112,5 +118,32 @@ describe("a note's document", () => {
     setDocumentBlocks(theirs, [paragraph("a", "middle end")]);
     exchange(mine, theirs);
     expect(documentBlocks(mine, newId)).toEqual([paragraph("a", "start middle end")]);
+  });
+});
+
+describe("a note's properties in its document", () => {
+  const entry = (key: string, value: unknown) => ({ key, value }) as PropertyEntry;
+
+  it("holds them in order and gives them back", () => {
+    const document = new Y.Doc();
+    expect(documentProperties(document)).toEqual([]);
+    const properties = [entry("status", "done"), entry("tags", ["a", "b"]), entry("count", 3)];
+    setDocumentProperties(document, properties);
+    expect(documentProperties(document)).toEqual(properties);
+    setDocumentProperties(document, [entry("count", 4), entry("status", "done")]);
+    expect(documentProperties(document)).toEqual([entry("count", 4), entry("status", "done")]);
+  });
+
+  it("merges two copies' changes to different keys", () => {
+    const mine = new Y.Doc();
+    setDocumentProperties(mine, [entry("a", 1), entry("b", 2)]);
+    const theirs = new Y.Doc();
+    Y.applyUpdate(theirs, Y.encodeStateAsUpdate(mine));
+    setDocumentProperties(mine, [entry("a", 10), entry("b", 2)]);
+    setDocumentProperties(theirs, [entry("a", 1), entry("b", 20)]);
+    exchange(mine, theirs);
+    const merged = documentProperties(mine);
+    expect(documentProperties(theirs)).toEqual(merged);
+    expect(merged).toEqual([entry("a", 10), entry("b", 20)]);
   });
 });
