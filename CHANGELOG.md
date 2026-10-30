@@ -33,5 +33,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the start of a line into blocks, and save back to their Markdown files as
   you type, rewriting only the blocks you changed. An edit that meets a
   change another app made is kept in a conflict copy beside the note.
+- Rich blocks in the editor: a slash menu inserts any block; a handle beside
+  each block drags it, or opens a menu that turns it into another type,
+  moves, duplicates or deletes it, with a shortcut for each; math renders
+  with KaTeX, code is highlighted, and Mermaid diagrams are drawn below their
+  code, without the ELK layout, whose license is not compatible
+  ([ADR 0009](docs/adr/0009-math-code-and-diagrams.md)).
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main
