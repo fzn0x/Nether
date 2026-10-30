@@ -360,6 +360,14 @@ button {
   margin: 0;
 }
 
+/* A paragraph after a block stands apart from it, as the blocks do. */
+.nether-editor > * + p,
+.nether-editor blockquote > * + p,
+.nether-editor .callout > * + p,
+.nether-editor .column > * + p {
+  margin-top: 0.75em;
+}
+
 .nether-editor h1,
 .nether-editor h2,
 .nether-editor h3,
