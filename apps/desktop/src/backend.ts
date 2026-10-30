@@ -14,7 +14,7 @@ import {
   type VaultFiles,
 } from "@nether/storage";
 import { Channel, isCallError, isMyGo } from "mygo-runtime";
-import { type VaultInfo, Vaults } from "./mygo.ts";
+import { type ExportEntry, Exports, type PDFPage, type VaultInfo, Vaults } from "./mygo.ts";
 import { sampleVault } from "./sample.ts";
 
 /** Where the page loads a vault's files from, and how it hands them to the system's apps. */
@@ -27,10 +27,29 @@ export interface VaultMedia {
   readonly reveal?: (path: string) => Promise<void>;
 }
 
+/**
+ * Where exports go: a file the user chooses, in the desktop app, or a
+ * record the end-to-end tests read, in the preview.
+ */
+export interface Exporter {
+  /** Asks where to save an export of the vault; undefined when the user cancels. */
+  choose(name: string, kind: "zip" | "pdf"): Promise<string | undefined>;
+  /** Adds files to a ZIP: text the page made, or a file of the vault by its path. */
+  add(token: string, entries: readonly ExportEntry[]): Promise<void>;
+  /** Completes a ZIP and returns where it was saved. */
+  finish(token: string): Promise<string>;
+  /** Prints the page, as its print styles lay it out, as the PDF, and returns where it was saved. */
+  printPdf(token: string, page: PDFPage): Promise<string>;
+  cancel(token: string): Promise<void>;
+  /** Shows a saved export in the system's file manager, where there is one. */
+  readonly reveal?: (path: string) => Promise<void>;
+}
+
 export interface Connection {
   readonly files: VaultFiles;
   readonly store: IndexStore;
   readonly media: VaultMedia;
+  readonly exporter: Exporter;
 }
 
 /** A path's segments escaped for a URL, its slashes kept. */
@@ -141,7 +160,18 @@ const desktop: Backend = {
       open: (path) => Vaults.openFile(vault.id, path),
       reveal: (path) => Vaults.showFile(vault.id, path),
     };
-    return { files: new DesktopFiles(vault.id), store, media };
+    const exporter: Exporter = {
+      async choose(name, kind) {
+        const token = await Exports.choose(vault.id, name, kind);
+        return token === "" ? undefined : token;
+      },
+      add: (token, entries) => Exports.add(token, [...entries]),
+      finish: (token) => Exports.finish(token),
+      printPdf: (token, page) => Exports.printPDF(token, page),
+      cancel: (token) => Exports.cancel(token),
+      reveal: (path) => Exports.reveal(path),
+    };
+    return { files: new DesktopFiles(vault.id), store, media, exporter };
   },
 };
 
@@ -171,6 +201,58 @@ function memoryMedia(files: MemoryFiles): VaultMedia {
   };
 }
 
+/** An export as the preview keeps it, for the end-to-end tests to read. */
+export interface PreviewExport {
+  readonly name: string;
+  readonly kind: "zip" | "pdf";
+  readonly entries: ExportEntry[];
+  /** For a PDF, the page's print view when it was printed. */
+  html?: string;
+  page?: PDFPage;
+  saved?: string;
+}
+
+/** Exports kept in memory, in the order they were made. */
+function memoryExporter(exports: PreviewExport[]): Exporter {
+  const open = new Map<string, PreviewExport>();
+  const take = (token: string) => {
+    const item = open.get(token);
+    if (item === undefined) throw new Error(`No export is open as ${token}.`);
+    return item;
+  };
+  return {
+    choose(name, kind) {
+      const token = String(exports.length + open.size + 1);
+      open.set(token, { name, kind, entries: [] });
+      return Promise.resolve(token);
+    },
+    add(token, entries) {
+      take(token).entries.push(...entries);
+      return Promise.resolve();
+    },
+    finish(token) {
+      const item = take(token);
+      open.delete(token);
+      item.saved = `${item.name}.zip`;
+      exports.push(item);
+      return Promise.resolve(item.saved);
+    },
+    printPdf(token, page) {
+      const item = take(token);
+      open.delete(token);
+      item.html = document.getElementById("print-root")?.innerHTML ?? "";
+      item.page = page;
+      item.saved = `${item.name}.pdf`;
+      exports.push(item);
+      return Promise.resolve(item.saved);
+    },
+    cancel(token) {
+      open.delete(token);
+      return Promise.resolve();
+    },
+  };
+}
+
 const sample: VaultInfo = {
   id: "01929f4c-7b00-7a00-8000-0000000000aa",
   name: "Sample vault",
@@ -186,9 +268,17 @@ const preview: Backend = {
   forget: () => Promise.resolve(),
   connect() {
     const files = new MemoryFiles(sampleVault);
-    // The end-to-end tests change the sample's files as another app would.
-    (globalThis as { netherPreview?: { files: MemoryFiles } }).netherPreview = { files };
-    return Promise.resolve({ files, store: new MemoryStore(), media: memoryMedia(files) });
+    const exports: PreviewExport[] = [];
+    // The end-to-end tests change the sample's files as another app would, and read its exports.
+    (
+      globalThis as { netherPreview?: { files: MemoryFiles; exports: PreviewExport[] } }
+    ).netherPreview = { files, exports };
+    return Promise.resolve({
+      files,
+      store: new MemoryStore(),
+      media: memoryMedia(files),
+      exporter: memoryExporter(exports),
+    });
   },
 };
 

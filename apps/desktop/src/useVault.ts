@@ -3,7 +3,7 @@
 // its notes change.
 import { type NoteEntry, Vault } from "@nether/storage";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { type VaultMedia, backend } from "./backend.ts";
+import { type Exporter, type VaultMedia, backend } from "./backend.ts";
 import { Indexer } from "./indexer.ts";
 import type { VaultInfo } from "./mygo.ts";
 
@@ -13,6 +13,8 @@ export type VaultState =
       readonly status: "open";
       readonly vault: Vault;
       readonly media: VaultMedia;
+      /** Where the vault's exports go. */
+      readonly exporter: Exporter;
       /** The vault's link index, which reads notes in the background. */
       readonly indexer: Indexer;
     }
@@ -29,7 +31,7 @@ export function useVault(info: VaultInfo): VaultState {
     let indexer: Indexer | undefined;
     void (async () => {
       try {
-        const { files, store, media } = await backend.connect(info);
+        const { files, store, media, exporter } = await backend.connect(info);
         closeStore = () => store.close();
         if (aborted()) {
           await store.close();
@@ -44,7 +46,7 @@ export function useVault(info: VaultInfo): VaultState {
         );
         await indexer.start();
         if (aborted()) return;
-        setState({ status: "open", vault, media, indexer });
+        setState({ status: "open", vault, media, exporter, indexer });
         // What has been in the trash too long goes; what cannot is tried again next time.
         vault.purgeTrash().catch(() => undefined);
         await vault.watch(controller.signal);
