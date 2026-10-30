@@ -5,6 +5,7 @@
 import { type ContentBlock, newBlockId } from "@nether/core";
 import Collaboration from "@tiptap/extension-collaboration";
 import { Placeholder } from "@tiptap/extensions";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useMemo, useRef } from "react";
 import { BlockKeys } from "./actions.ts";
@@ -45,6 +46,33 @@ export interface NoteEditorProps {
   readonly files?: NoteFiles;
   /** Suggests the notes `[[` links to, and opens the note a link names. */
   readonly links?: NoteLinks;
+  /** Whether the note can be edited; read only, it shows no menus or handles. */
+  readonly editable?: boolean;
+  /**
+   * A heading or block to go to, as a link to a part of the note asks: the
+   * caret goes there and it scrolls into view. A new `key` goes again.
+   */
+  readonly focus?: { readonly heading?: string; readonly block?: string; readonly key: number };
+}
+
+/** Where in a note a heading, case and spaces aside, or a block by its ID, starts. */
+function findPart(
+  doc: ProseMirrorNode,
+  part: { readonly heading?: string; readonly block?: string },
+): number | undefined {
+  const heading = part.heading?.trim().replace(/\s+/g, " ").toLowerCase();
+  let found: number | undefined;
+  doc.descendants((node, pos) => {
+    if (found !== undefined) return false;
+    const byBlock = part.block !== undefined && node.attrs.id === part.block;
+    const byHeading =
+      heading !== undefined &&
+      node.type.name === "heading" &&
+      node.textContent.trim().replace(/\s+/g, " ").toLowerCase() === heading;
+    if (byBlock || byHeading) found = pos + 1;
+    return true;
+  });
+  return found;
 }
 
 export function NoteEditor(props: NoteEditorProps) {
@@ -58,6 +86,8 @@ export function NoteEditor(props: NoteEditorProps) {
     words = englishWords,
     files,
     links,
+    editable = true,
+    focus,
   } = props;
   // The latest callback, so the editor need not be made again when it changes.
   const changed = useRef(onChange);
@@ -70,7 +100,7 @@ export function NoteEditor(props: NoteEditorProps) {
   const editor = useEditor({
     extensions: [
       ...netherExtensions({
-        nodeViews: netherNodeViews(words, files),
+        nodeViews: netherNodeViews(words, files, links),
         history: document === undefined,
       }),
       ...(document === undefined
@@ -84,6 +114,7 @@ export function NoteEditor(props: NoteEditorProps) {
     ],
     ...(document === undefined ? { content: toEditor(blocks) } : {}),
     autofocus,
+    editable,
     editorProps: {
       attributes: {
         class: "nether-editor",
@@ -105,10 +136,20 @@ export function NoteEditor(props: NoteEditorProps) {
     },
   });
 
+  // Goes to the heading or block a link names.
+  const focusKey = focus?.key;
+  useEffect(() => {
+    if (focus === undefined) return;
+    const position = findPart(editor.state.doc, focus);
+    if (position === undefined) return;
+    editor.chain().focus().setTextSelection(position).scrollIntoView().run();
+    // A new key, not a new object, asks to go again.
+  }, [editor, focusKey]);
+
   return (
     <div className="note-editor">
       <EditorContent editor={editor} />
-      <BlockHandle editor={editor} commands={commands} words={words} />
+      {editable ? <BlockHandle editor={editor} commands={commands} words={words} /> : null}
     </div>
   );
 }

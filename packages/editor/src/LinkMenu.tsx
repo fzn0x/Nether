@@ -1,8 +1,10 @@
 // Links between notes in the editor: `[[` opens a menu of the notes, and
 // their headings after `#`, that the app finds for what is typed; a link
-// opens its note on a click, or on Enter when it is selected.
-import type { LinkTarget } from "@nether/core";
+// opens its note, and a tag the notes with it, on a click, or on Enter
+// when it is selected.
+import type { ContentBlock, LinkTarget } from "@nether/core";
 import { type Editor, Extension, type Range } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 import Suggestion from "@tiptap/suggestion";
 import { popupMenu } from "./PopupMenu.tsx";
@@ -26,6 +28,15 @@ export interface NoteLinks {
   suggest(query: string): readonly LinkSuggestion[];
   /** Opens what a link names, making the note first when the vault has none by that name. */
   open(target: LinkTarget): void;
+  /** Shows the notes with a tag, as a tag in a note does when clicked. */
+  openTag?(name: string): void;
+  /**
+   * The note, or the part of one, an embed names, with its title, for the
+   * embed to show; undefined when the vault has no such note or part.
+   */
+  embed?(
+    target: LinkTarget,
+  ): Promise<{ readonly title: string; readonly blocks: readonly ContentBlock[] } | undefined>;
 }
 
 export interface LinkMenuOptions {
@@ -35,13 +46,23 @@ export interface LinkMenuOptions {
 
 export const linkMenuKey = new PluginKey("linkMenu");
 
-/** Opens a selected link with Enter, as a click does. */
+/** Opens what a link or tag names; false for other nodes. */
+function openNode(node: ProseMirrorNode, links: NoteLinks): boolean {
+  if (node.type.name === "wikiLink") {
+    links.open(node.attrs.target as LinkTarget);
+    return true;
+  }
+  if (node.type.name === "tag" && links.openTag !== undefined) {
+    links.openTag(String(node.attrs.name));
+    return true;
+  }
+  return false;
+}
+
+/** Opens a selected link or tag with Enter, as a click does. */
 function openSelected(editor: Editor, links: NoteLinks): boolean {
   const { selection } = editor.state;
-  if (!(selection instanceof NodeSelection) || selection.node.type.name !== "wikiLink")
-    return false;
-  links.open(selection.node.attrs.target as LinkTarget);
-  return true;
+  return selection instanceof NodeSelection && openNode(selection.node, links);
 }
 
 export const LinkMenu = Extension.create<LinkMenuOptions>({
@@ -102,11 +123,7 @@ export const LinkMenu = Extension.create<LinkMenuOptions>({
       new Plugin({
         key: new PluginKey("linkClicks"),
         props: {
-          handleClickOn: (_view, _pos, node) => {
-            if (node.type.name !== "wikiLink") return false;
-            links.open(node.attrs.target as LinkTarget);
-            return true;
-          },
+          handleClickOn: (_view, _pos, node) => openNode(node, links),
         },
       }),
     ];

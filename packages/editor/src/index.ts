@@ -49,6 +49,7 @@ export {
   linkMenuKey,
 } from "./LinkMenu.tsx";
 export { netherNodeViews } from "./views.tsx";
+export { type EmbeddedNote, NoteEmbed, embedDepth } from "./NoteEmbed.tsx";
 export {
   type BuiltInBlock,
   type CommandWords,

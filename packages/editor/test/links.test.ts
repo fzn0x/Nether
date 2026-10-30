@@ -72,6 +72,24 @@ describe("links in the editor", () => {
     expect(editor.getText()).toContain("[[ ]]");
   });
 
+  it("shows the notes with a tag when a tag is clicked", () => {
+    const tags: string[] = [];
+    const editor = editorWith({
+      suggest: () => [],
+      open: () => undefined,
+      openTag: (name) => tags.push(name),
+    });
+    editor.commands.setContent({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "tag", attrs: { name: "area/work" } }] }],
+    });
+    const node = editor.state.doc.nodeAt(1);
+    editor.view.someProp("handleClickOn", (handle) =>
+      node === null ? false : handle(editor.view, 1, node, 1, new MouseEvent("click"), true),
+    );
+    expect(tags).toEqual(["area/work"]);
+  });
+
   it("opens a link's note on a click, or on Enter when it is selected", () => {
     const opened: LinkTarget[] = [];
     const editor = editorWith({ suggest: () => [], open: (target) => opened.push(target) });

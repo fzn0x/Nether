@@ -3,6 +3,7 @@
 // app finds the file a link names and gives the URL it loads from; links
 // to web pages load as they are.
 import { NodeSelection } from "@tiptap/pm/state";
+import type { LinkTarget } from "@nether/core";
 import { type NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import { type ChangeEvent, type KeyboardEvent, type ReactNode, useRef, useState } from "react";
 import {
@@ -15,6 +16,8 @@ import {
   isWebLink,
   markdownPath,
 } from "./files.ts";
+import type { NoteLinks } from "./LinkMenu.tsx";
+import { NoteEmbed, embedDepth } from "./NoteEmbed.tsx";
 import type { EditorWords } from "./words.ts";
 
 interface FileProps {
@@ -236,6 +239,9 @@ function Choose(
 interface ViewProps extends NodeViewProps {
   readonly words: EditorWords;
   readonly files: NoteFiles | undefined;
+  readonly links?: NoteLinks | undefined;
+  /** How many embeds deep this note is shown. */
+  readonly depth?: number;
 }
 
 /** An image block, `![alt|300](photo.png "title")`. */
@@ -307,14 +313,29 @@ function targetLink(target: unknown): string {
 }
 
 /**
- * An embed, `![[photo.png|300]]`: a file shown as what it is. A note or a
- * part of one shows as a card until notes can be embedded.
+ * An embed, `![[photo.png|300]]`: a file shown as what it is, or a note or
+ * a part of one, `![[Note#Heading]]`, shown read only, a level or two deep.
  */
 export function EmbedView(props: ViewProps) {
   const { node, words, files } = props;
   const link = targetLink(node.attrs.target);
   const alias = typeof node.attrs.alias === "string" ? node.attrs.alias : undefined;
   const title = link.split("#")[0] ?? link;
+  const depth = props.depth ?? 0;
+  if ((title === "" || isNoteLink(title)) && depth < embedDepth && props.links !== undefined) {
+    return (
+      <NodeViewWrapper className="file-block embed-note">
+        <NoteEmbed
+          target={node.attrs.target as LinkTarget}
+          label={alias ?? link}
+          words={words}
+          files={files}
+          links={props.links}
+          depth={depth}
+        />
+      </NodeViewWrapper>
+    );
+  }
   if (title === "" || isNoteLink(title)) {
     return (
       <NodeViewWrapper className="file-block embed-note">

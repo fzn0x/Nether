@@ -19,6 +19,7 @@ import {
 } from "react";
 import { EmbedView, FileView, ImageView, backToNote } from "./embeds.tsx";
 import type { NoteFiles } from "./files.ts";
+import type { NoteLinks } from "./LinkMenu.tsx";
 import { type NodeViews, codeLanguage } from "./schema.ts";
 import { type EditorWords, englishWords } from "./words.ts";
 
@@ -267,12 +268,26 @@ function CodeBlockView(props: ViewProps) {
 
 /**
  * The node views of rich blocks, for an editor in a page, in the app's
- * words; `files` finds the files a note links to.
+ * words; `files` finds the files a note links to, and `links` the notes it
+ * embeds, `depth` embeds deep.
  */
-export function netherNodeViews(words: EditorWords = englishWords, files?: NoteFiles): NodeViews {
-  const view = (View: ComponentType<ViewProps & { readonly files: NoteFiles | undefined }>) =>
+export function netherNodeViews(
+  words: EditorWords = englishWords,
+  files?: NoteFiles,
+  links?: NoteLinks,
+  depth = 0,
+): NodeViews {
+  const view = (
+    View: ComponentType<
+      ViewProps & {
+        readonly files: NoteFiles | undefined;
+        readonly links: NoteLinks | undefined;
+        readonly depth: number;
+      }
+    >,
+  ) =>
     ReactNodeViewRenderer(function WordedView(props: NodeViewProps) {
-      return <View {...props} words={words} files={files} />;
+      return <View {...props} words={words} files={files} links={links} depth={depth} />;
     });
   return {
     mathBlock: view(MathBlockView),

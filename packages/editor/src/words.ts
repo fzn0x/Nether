@@ -68,6 +68,8 @@ export interface EditorWords {
   readonly linkMenu: string;
   /** What the `[[` menu says when no note matches. */
   readonly noNotes: string;
+  /** What an embed of a note the vault does not have says, before its link. */
+  readonly missingNote: string;
 }
 
 export const englishWords: EditorWords = {
@@ -113,4 +115,5 @@ export const englishWords: EditorWords = {
   embeddedNote: "Embedded note",
   linkMenu: "Notes",
   noNotes: "No note by that name: type ]] to link to a new one",
+  missingNote: "No such note or part of one",
 };
