@@ -81,16 +81,55 @@ describe("noteLinks", () => {
     expect(links.suggest("Missing#x")).toEqual([]);
   });
 
+  it("opens a note at a heading or block, and this note's own parts", async () => {
+    const parts: unknown[] = [];
+    const { vault } = await setUp();
+    const welcome = vault.noteAt("Welcome.md")?.id;
+    if (welcome === undefined) throw new Error("The note is not in the vault.");
+    const graph = new LinkGraph();
+    for (const note of vault.notes())
+      graph.set(note.id, note.path, indexNote(parseMarkdown(""), new Set()));
+    const links = noteLinks(
+      vault,
+      graph,
+      welcome,
+      (id, part) => parts.push([vault.note(id)?.path, part]),
+      () => undefined,
+      (tag) => parts.push(tag),
+    );
+    links.open({ title: "Ideas", heading: "Top" });
+    links.open({ block: "b1" as never });
+    links.openTag?.("start");
+    expect(parts).toEqual([
+      ["Ideas.md", { heading: "Top" }],
+      ["Welcome.md", { block: "b1" }],
+      "start",
+    ]);
+  });
+
+  it("embeds a note, a heading's section, or nothing for a part it lacks", async () => {
+    const { links } = await setUp();
+    const whole = await links.embed?.({ title: "Plan" });
+    expect(whole?.title).toBe("Roadmap");
+    expect(whole?.blocks.map((block) => block.type)).toEqual(["heading", "heading"]);
+    const section = await links.embed?.({ title: "Plan", heading: "Next" });
+    expect(section?.blocks).toHaveLength(1);
+    expect(await links.embed?.({ title: "Plan", heading: "Missing" })).toBeUndefined();
+    expect(await links.embed?.({ title: "Missing" })).toBeUndefined();
+  });
+
   it("opens the note a link names, and makes one the vault lacks", async () => {
     const { vault, links, opened } = await setUp();
     links.open({ title: "Plan" });
     links.open({ heading: "Next" });
     links.open({ title: "Fresh idea" });
     await vi.waitFor(() => {
-      expect(opened).toHaveLength(2);
+      expect(opened).toHaveLength(3);
     });
+    // A heading with no note named is this note's.
     expect(opened.map((id) => vault.note(id)?.path)).toEqual([
       "Projects/Roadmap.md",
+      "Welcome.md",
       "Fresh idea.md",
     ]);
   });

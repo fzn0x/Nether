@@ -4,7 +4,8 @@
 // name, as Obsidian does.
 import type { LinkTarget, NoteId } from "@nether/core";
 import type { LinkSuggestion, NoteLinks } from "@nether/editor";
-import type { LinkGraph } from "@nether/graph";
+import { type LinkGraph, noteSection } from "@nether/graph";
+import { parseMarkdown } from "@nether/markdown";
 import type { NoteEntry, Vault } from "@nether/storage";
 
 /** How many notes `[[` suggests at most. */
@@ -54,12 +55,19 @@ export function newNotePath(title: string): string {
   return parts.length === 0 ? "Untitled.md" : `${parts.join("/")}.md`;
 }
 
+/** A heading or block in a note that a link goes to. */
+export interface NotePart {
+  readonly heading?: string;
+  readonly block?: string;
+}
+
 export function noteLinks(
   vault: Vault,
   graph: LinkGraph,
   id: NoteId,
-  open: (note: NoteId) => void,
+  open: (note: NoteId, part?: NotePart) => void,
   report: (error: unknown) => void,
+  openTag?: (name: string) => void,
 ): NoteLinks {
   const from = () => vault.note(id)?.path ?? "";
   /** The shortest text that links to a note from this one: its title, or its path when another note has the title. */
@@ -127,15 +135,38 @@ export function noteLinks(
     },
 
     open(target: LinkTarget) {
-      if (!("title" in target)) return;
+      const part: NotePart = {
+        ...("heading" in target ? { heading: target.heading } : {}),
+        ...("block" in target ? { block: target.block } : {}),
+      };
+      if (!("title" in target)) {
+        // A heading or block of this note.
+        open(id, part);
+        return;
+      }
       const note = resolve(target.title);
       if (note !== undefined) {
-        open(note);
+        open(note, part);
         return;
       }
       vault.create(newNotePath(target.title), "").then((created) => {
         open(created.id);
       }, report);
+    },
+
+    ...(openTag === undefined ? {} : { openTag }),
+
+    async embed(target: LinkTarget) {
+      const note = "title" in target ? resolve(target.title) : id;
+      if (note === undefined) return undefined;
+      const file = await vault.read(note);
+      if (file.missing === true || file.binary === true) return undefined;
+      const blocks = noteSection(parseMarkdown(file.text).content, {
+        ...("heading" in target ? { heading: target.heading } : {}),
+        ...("block" in target ? { block: target.block } : {}),
+      });
+      const title = vault.note(note)?.title ?? "";
+      return blocks === undefined ? undefined : { title, blocks };
     },
   };
 }

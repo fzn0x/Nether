@@ -14,6 +14,8 @@ left to read it, or see [[Projects/Roadmap|the roadmap]].
 
 - [x] Read the sample vault
 - [ ] Open a folder of my own #start
+
+![[Welcome]]
 `,
   "Projects/Roadmap.md": `---
 aliases: [Plan]

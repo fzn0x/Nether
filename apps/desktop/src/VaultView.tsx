@@ -1,12 +1,23 @@
-// An open vault: its notes on the left, the selected note in the editor on
-// the right.
+// An open vault: its notes, or its tags, on the left, and the selected note
+// in the editor on the right. A tag shows the notes with it.
 import type { NoteId } from "@nether/core";
-import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
-import { NoteList } from "./NoteList.tsx";
-import type { NoteMode } from "./NoteView.tsx";
+import type { LinkGraph } from "@nether/graph";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
-import type { Indexer } from "./indexer.ts";
+import { NoteList } from "./NoteList.tsx";
+import type { NotePart } from "./noteLinks.ts";
+import type { NoteMode } from "./NoteView.tsx";
+import { useGraph } from "./useGraph.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
@@ -34,19 +45,75 @@ function IndexStatus(props: { readonly indexer: Indexer }) {
   );
 }
 
+/** The vault's tags, nested ones under theirs, with how many notes have each. */
+function TagList(props: { readonly graph: LinkGraph; readonly onSelect: (tag: string) => void }) {
+  const { graph, onSelect } = props;
+  const version = useGraph(graph);
+  const tags = useMemo(() => graph.tags(), [graph, version]);
+  if (tags.length === 0) return <p className="placeholder">{t("noTags")}</p>;
+  return (
+    <ul className="tag-list" aria-label={t("tags")}>
+      {tags.map(({ tag, count }) => {
+        const depth = tag.split("/").length - 1;
+        return (
+          <li key={tag.toLowerCase()} style={{ paddingInlineStart: `${String(depth)}rem` }}>
+            <button
+              type="button"
+              onClick={() => {
+                onSelect(tag);
+              }}
+            >
+              <span className="tag-name">
+                #{depth === 0 ? tag : tag.slice(tag.lastIndexOf("/") + 1)}
+              </span>
+              <span className="tag-count">{numbers.format(count)}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function VaultView(props: { readonly info: VaultInfo; readonly onClose: () => void }) {
   const { info, onClose } = props;
   const state = useVault(info);
   const vault = state.status === "open" ? state.vault : undefined;
+  const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
+  // Where a link to a heading or block asked to go, in the note it opened.
+  const [focus, setFocus] = useState<(NotePart & { readonly key: number }) | undefined>();
   // Blocks or source, kept from note to note.
   const [mode, setMode] = useState<NoteMode>("blocks");
+  const [panel, setPanel] = useState<"notes" | "tags">("notes");
+  const [tag, setTag] = useState<string | undefined>();
+  const version = useGraph(graph);
 
   useEffect(() => {
     // Start loading the editor as the vault opens, before a note is picked.
     void loadNoteView();
   }, []);
+
+  const openNote = useCallback((id: NoteId, part?: NotePart) => {
+    setSelected(id);
+    setFocus(
+      part !== undefined && (part.heading !== undefined || part.block !== undefined)
+        ? { ...part, key: Date.now() }
+        : undefined,
+    );
+  }, []);
+
+  const showTag = useCallback((name: string) => {
+    setTag(name);
+    setPanel("notes");
+  }, []);
+
+  const shown = useMemo(() => {
+    if (tag === undefined || graph === undefined) return notes;
+    const tagged = new Set(graph.notesWithTag(tag));
+    return notes.filter((note) => tagged.has(note.id));
+  }, [notes, tag, graph, version]);
 
   return (
     <div className="vault">
@@ -63,16 +130,61 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
           </p>
         ) : state.status === "failed" ? (
           <p role="alert">{state.error.message}</p>
-        ) : notes.length === 0 ? (
-          <p className="placeholder">{t("noNotes")}</p>
         ) : (
           <>
-            <NoteList notes={notes} selected={selected} onSelect={setSelected} label={t("notes")} />
-            <p className="count" role="status">
-              {notes.length === 1
-                ? t("oneNote")
-                : t("noteCount", { count: numbers.format(notes.length) })}
-            </p>
+            <div className="sidebar-tabs">
+              <button
+                type="button"
+                aria-pressed={panel === "notes"}
+                onClick={() => {
+                  setPanel("notes");
+                }}
+              >
+                {t("notes")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={panel === "tags"}
+                onClick={() => {
+                  setPanel("tags");
+                }}
+              >
+                {t("tags")}
+              </button>
+            </div>
+            {panel === "tags" ? (
+              <TagList graph={state.indexer.graph} onSelect={showTag} />
+            ) : notes.length === 0 ? (
+              <p className="placeholder">{t("noNotes")}</p>
+            ) : (
+              <>
+                {tag === undefined ? null : (
+                  <p className="filter">
+                    {t("taggedWith", { tag })}
+                    <button
+                      type="button"
+                      className="quiet"
+                      onClick={() => {
+                        setTag(undefined);
+                      }}
+                    >
+                      {t("allNotes")}
+                    </button>
+                  </p>
+                )}
+                <NoteList
+                  notes={shown}
+                  selected={selected}
+                  onSelect={openNote}
+                  label={t("notes")}
+                />
+                <p className="count" role="status">
+                  {notes.length === 1
+                    ? t("oneNote")
+                    : t("noteCount", { count: numbers.format(notes.length) })}
+                </p>
+              </>
+            )}
             <IndexStatus indexer={state.indexer} />
           </>
         )}
@@ -85,7 +197,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               media={state.media}
               graph={state.indexer.graph}
               id={selected}
-              onOpenNote={setSelected}
+              focus={focus}
+              onOpenNote={openNote}
+              onOpenTag={showTag}
               mode={mode}
               onMode={setMode}
             />

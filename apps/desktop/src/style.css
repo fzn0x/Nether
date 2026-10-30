@@ -259,6 +259,71 @@ button {
   white-space: nowrap;
 }
 
+/* The sidebar's notes and tags, and a tag's notes. */
+.sidebar-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.sidebar-tabs button {
+  padding: 0.25rem 0.6rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.sidebar-tabs button[aria-pressed="true"] {
+  background: var(--rule);
+  color: var(--text);
+}
+
+.tag-list {
+  flex: 1;
+  margin: 0;
+  padding: 0 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.tag-list button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tag-list button:hover {
+  background: color-mix(in srgb, var(--rule) 60%, transparent);
+}
+
+.tag-count {
+  color: var(--muted);
+}
+
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.5rem;
+  margin: 0;
+  padding: 0 1rem 0.5rem;
+  font-size: 0.875rem;
+}
+
 .count {
   margin: 0;
   padding: 0.5rem 1rem;
@@ -284,6 +349,74 @@ button {
 
 .note {
   max-width: 46rem;
+}
+
+/* The note, and beside it its outline and the notes that link to it. */
+.note-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 46rem) minmax(12rem, 16rem);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.note-panel {
+  position: sticky;
+  top: 0;
+  font-size: 0.875rem;
+}
+
+.note-panel h2 {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.note-panel section + section {
+  margin-top: 1.5rem;
+}
+
+.note-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-panel button {
+  padding: 0.15rem 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.note-panel button:hover {
+  color: var(--accent);
+}
+
+.backlinks li + li {
+  margin-top: 0.75rem;
+}
+
+.backlink-context {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Below this width the panel goes under the note. */
+@media (max-width: 64rem) {
+  .note-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .note-panel {
+    position: static;
+  }
 }
 
 .note-header {
@@ -1034,4 +1167,43 @@ button {
 .source-editor .cm-fat-cursor {
   background: color-mix(in srgb, var(--text) 45%, transparent);
   color: var(--bg);
+}
+
+/* A note embedded in another, read only. */
+.nether-editor .note-embed {
+  margin: 0;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-left: 3px solid var(--rule);
+}
+
+.nether-editor .note-embed figcaption {
+  margin-bottom: 0.35rem;
+}
+
+.nether-editor .note-embed-title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nether-editor .note-embed-title:hover {
+  color: var(--accent);
+}
+
+.nether-editor .note-embed-content {
+  min-height: 0;
+}
+
+.nether-editor .note-embed-content > :first-child {
+  margin-top: 0;
+}
+
+.nether-editor .embed-loading {
+  color: var(--muted);
+  font-size: 0.875rem;
 }
