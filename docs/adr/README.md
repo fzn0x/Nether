@@ -25,3 +25,4 @@ record supersedes it and says so. Start a new one from
 | [0015](0015-check-accessibility-and-lay-out-by-direction.md) | Check every screen with axe, and lay out by direction, not by side | Accepted |
 | [0016](0016-find-backlinks-by-the-names-links-write.md) | Find backlinks by the names links write | Accepted |
 | [0017](0017-measure-performance-before-each-gate-not-in-ci.md) | Measure performance before each phase's gate, not in CI | Accepted |
+| [0018](0018-a-database-is-a-note-with-an-obsidian-base-beside-it.md) | A database is a note, with an Obsidian base beside it | Accepted |

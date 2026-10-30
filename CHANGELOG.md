@@ -121,6 +121,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0015](docs/adr/0015-check-accessibility-and-lay-out-by-direction.md)).
 - `nether ~/Notes Projects/Plan.md` opens the vault at the note named after
   it, by its path in the vault or on disk, before the note last open.
+- `@nether/database`: a note is a database when its frontmatter's
+  `database` key holds a schema of typed properties and views, named by
+  their names; its rows are the notes in the folder beside it, and a view
+  filters, sorts and groups them
+  ([ADR 0018](docs/adr/0018-a-database-is-a-note-with-an-obsidian-base-beside-it.md)).
 
 ### Changed
 
