@@ -50,6 +50,35 @@ flowchart LR
   Write --> Link --> Find
 \`\`\`
 `,
+  "Templates/Daily.md": `---
+tags: [daily]
+---
+
+# {{date:dddd, D MMMM}}
+
+{{cursor}}
+
+[[{{yesterday}}]] · [[{{tomorrow}}]]
+`,
+  "Templates/Meeting.md": `---
+created: "{{date}}"
+---
+
+# {{title}}
+
+## Agenda
+
+- {{cursor}}
+
+## Notes
+`,
+  // As Obsidian keeps its daily notes' settings: they go in Daily, from the Daily template.
+  ".obsidian/daily-notes.json": `{
+  "folder": "Daily",
+  "format": "YYYY-MM-DD",
+  "template": "Templates/Daily"
+}
+`,
   "attachments/diagram.png": "not really an image",
   "attachments/sketch.svg": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120" width="240" height="120">
   <rect x="8" y="8" width="224" height="104" rx="12" fill="#c43d18" fill-opacity="0.12" stroke="#c43d18" stroke-width="2"/>

@@ -19,12 +19,12 @@ test("tags list the vault's notes with them", async ({ page }) => {
   const notes = await openSample(page);
   await page.getByRole("button", { name: "Tags" }).click();
   const tags = page.getByRole("list", { name: "Tags" });
-  await expect(tags.getByRole("button")).toHaveText(["#start2"]);
+  await expect(tags.getByRole("button")).toHaveText(["#daily1", "#start2"]);
   await tags.getByRole("button", { name: /start/ }).click();
   await expect(page.getByText("Notes tagged #start")).toBeVisible();
   await expect(notes.locator(".note-title")).toHaveText(["2026-10-30", "Welcome"]);
   await page.getByRole("button", { name: "Show all notes" }).click();
-  await expect(notes.locator(".note-title")).toHaveCount(4);
+  await expect(notes.locator(".note-title")).toHaveCount(6);
 
   // A tag in a note shows the notes with it too.
   await notes.getByRole("button", { name: /2026-10-30/ }).click();

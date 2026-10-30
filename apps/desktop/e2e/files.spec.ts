@@ -58,7 +58,7 @@ test("a pasted image goes in the attachments folder and stays in the note", asyn
   }, pixel);
   await expect(editor.locator(".image-block img")).toBeVisible();
   // An attachment is not a note, and the note keeps its embed.
-  await expect(page.getByText("4 notes")).toBeVisible();
+  await expect(page.getByText("6 notes")).toBeVisible();
   await notes.getByRole("button", { name: /Ideas/ }).click();
   await notes.getByRole("button", { name: /Welcome/ }).click();
   await expect(

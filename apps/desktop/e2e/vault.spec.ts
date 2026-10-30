@@ -17,10 +17,18 @@ test("a vault lists its notes, and a note shows its Markdown", async ({ page }) 
     "2026-10-30",
     "Ideas",
     "Roadmap",
+    "Daily",
+    "Meeting",
     "Welcome",
   ]);
-  await expect(notes.locator(".note-folder")).toHaveText(["Daily", "Projects", "Projects"]);
-  await expect(page.getByText("4 notes")).toBeVisible();
+  await expect(notes.locator(".note-folder")).toHaveText([
+    "Daily",
+    "Projects",
+    "Projects",
+    "Templates",
+    "Templates",
+  ]);
+  await expect(page.getByText("6 notes")).toBeVisible();
 
   await notes.getByRole("button", { name: /Roadmap/ }).click();
   await expect(page.locator("#note-title")).toHaveText("Roadmap");
@@ -55,7 +63,7 @@ test("the arrow keys move between notes", async ({ page }) => {
   const notes = await openSample(page);
   await notes.getByRole("button", { name: /Welcome/ }).click();
   await page.keyboard.press("ArrowUp");
-  await expect(page.locator("#note-title")).toHaveText("Roadmap");
+  await expect(page.locator("#note-title")).toHaveText("Meeting");
   await page.keyboard.press("Home");
   await expect(page.locator("#note-title")).toHaveText("2026-10-30");
   await expect(notes.getByRole("button", { name: /2026-10-30/ })).toBeFocused();

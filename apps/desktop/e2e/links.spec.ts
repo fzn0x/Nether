@@ -57,5 +57,5 @@ test("a link typed in full to a note not yet written makes the note when opened"
   await expect(link).toBeVisible();
   await link.click();
   await expect(page.locator("#note-title")).toHaveText("Next steps");
-  await expect(page.getByText("5 notes")).toBeVisible();
+  await expect(page.getByText("7 notes")).toBeVisible();
 });
