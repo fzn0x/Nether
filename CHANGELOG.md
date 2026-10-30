@@ -39,5 +39,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with KaTeX, code is highlighted, and Mermaid diagrams are drawn below their
   code, without the ELK layout, whose license is not compatible
   ([ADR 0009](docs/adr/0009-math-code-and-diagrams.md)).
+- Images, PDFs, audio and video in notes, from the vault or the web, found
+  by their links as Obsidian finds them; pasted and dropped files go in the
+  vault's `attachments` folder, never over another file
+  ([ADR 0010](docs/adr/0010-vault-files-in-notes.md)).
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main

@@ -6,13 +6,21 @@ decided. Every block of the core model has a node, so a note opens without
 losing anything, and every block node holds the block's stable ID. A slash
 menu inserts blocks, a handle beside each block moves it or opens its menu,
 and math, code and Mermaid diagrams render in place
-([ADR 0009](../../docs/adr/0009-math-code-and-diagrams.md)).
+([ADR 0009](../../docs/adr/0009-math-code-and-diagrams.md)). Images, PDFs,
+audio and video show from the files the app finds for their links, and
+files pasted or dropped into a note are embedded where they land
+([ADR 0010](../../docs/adr/0010-vault-files-in-notes.md)).
 
 ```tsx
 import { NoteEditor } from "@nether/editor";
 import "@nether/editor/math.css";
 
-<NoteEditor blocks={note.content} onChange={(blocks) => save(blocks)} label="Note text" />;
+<NoteEditor
+  blocks={note.content}
+  onChange={(blocks) => save(blocks)}
+  label="Note text"
+  files={{ url: (link) => urlOfFileIn(vault, link), attach: (file) => addToVault(file) }}
+/>;
 ```
 
 Every word the editor shows is in `src/words.ts`; an app passes its
@@ -30,6 +38,8 @@ language's words as `words`, and English is the default.
 | `src/SlashMenu.tsx` | The slash menu |
 | `src/BlockHandle.tsx` | The handle beside each block, to drag it or open its menu |
 | `src/views.tsx` | Math rendered with KaTeX and edited as LaTeX, code with its language, and Mermaid diagrams below their code |
+| `src/files.ts` | What kind of file a link names and the URL it loads from, and files pasted or dropped into a note |
+| `src/embeds.tsx` | Images, PDFs, audio and video in a note, and a field or file picker for blocks without one |
 | `src/words.ts` | Every word the editor shows, in English |
 | `src/NoteEditor.tsx` | The editor for one note, in React |
 
