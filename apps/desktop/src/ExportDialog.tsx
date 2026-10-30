@@ -15,6 +15,7 @@ import {
 import type { Exporter, VaultMedia } from "./backend.ts";
 import type { ExportFormat } from "./exportNotes.ts";
 import { t } from "./messages.ts";
+import { useModal } from "./useModal.ts";
 
 type Scope = "note" | "folder" | "vault";
 
@@ -59,14 +60,16 @@ export function ExportDialog(props: {
     [scope, note, notes, folder],
   );
 
-  // Focus goes back where it was when the dialog closes, and an export still running stops.
-  useEffect(() => {
-    const before = document.activeElement;
-    return () => {
+  const dialog = useRef<HTMLFormElement>(null);
+  useModal(dialog);
+
+  // An export still running stops when the dialog closes.
+  useEffect(
+    () => () => {
       running.current?.abort();
-      if (before instanceof HTMLElement) before.focus();
-    };
-  }, []);
+    },
+    [],
+  );
 
   const start = (event: SyntheticEvent) => {
     event.preventDefault();
@@ -157,6 +160,7 @@ export function ExportDialog(props: {
     >
       <form
         className="switcher dialog"
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-title"

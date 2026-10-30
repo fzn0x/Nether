@@ -2,9 +2,10 @@
 // the note it starts from, blank or a template. The templates folder's
 // notes are listed; typing finds any other, since any note can be one.
 import type { NoteEntry } from "@nether/storage";
-import { type SyntheticEvent, type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, type SyntheticEvent, useMemo, useRef, useState } from "react";
 import { t } from "./messages.ts";
 import { type TemplateSettings, notePathFor, templateChoices, untitledName } from "./templates.ts";
+import { useModal } from "./useModal.ts";
 
 export function NewNoteDialog(props: {
   readonly notes: readonly NoteEntry[];
@@ -21,6 +22,7 @@ export function NewNoteDialog(props: {
   const [chosen, setChosen] = useState<NoteEntry | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const dialog = useRef<HTMLFormElement>(null);
   const choices = useMemo(
     () => templateChoices(notes, settings.folder, query),
     [notes, settings.folder, query],
@@ -29,13 +31,7 @@ export function NewNoteDialog(props: {
   const typedFolder = name.includes("/") ? name.slice(0, name.lastIndexOf("/")).trim() : "";
   const untitled = useMemo(() => untitledName(notes, typedFolder), [notes, typedFolder]);
 
-  // Focus goes back where it was when the dialog closes.
-  useEffect(() => {
-    const before = document.activeElement;
-    return () => {
-      if (before instanceof HTMLElement) before.focus();
-    };
-  }, []);
+  useModal(dialog);
 
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
@@ -103,6 +99,7 @@ export function NewNoteDialog(props: {
     >
       <form
         className="switcher dialog"
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-note-title"

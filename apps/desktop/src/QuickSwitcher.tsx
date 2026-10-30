@@ -7,6 +7,7 @@ import type { Vault } from "@nether/storage";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { t } from "./messages.ts";
 import { switcherMatches } from "./search.ts";
+import { useModal } from "./useModal.ts";
 
 function folderOf(path: string): string | undefined {
   const slash = path.lastIndexOf("/");
@@ -23,6 +24,7 @@ export function QuickSwitcher(props: {
   const [text, setText] = useState("");
   const [active, setActive] = useState(0);
   const list = useRef<HTMLUListElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
   const matches = useMemo(() => switcherMatches(vault, graph, text), [vault, graph, text]);
   const current = matches[active];
   const optionId = (index: number) => `switcher-option-${String(index)}`;
@@ -31,13 +33,7 @@ export function QuickSwitcher(props: {
     setActive(0);
   }, [text]);
 
-  // Focus goes back where it was when the dialog closes.
-  useEffect(() => {
-    const before = document.activeElement;
-    return () => {
-      if (before instanceof HTMLElement) before.focus();
-    };
-  }, []);
+  useModal(dialog);
 
   useEffect(() => {
     list.current?.querySelector(`#${optionId(active)}`)?.scrollIntoView({ block: "nearest" });
@@ -72,7 +68,13 @@ export function QuickSwitcher(props: {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="switcher" role="dialog" aria-modal="true" aria-label={t("switcher")}>
+      <div
+        className="switcher"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("switcher")}
+        ref={dialog}
+      >
         <input
           className="switcher-input"
           role="combobox"

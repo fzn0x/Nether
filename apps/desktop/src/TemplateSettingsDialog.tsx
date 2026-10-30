@@ -4,7 +4,7 @@
 // it is named, and the template it starts from. Each format shows what it
 // writes for now as it is typed.
 import { type Period, formatDate } from "@nether/core";
-import { type SyntheticEvent, type KeyboardEvent, useEffect, useState } from "react";
+import { type KeyboardEvent, type SyntheticEvent, useRef, useState } from "react";
 import { t } from "./messages.ts";
 import {
   type PeriodicSettings,
@@ -14,6 +14,7 @@ import {
   periodicNote,
   periods,
 } from "./templates.ts";
+import { useModal } from "./useModal.ts";
 
 function TextField(props: {
   readonly label: string;
@@ -51,14 +52,9 @@ export function TemplateSettingsDialog(props: {
   const [draft, setDraft] = useState<TemplateSettings>(settings);
   const [error, setError] = useState<string | undefined>();
   const now = new Date();
+  const dialog = useRef<HTMLFormElement>(null);
 
-  // Focus goes back where it was when the dialog closes.
-  useEffect(() => {
-    const before = document.activeElement;
-    return () => {
-      if (before instanceof HTMLElement) before.focus();
-    };
-  }, []);
+  useModal(dialog);
 
   const setPeriod = (period: Period, change: Partial<PeriodicSettings>) => {
     setDraft((current) => ({ ...current, [period]: { ...current[period], ...change } }));
@@ -110,6 +106,7 @@ export function TemplateSettingsDialog(props: {
     >
       <form
         className="switcher dialog settings-dialog"
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
