@@ -5,9 +5,12 @@ package main
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/sqlite"
 )
 
 // AppInfo describes the running app.
@@ -37,7 +40,15 @@ func (d Desktop) Info() AppInfo {
 }
 
 func main() {
+	data, err := mygo.App.Path(mygo.PathUserData)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Each vault's index is a SQLite database here, named by the vault's ID,
+	// which the page opens through the SQLite plugin.
+	mygo.Use(sqlite.New(sqlite.Options{Directory: filepath.Join(data, "vaults")}))
 	mygo.Bind(Desktop{app: mygo.App})
+	mygo.Bind(NewVaults(data, mygo.Dialog, os.Args[1:]))
 
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{
