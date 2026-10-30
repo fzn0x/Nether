@@ -39,6 +39,7 @@ export {
 } from "./schema.ts";
 export { NoteEditor, type NoteEditorProps } from "./NoteEditor.tsx";
 export { SlashMenu, type SlashMenuOptions, slashMenuKey } from "./SlashMenu.tsx";
+export { SourceEditor, type SourceEditorProps, lineSeparatorOf } from "./SourceEditor.tsx";
 export { netherNodeViews } from "./views.tsx";
 export {
   type BuiltInBlock,
