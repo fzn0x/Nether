@@ -25,7 +25,8 @@
     "@nether/storage": "workspace:*",
     "mygo-runtime": "0.6.2",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
