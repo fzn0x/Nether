@@ -31,6 +31,8 @@ export interface NoteIndex {
   readonly headings: readonly Heading[];
   /** The IDs of blocks its file writes as `^id`, which links can name. */
   readonly blocks: readonly string[];
+  /** Its properties, for searches by property. */
+  readonly properties: readonly PropertyEntry[];
 }
 
 /** The longest context kept for a link. */
@@ -171,7 +173,33 @@ export function indexNote(
     if (name === "aliases" || name === "alias")
       aliases = strings(value).filter((alias) => alias !== "");
   }
-  return { links: dedupe(links), tags, aliases, headings, blocks: [...writtenIds] };
+  return {
+    links: dedupe(links),
+    tags,
+    aliases,
+    headings,
+    blocks: [...writtenIds],
+    properties: note.properties,
+  };
+}
+
+/** A note's text as search reads it: each block's words on lines of their own, code and math too. */
+export function plainText(content: readonly ContentBlock[]): string {
+  const lines: string[] = [];
+  const visit = (block: Block) => {
+    if ("content" in block && Array.isArray(block.content)) {
+      const text = inlineText(block.content as readonly Inline[]);
+      if (text !== "") lines.push(text);
+    }
+    if ("text" in block && typeof block.text === "string" && block.text !== "") {
+      lines.push(block.text);
+    }
+    if ("children" in block && Array.isArray(block.children)) {
+      for (const child of block.children as readonly Block[]) visit(child);
+    }
+  };
+  for (const block of content) visit(block);
+  return lines.join("\n");
 }
 
 /** One of each link: a link written twice in one block counts once; in two blocks, twice. */

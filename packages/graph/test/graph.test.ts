@@ -3,7 +3,7 @@
 import type { NoteId } from "@nether/core";
 import { parseMarkdown } from "@nether/markdown";
 import { describe, expect, it } from "vitest";
-import { LinkGraph, indexNote, noteSection } from "../src/index.ts";
+import { LinkGraph, indexNote, noteSection, plainText } from "../src/index.ts";
 
 function index(markdown: string) {
   const parsed = parseMarkdown(markdown);
@@ -186,5 +186,31 @@ describe("LinkGraph, unchanged parts", () => {
     expect(graph.resolve("Alpha", "B.md")).toBe("a");
     expect(graph.backlinks(id("b")).map((backlink) => backlink.source)).toEqual(["a"]);
     expect(graph.tags()).toEqual([]);
+  });
+});
+
+describe("plainText", () => {
+  it("gives every block's words on lines of their own, code and math too", () => {
+    const parsed = parseMarkdown(
+      "# Title\n\nSome **bold** [[Link|text]] and #tag.\n\n- item\n    - nested\n\n```ts\nconst x = 1;\n```\n\n$$\ne=mc^2\n$$\n\n| a | b |\n| - | - |\n| c | d |\n",
+    );
+    expect(plainText(parsed.content).split("\n")).toEqual([
+      "Title",
+      "Some bold text and #tag.",
+      "item",
+      "nested",
+      "const x = 1;",
+      "e=mc^2",
+      "a",
+      "b",
+      "c",
+      "d",
+    ]);
+  });
+
+  it("keeps a note's properties in its index, for searches by property", () => {
+    expect(index("---\nstatus: done\n---\nText\n").properties).toEqual([
+      { key: "status", value: "done" },
+    ]);
   });
 });

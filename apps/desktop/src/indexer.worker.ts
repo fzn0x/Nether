@@ -14,7 +14,14 @@ export interface IndexResponse {
   readonly results: readonly { readonly id: string; readonly index: NoteIndex }[];
 }
 
-const empty: NoteIndex = { links: [], tags: [], aliases: [], headings: [], blocks: [] };
+const empty: NoteIndex = {
+  links: [],
+  tags: [],
+  aliases: [],
+  headings: [],
+  blocks: [],
+  properties: [],
+};
 
 const scope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<IndexRequest>) => void) | null;
