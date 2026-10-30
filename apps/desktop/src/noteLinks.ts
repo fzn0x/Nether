@@ -55,10 +55,12 @@ export function newNotePath(title: string): string {
   return parts.length === 0 ? "Untitled.md" : `${parts.join("/")}.md`;
 }
 
-/** A heading or block in a note that a link goes to. */
+/** A heading or block in a note that a link goes to, or a place in a block's text. */
 export interface NotePart {
   readonly heading?: string;
   readonly block?: string;
+  /** Characters into the block's text, each inline that is not text counting one. */
+  readonly offset?: number;
 }
 
 export function noteLinks(
