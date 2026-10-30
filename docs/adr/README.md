@@ -19,3 +19,4 @@ record supersedes it and says so. Start a new one from
 | [0009](0009-math-code-and-diagrams.md) | Render math with KaTeX, code with lowlight, and diagrams with Mermaid without ELK | Accepted |
 | [0010](0010-vault-files-in-notes.md) | Serve a vault's media to the page from a loopback server, and find files as Obsidian does | Accepted |
 | [0011](0011-templates-and-periodic-notes.md) | Fill templates with Obsidian's variables, and start from Obsidian's settings | Accepted |
+| [0012](0012-export-from-the-page.md) | Export notes from the page's own HTML, and let the app write the files | Accepted |
