@@ -3,6 +3,7 @@
 import type { NoteId } from "@nether/core";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { NoteList } from "./NoteList.tsx";
+import type { NoteMode } from "./NoteView.tsx";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
 import { useNotes, useVault } from "./useVault.ts";
@@ -20,6 +21,8 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const vault = state.status === "open" ? state.vault : undefined;
   const notes = useNotes(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
+  // Blocks or source, kept from note to note.
+  const [mode, setMode] = useState<NoteMode>("blocks");
 
   useEffect(() => {
     // Start loading the editor as the vault opens, before a note is picked.
@@ -57,7 +60,13 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       <main className="pane">
         {state.status === "open" && selected !== undefined ? (
           <Suspense fallback={null}>
-            <NoteView vault={state.vault} media={state.media} id={selected} />
+            <NoteView
+              vault={state.vault}
+              media={state.media}
+              id={selected}
+              mode={mode}
+              onMode={setMode}
+            />
           </Suspense>
         ) : (
           <p className="placeholder">{t("selectNote")}</p>

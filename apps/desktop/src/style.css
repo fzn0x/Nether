@@ -286,8 +286,38 @@ button {
   max-width: 46rem;
 }
 
+.note-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
 .note h1 {
+  min-width: 0;
   margin-top: 0;
+  overflow-wrap: anywhere;
+}
+
+.note-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.note-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+
+.note-tools button[aria-pressed="true"] {
+  background: var(--rule);
+  color: var(--text);
 }
 
 /* Below this width the notes sit above the note. */
@@ -892,4 +922,102 @@ button {
   margin: 0.25rem 0;
   border: 0;
   border-top: 1px solid var(--rule);
+}
+
+/* Source mode: the note's Markdown in CodeMirror. */
+.source-editor .cm-editor {
+  min-height: 50vh;
+  background: none;
+  color: var(--text);
+  font-size: 0.9375rem;
+}
+
+.source-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.source-editor .cm-scroller {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  line-height: 1.6;
+}
+
+.source-editor .cm-content {
+  padding: 0;
+  caret-color: var(--text);
+}
+
+.source-editor .cm-line {
+  padding: 0;
+}
+
+.source-editor .cm-cursor,
+.source-editor .cm-dropCursor {
+  border-left-color: var(--text);
+}
+
+.source-editor .cm-selectionBackground,
+.source-editor .cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.source-editor .cm-placeholder {
+  color: var(--muted);
+}
+
+.source-editor .cm-selectionMatch,
+.source-editor .cm-searchMatch {
+  background: color-mix(in srgb, #f5d547 40%, transparent);
+}
+
+.source-editor .cm-panels {
+  border-color: var(--rule);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.source-editor .cm-panels input,
+.source-editor .cm-panels button {
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.source-editor .md-heading {
+  font-weight: 700;
+}
+
+.source-editor .md-emphasis {
+  font-style: italic;
+}
+
+.source-editor .md-strong {
+  font-weight: 700;
+}
+
+.source-editor .md-strike {
+  text-decoration: line-through;
+}
+
+.source-editor .md-link {
+  color: var(--accent);
+}
+
+.source-editor .md-code {
+  color: var(--code-string);
+}
+
+.source-editor .md-quote,
+.source-editor .md-comment,
+.source-editor .md-mark {
+  color: var(--muted);
+}
+
+/* Vim's status line and its block cursor. */
+.source-editor .cm-vim-panel {
+  padding: 0.15rem 0.5rem;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+.source-editor .cm-fat-cursor {
+  background: color-mix(in srgb, var(--text) 45%, transparent);
+  color: var(--bg);
 }
