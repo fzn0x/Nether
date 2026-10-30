@@ -3,7 +3,7 @@
 import type { NoteId } from "@nether/core";
 import { parseMarkdown } from "@nether/markdown";
 import { describe, expect, it } from "vitest";
-import { LinkGraph, indexNote } from "../src/index.ts";
+import { LinkGraph, indexNote, noteSection } from "../src/index.ts";
 
 function index(markdown: string) {
   const parsed = parseMarkdown(markdown);
@@ -132,5 +132,59 @@ describe("LinkGraph", () => {
     ]);
     expect(graph.notesWithTag("#Project")).toEqual(["ideas", "roadmap"]);
     expect(graph.notesWithTag("project/nether")).toEqual(["roadmap"]);
+  });
+});
+
+describe("noteSection", () => {
+  const blocks = parseMarkdown(
+    "# Plan\n\nIntro.\n\n## Next  steps\n\nFirst. ^first\n\n### Detail\n\nMore.\n\n## Later\n\nAfter.\n\n- item ^nested\n",
+  ).content;
+  const texts = (part: Parameters<typeof noteSection>[1]) =>
+    noteSection(blocks, part)?.map((block) => block.type);
+
+  it("gives a heading's section, up to the next heading as high or higher", () => {
+    expect(texts({ heading: "next steps" })).toEqual([
+      "heading",
+      "paragraph",
+      "heading",
+      "paragraph",
+    ]);
+    expect(texts({ heading: "Later" })).toEqual(["heading", "paragraph", "bulletListItem"]);
+    expect(texts({ heading: "Plan" })).toHaveLength(blocks.length);
+    expect(texts({ heading: "Missing" })).toBeUndefined();
+  });
+
+  it("gives one block by its ID, nested too, or the whole note", () => {
+    expect(texts({ block: "first" })).toEqual(["paragraph"]);
+    expect(texts({ block: "nested" })).toEqual(["bulletListItem"]);
+    expect(texts({ block: "missing" })).toBeUndefined();
+    expect(noteSection(blocks, {})).toBe(blocks);
+  });
+});
+
+describe("indexNote, the less common parts", () => {
+  it("gives a link's context with breaks, math and raw HTML as they read", () => {
+    // A backslash at a line's end is a hard break; an embed inside text stays as written.
+    const note = index("Line one\\\nline two $x^2$ <kbd>K</kbd> [[Target]] ![[Img.png]]\n");
+    expect(note.links[0]?.context).toBe("Line one line two x^2 <kbd>K</kbd> Target ![[Img.png]]");
+  });
+
+  it("leaves out properties of the wrong type", () => {
+    const note = index("---\naliases: 3\ntags: { a: 1 }\n---\nText\n");
+    expect(note.aliases).toEqual([]);
+    expect(note.tags).toEqual([]);
+  });
+});
+
+describe("LinkGraph, unchanged parts", () => {
+  it("keeps what it worked out when a note changes but its path and aliases do not", () => {
+    const graph = new LinkGraph();
+    graph.set(id("a"), "A.md", index("---\naliases: [Alpha]\n---\n[[B]]\n"));
+    graph.set(id("b"), "B.md", index("B\n"));
+    expect(graph.resolve("alpha", "B.md")).toBe("a");
+    graph.set(id("a"), "A.md", index("---\naliases: [Alpha]\n---\n[[B]] again\n"));
+    expect(graph.resolve("Alpha", "B.md")).toBe("a");
+    expect(graph.backlinks(id("b")).map((backlink) => backlink.source)).toEqual(["a"]);
+    expect(graph.tags()).toEqual([]);
   });
 });
