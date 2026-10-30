@@ -225,6 +225,49 @@ describe("LinkGraph, unchanged parts", () => {
     expect(graph.backlinks(id("b")).map((backlink) => backlink.source)).toEqual(["a"]);
     expect(graph.tags()).toEqual([]);
   });
+
+  it("moves an edited note's backlinks as a graph made anew would hold them", () => {
+    const start: [string, string, string][] = [
+      ["a", "A.md", "[[C]] and [[D]]\n"],
+      ["b", "B.md", "[[C]]\n"],
+      ["c", "C.md", "---\naliases: [See]\n---\n[[A]]\n"],
+      ["d", "Folder/D.md", "[[D]] itself\n"],
+      ["e", "E.md", "[[Nowhere]]\n"],
+    ];
+    const edits: [string, string, string][] = [
+      // A link dropped, one added, and one by an alias.
+      ["a", "A.md", "[[D]], [[E]] and [[See]]\n"],
+      // A note whose one link found nothing embeds C, after A in C's list.
+      ["e", "E.md", "![[C]]\n\nAnd [[B]]\n"],
+      // Its last link to C goes, and a link to itself is not a backlink.
+      ["b", "B.md", "[[B]] alone\n"],
+      // A note linked to twice is one backlink.
+      ["d", "Folder/D.md", "[[A#Heading]] and [[A]] twice\n"],
+    ];
+    const made = (notes: readonly [string, string, string][]) => {
+      const graph = new LinkGraph();
+      graph.setMany(
+        notes.map(([name, path, text]) => ({ id: id(name), path, index: index(text) })),
+      );
+      return graph;
+    };
+    const sources = (graph: LinkGraph) =>
+      Object.fromEntries(
+        "abcde"
+          .split("")
+          .map((name) => [name, graph.backlinks(id(name)).map((link) => link.source)]),
+      );
+    const graph = made(start);
+    expect(sources(graph)).toEqual({ a: ["c"], b: [], c: ["a", "b"], d: ["a"], e: [] });
+    let changes = 0;
+    graph.subscribe(() => changes++);
+    for (const [name, path, text] of edits) graph.set(id(name), path, index(text));
+    const final = new Map(start.map((note) => [note[0], note]));
+    for (const edit of edits) final.set(edit[0], edit);
+    expect(sources(graph)).toEqual(sources(made([...final.values()])));
+    expect(sources(graph)).toEqual({ a: ["c", "d"], b: ["e"], c: ["a", "e"], d: ["a"], e: ["a"] });
+    expect(changes).toBe(edits.length);
+  });
 });
 
 describe("plainText", () => {

@@ -50,6 +50,11 @@ Measuring the page's heap, its allocations and the replies of MyGO's bridge
   Obsidian finds files; the graph resolves each such name once, and keeps
   only the notes that link to each note, working out their links to it when
   asked.
+- **A save moves only its own note's backlinks.** An edit that keeps every
+  path and alias leaves every other link naming what it named, so the
+  graph takes the note out of the backlinks of what it linked to and puts
+  it in those of what it links to now. Working every backlink out again
+  took 150 ms a save, and the keys typed meanwhile waited for it.
 - **Memory is shared where notes are alike**: one empty list for every
   note's empty lists, and a path alone in the path index where it is the
   only one under a key.
