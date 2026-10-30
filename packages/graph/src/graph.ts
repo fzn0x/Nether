@@ -1,8 +1,8 @@
 // The vault's links, held in memory: which note each link names, as
 // Obsidian finds it or by an alias, the notes that link to a note, and the
-// vault's tags. Changes to one note change only its entry, and its own
-// backlinks when no path or alias changed; what else depends on every
-// note is worked out again when next asked for.
+// vault's tags. A change to a note changes only what the graph keeps of
+// that note; nothing is worked out again for the whole vault, so a save, a
+// move and the first reading of a large vault each cost what they change.
 import type { NoteId } from "@nether/core";
 import { LinkIndex } from "@nether/storage";
 import type { LinkRef, NoteIndex } from "./extract.ts";
@@ -43,13 +43,50 @@ function fileOf(target: string): string {
   return /\.md$/i.test(target) ? target : `${target}.md`;
 }
 
+/**
+ * The name a link's target writes, case aside and without `.md`: the last
+ * part of the file it names, lowercased with `.md` on as the link index
+ * lowercases it, final sigma as any other. A link finds a note only when
+ * it writes the note's name or one of its aliases, so a note's backlinks
+ * are among the notes that write one of those.
+ */
+function nameOf(target: string): string {
+  const file = fileOf(target.trim());
+  return file
+    .slice(file.lastIndexOf("/") + 1)
+    .toLowerCase()
+    .slice(0, -3)
+    .replaceAll("ς", "σ");
+}
+
+/** The names a note's links write, its links within itself aside. */
+function namesOf(links: readonly LinkRef[]): Set<string> {
+  const names = new Set<string>();
+  for (const link of links) if (link.target !== "") names.add(nameOf(link.target));
+  return names;
+}
+
+/**
+ * The notes that write a name: the note alone while it is the only one,
+ * as a list for each took megabytes in a large vault.
+ */
+type Sources = NoteId | NoteId[];
+
+function sourceList(sources: Sources | undefined): readonly NoteId[] {
+  return sources === undefined ? [] : typeof sources === "string" ? [sources] : sources;
+}
+
+const noLinks: readonly LinkRef[] = [];
+
 export class LinkGraph {
   readonly #notes = new Map<NoteId, GraphNote>();
+  /** The notes' paths, made when a link is first resolved and kept as notes come, move and go. */
   #paths: LinkIndex | undefined;
   #byPath: Map<string, NoteId> | undefined;
+  /** Each alias, lowercase, to the first note with it; made again when an alias changes. */
   #aliases: Map<string, NoteId> | undefined;
-  /** The notes that link to each note, in path order. */
-  #backlinks: Map<NoteId, NoteId[]> | undefined;
+  /** For each name links write, the notes that write it. */
+  readonly #writers = new Map<string, Sources>();
   readonly #listeners = new Set<() => void>();
 
   /** Sets what the graph holds of a note, at the path it has now. */
@@ -59,92 +96,75 @@ export class LinkGraph {
 
   /**
    * Sets what the graph holds of several notes as one change, as a vault's
-   * index loads: each change costs whoever asks for backlinks or tags a
-   * pass over every note.
+   * index loads, telling whoever listens once.
    */
   setMany(entries: Iterable<GraphEntry>): void {
-    const edited: (readonly [GraphNote, GraphNote])[] = [];
-    let renamed = false;
+    let any = false;
     for (const { id, path, index } of entries) {
+      any = true;
       const before = this.#notes.get(id);
       const note = { id, path, title: titleOf(path), index };
       this.#notes.set(id, note);
       if (before?.path !== path) {
-        this.#paths = undefined;
-        this.#byPath = undefined;
-        renamed = true;
+        if (before !== undefined) this.#forgetPath(before);
+        this.#paths?.add(path);
+        this.#byPath?.set(path, id);
       }
-      if (before?.index.aliases.join("|") !== index.aliases.join("|")) {
+      if (before === undefined) {
+        // A note new to the graph is the last in its order: its aliases
+        // name it where no note before it has them.
+        for (const alias of index.aliases) {
+          const key = alias.toLowerCase();
+          if (this.#aliases !== undefined && !this.#aliases.has(key)) this.#aliases.set(key, id);
+        }
+      } else if (before.index.aliases.join("|") !== index.aliases.join("|")) {
         this.#aliases = undefined;
-        renamed = true;
       }
-      if (before !== undefined) edited.push([before, note]);
+      this.#rewrite(id, before?.index.links ?? noLinks, index.links);
     }
-    if (!renamed && edited.length === 0) return;
-    // A change that keeps every path and alias, as a save, leaves every
-    // other note's links naming what they named: only the edited notes'
-    // own links move, where working out every backlink again took 150 ms
-    // a key on 50,000 notes.
-    if (renamed) this.#backlinks = undefined;
-    else if (this.#backlinks !== undefined) {
-      for (const [before, after] of edited) this.#relink(this.#backlinks, before, after);
-    }
-    this.#changed();
-  }
-
-  /** Moves a note from the backlinks of the notes it linked to, to those of the notes it links to now. */
-  #relink(incoming: Map<NoteId, NoteId[]>, before: GraphNote, after: GraphNote): void {
-    const was = this.#targets(before);
-    const now = this.#targets(after);
-    for (const target of was) {
-      if (now.has(target)) continue;
-      const sources = incoming.get(target) ?? [];
-      const at = sources.indexOf(after.id);
-      if (at !== -1) sources.splice(at, 1);
-      if (sources.length === 0) incoming.delete(target);
-    }
-    for (const target of now) {
-      if (was.has(target)) continue;
-      const sources = incoming.get(target);
-      if (sources === undefined) {
-        incoming.set(target, [after.id]);
-        continue;
-      }
-      // In path order, as #incoming sorts them.
-      let low = 0;
-      let high = sources.length;
-      while (low < high) {
-        const middle = (low + high) >>> 1;
-        if (this.#pathOf(sources[middle]).localeCompare(after.path) < 0) low = middle + 1;
-        else high = middle;
-      }
-      sources.splice(low, 0, after.id);
-    }
-  }
-
-  /** The notes a note links to or embeds, itself aside. */
-  #targets(note: GraphNote): Set<NoteId> {
-    const targets = new Set<NoteId>();
-    for (const link of note.index.links) {
-      if (link.target === "") continue;
-      const target = this.resolve(link.target, note.path);
-      if (target !== undefined && target !== note.id) targets.add(target);
-    }
-    return targets;
-  }
-
-  #pathOf(note: NoteId | undefined): string {
-    return note === undefined ? "" : (this.#notes.get(note)?.path ?? "");
+    if (any) this.#changed();
   }
 
   /** Forgets a note that left the vault. */
   remove(id: NoteId): void {
-    if (!this.#notes.delete(id)) return;
-    this.#paths = undefined;
-    this.#byPath = undefined;
-    this.#aliases = undefined;
-    this.#backlinks = undefined;
+    const note = this.#notes.get(id);
+    if (note === undefined) return;
+    this.#notes.delete(id);
+    this.#forgetPath(note);
+    if (note.index.aliases.length > 0) this.#aliases = undefined;
+    this.#rewrite(id, note.index.links, noLinks);
     this.#changed();
+  }
+
+  #forgetPath(note: GraphNote): void {
+    this.#paths?.remove(note.path);
+    if (this.#byPath?.get(note.path) === note.id) this.#byPath.delete(note.path);
+  }
+
+  /** Moves a note among the writers of the names its links wrote and now write. */
+  #rewrite(id: NoteId, was: readonly LinkRef[], now: readonly LinkRef[]): void {
+    if (was === now) return;
+    const before = namesOf(was);
+    const after = namesOf(now);
+    for (const name of before) {
+      if (after.has(name)) continue;
+      const sources = this.#writers.get(name);
+      if (sources === undefined || typeof sources === "string") {
+        if (sources === id) this.#writers.delete(name);
+        continue;
+      }
+      const at = sources.indexOf(id);
+      if (at !== -1) sources.splice(at, 1);
+      const [only] = sources;
+      if (sources.length === 1 && only !== undefined) this.#writers.set(name, only);
+    }
+    for (const name of after) {
+      if (before.has(name)) continue;
+      const sources = this.#writers.get(name);
+      if (sources === undefined) this.#writers.set(name, id);
+      else if (typeof sources === "string") this.#writers.set(name, [sources, id]);
+      else sources.push(id);
+    }
   }
 
   /** A note the graph holds. */
@@ -181,18 +201,12 @@ export class LinkGraph {
   }
 
   #linkIndex(): LinkIndex {
-    this.#paths ??= new LinkIndex([...this.#notes.values()].map((note) => note.path));
-    this.#byPath ??= new Map([...this.#notes.values()].map((note) => [note.path, note.id]));
+    if (this.#paths === undefined || this.#byPath === undefined) {
+      const notes = [...this.#notes.values()];
+      this.#paths = new LinkIndex(notes.map((note) => note.path));
+      this.#byPath = new Map(notes.map((note) => [note.path, note.id]));
+    }
     return this.#paths;
-  }
-
-  /**
-   * Whether a link's target names the same note from every note: a name
-   * alone, which one file has, or none, and so no alias or that alias.
-   */
-  #sameFromAnywhere(target: string): boolean {
-    const trimmed = target.trim();
-    return !trimmed.includes("/") && this.#linkIndex().named(fileOf(trimmed)) <= 1;
   }
 
   #aliasMap(): Map<string, NoteId> {
@@ -208,47 +222,24 @@ export class LinkGraph {
 
   /** The notes that link to a note or embed it, in path order, with each of their links to it. */
   backlinks(id: NoteId): readonly Backlink[] {
-    this.#backlinks ??= this.#incoming();
-    // Each note's links to this one, worked out when asked for: kept for
-    // every note, they took megabytes in a large vault.
-    return (this.#backlinks.get(id) ?? []).flatMap((source) => {
-      const note = this.#notes.get(source);
-      if (note === undefined) return [];
-      const links = note.index.links.filter(
-        (link) => link.target !== "" && this.resolve(link.target, note.path) === id,
+    const note = this.#notes.get(id);
+    if (note === undefined) return [];
+    // Only the notes that write its name or an alias can link to it.
+    const sources = new Set<NoteId>();
+    for (const name of new Set([nameOf(note.path), ...note.index.aliases.map(nameOf)])) {
+      for (const source of sourceList(this.#writers.get(name))) sources.add(source);
+    }
+    sources.delete(id);
+    const found: { path: string; backlink: Backlink }[] = [];
+    for (const source of sources) {
+      const from = this.#notes.get(source);
+      if (from === undefined) continue;
+      const links = from.index.links.filter(
+        (link) => link.target !== "" && this.resolve(link.target, from.path) === id,
       );
-      return links.length === 0 ? [] : [{ source, links }];
-    });
-  }
-
-  /** The notes that link to each note, in path order. */
-  #incoming(): Map<NoteId, NoteId[]> {
-    const incoming = new Map<NoteId, NoteId[]>();
-    // Most links are a name alone that names the same note from every
-    // note: worked out once each, as working each out took most of the
-    // time, and the memory, a large vault took to open.
-    const byName = new Map<string, NoteId | undefined>();
-    const resolve = (link: LinkRef, source: GraphNote): NoteId | undefined => {
-      if (link.target === "") return source.id;
-      if (byName.has(link.target)) return byName.get(link.target);
-      const target = this.resolve(link.target, source.path);
-      if (this.#sameFromAnywhere(link.target)) byName.set(link.target, target);
-      return target;
-    };
-    for (const source of this.#notes.values()) {
-      for (const link of source.index.links) {
-        const target = resolve(link, source);
-        if (target === undefined || target === source.id) continue;
-        const sources = incoming.get(target);
-        // A note's links are read together: a note already listed is the last.
-        if (sources === undefined) incoming.set(target, [source.id]);
-        else if (sources[sources.length - 1] !== source.id) sources.push(source.id);
-      }
+      if (links.length > 0) found.push({ path: from.path, backlink: { source, links } });
     }
-    for (const sources of incoming.values()) {
-      sources.sort((a, b) => this.#pathOf(a).localeCompare(this.#pathOf(b)));
-    }
-    return incoming;
+    return found.sort((a, b) => a.path.localeCompare(b.path)).map(({ backlink }) => backlink);
   }
 
   /** The vault's tags, each with how many notes have it or one under it, as `area` counts `area/project`. */

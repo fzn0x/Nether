@@ -283,6 +283,51 @@ describe("LinkGraph, unchanged parts", () => {
     expect(sources(graph)).toEqual({ a: ["c", "d"], b: ["e"], c: ["a", "e"], d: ["a"], e: ["a"] });
     expect(changes).toBe(edits.length);
   });
+
+  it("finds what a graph made anew finds, as notes come, change, move and go", () => {
+    const paths = ["Plan.md", "A/Plan.md", "B/Plan.md", "Ideas.md", "A/Ideas.md", "ΟΔΟΣ.md"];
+    const targets = ["Plan", "plan", "A/Plan", "/Plan", "Ideas", "Alias", "ΟΔΟΣ", "οδος", "Gone"];
+    const aliases = ["Alias", "Plan", "οδος"];
+    // A small generator with a seed, so a failure repeats.
+    let seed = 11;
+    const next = (count: number) => {
+      seed = (seed * 1103515245 + 12345) % 2 ** 31;
+      return Math.floor((seed / 2 ** 31) * count);
+    };
+    const pick = <T>(items: readonly T[]): T => items[next(items.length)] as T;
+    const ids = ["n0", "n1", "n2", "n3", "n4", "n5"].map(id);
+    const graph = new LinkGraph();
+    for (let step = 0; step < 300; step++) {
+      const note = pick(ids);
+      if (next(6) === 0) graph.remove(note);
+      else {
+        const taken = new Set(
+          [...graph.notes()].filter((other) => other.id !== note).map((other) => other.path),
+        );
+        const path = pick(paths.filter((free) => !taken.has(free)));
+        const links = Array.from({ length: next(4) }, () => `[[${pick(targets)}]]`).join(" ");
+        const own = next(3) === 0 ? `---\naliases: [${pick(aliases)}]\n---\n` : "";
+        graph.set(note, path, index(`${own}${links}\n`));
+      }
+      // Asking at times builds what the graph keeps, which later changes then keep.
+      if (next(3) === 0) graph.backlinks(pick(ids));
+      const fresh = new LinkGraph();
+      fresh.setMany([...graph.notes()]);
+      for (const target of ids) {
+        expect(graph.backlinks(target), `${target} after step ${String(step)}`).toEqual(
+          fresh.backlinks(target),
+        );
+      }
+    }
+  });
+
+  it("finds a link to an alias in Greek, whose last sigma lowercases as final", () => {
+    const graph = new LinkGraph();
+    graph.set(id("road"), "ΟΔΟΣ.md", index("---\naliases: [Δρόμος]\n---\n"));
+    graph.set(id("a"), "A.md", index("[[ΟΔΟΣ]]\n"));
+    graph.set(id("b"), "B.md", index("[[ΔΡΌΜΟΣ]]\n"));
+    expect(graph.backlinks(id("road")).map((backlink) => backlink.source)).toEqual(["a", "b"]);
+  });
 });
 
 describe("plainText", () => {
