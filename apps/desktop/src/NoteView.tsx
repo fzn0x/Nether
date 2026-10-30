@@ -3,13 +3,28 @@ import type { NoteId } from "@nether/core";
 import { NoteEditor } from "@nether/editor";
 import "@nether/editor/math.css";
 import type { Vault } from "@nether/storage";
+import { useMemo, useState } from "react";
+import type { VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
+import { noteFiles } from "./noteFiles.ts";
 import { useNote } from "./useNote.ts";
 
-export default function NoteView(props: { readonly vault: Vault; readonly id: NoteId }) {
-  const { vault, id } = props;
+export default function NoteView(props: {
+  readonly vault: Vault;
+  readonly media: VaultMedia;
+  readonly id: NoteId;
+}) {
+  const { vault, media, id } = props;
   const note = vault.note(id);
   const { state, conflict, saveError, edit } = useNote(vault, id);
+  const [fileError, setFileError] = useState<string | undefined>();
+  const files = useMemo(
+    () =>
+      noteFiles(vault, media, id, (error) => {
+        setFileError(error instanceof Error ? error.message : String(error));
+      }),
+    [vault, media, id],
+  );
 
   if (note === undefined || state.status === "missing") {
     return <p className="placeholder">{t("missingNote")}</p>;
@@ -23,6 +38,7 @@ export default function NoteView(props: { readonly vault: Vault; readonly id: No
         </p>
       )}
       {saveError === undefined ? null : <p role="alert">{t("saveFailed", { error: saveError })}</p>}
+      {fileError === undefined ? null : <p role="alert">{t("fileFailed", { error: fileError })}</p>}
       {state.status === "failed" ? (
         <p role="alert">{state.error.message}</p>
       ) : state.status === "binary" ? (
@@ -35,6 +51,7 @@ export default function NoteView(props: { readonly vault: Vault; readonly id: No
           onChange={edit}
           label={t("noteBody", { title: note.title })}
           placeholder={t("emptyNote")}
+          files={files}
         />
       )}
     </article>

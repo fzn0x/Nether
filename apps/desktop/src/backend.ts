@@ -16,9 +16,25 @@ import { Channel, isCallError, isMyGo } from "mygo-runtime";
 import { type VaultInfo, Vaults } from "./mygo.ts";
 import { sampleVault } from "./sample.ts";
 
+/** Where the page loads a vault's files from, and how it hands them to the system's apps. */
+export interface VaultMedia {
+  /** The URL of a file of the vault, by its path. */
+  url(path: string): string | undefined;
+  /** Opens a media file, such as a PDF, in the system's app for it, where there is one. */
+  readonly open?: (path: string) => Promise<void>;
+  /** Shows a file in the system's file manager, where there is one. */
+  readonly reveal?: (path: string) => Promise<void>;
+}
+
 export interface Connection {
   readonly files: VaultFiles;
   readonly store: IndexStore;
+  readonly media: VaultMedia;
+}
+
+/** A path's segments escaped for a URL, its slashes kept. */
+function escapePath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 /** Bytes as base64, which is how the Go services take them. */
@@ -108,9 +124,42 @@ const desktop: Backend = {
   async connect(vault) {
     // The index of each vault is its own database, named by the vault's ID.
     const store = await SqliteStore.open(await open(`${vault.id}.db`));
-    return { files: new DesktopFiles(vault.id), store };
+    // Images, PDFs, audio and video load from the app's server on the loopback interface.
+    const base = await Vaults.mediaURL(vault.id);
+    const media: VaultMedia = {
+      url: (path) => base + escapePath(path),
+      open: (path) => Vaults.openFile(vault.id, path),
+      reveal: (path) => Vaults.showFile(vault.id, path),
+    };
+    return { files: new DesktopFiles(vault.id), store, media };
   },
 };
+
+const previewTypes: Readonly<Record<string, string>> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+};
+
+/** The files of a vault in memory, as blob URLs, for the browser preview. */
+function memoryMedia(files: MemoryFiles): VaultMedia {
+  const urls = new Map<string, string>();
+  return {
+    url(path) {
+      const bytes = files.bytes(path);
+      if (bytes === undefined) return undefined;
+      let url = urls.get(path);
+      if (url === undefined) {
+        const extension = path.slice(path.lastIndexOf(".")).toLowerCase();
+        url = URL.createObjectURL(new Blob([bytes], { type: previewTypes[extension] ?? "" }));
+        urls.set(path, url);
+      }
+      return url;
+    },
+  };
+}
 
 const sample: VaultInfo = {
   id: "01929f4c-7b00-7a00-8000-0000000000aa",
@@ -125,7 +174,10 @@ const preview: Backend = {
   choose: () => Promise.resolve(sample),
   open: () => Promise.resolve(sample),
   forget: () => Promise.resolve(),
-  connect: () => Promise.resolve({ files: new MemoryFiles(sampleVault), store: new MemoryStore() }),
+  connect() {
+    const files = new MemoryFiles(sampleVault);
+    return Promise.resolve({ files, store: new MemoryStore(), media: memoryMedia(files) });
+  },
 };
 
 /** The backend for where the page runs. */

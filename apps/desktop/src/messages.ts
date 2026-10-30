@@ -24,6 +24,7 @@ export const messages = {
   conflict:
     "Another app changed this note while you were editing it. Your version is kept as {path}.",
   saveFailed: "The note could not be saved: {error}",
+  fileFailed: "The file could not be added or opened: {error}",
   errorTitle: "Something went wrong",
   dismiss: "Dismiss",
 } as const;

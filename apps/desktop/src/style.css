@@ -540,14 +540,6 @@ button {
   content: attr(data-type) " ";
 }
 
-.nether-editor .card-file::before {
-  content: "File " attr(data-src);
-}
-
-.nether-editor .card-embed::before {
-  content: "Embed " attr(data-target);
-}
-
 .nether-editor .card-bookmark::before {
   content: attr(data-url);
 }
@@ -705,9 +697,103 @@ button {
   white-space: pre-wrap;
 }
 
-.nether-editor img.image {
+/* Files in a note: images, PDFs, players, and cards for the rest. */
+.nether-editor .file-block img.image {
+  display: block;
   max-width: 100%;
+  height: auto;
   border-radius: 4px;
+}
+
+.nether-editor .file-pdf {
+  display: block;
+  width: 100%;
+  height: min(70vh, 48rem);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.nether-editor .file-audio {
+  display: block;
+  width: 100%;
+}
+
+.nether-editor .file-video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.nether-editor .file-card,
+.nether-editor .missing-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.nether-editor .missing-file {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.nether-editor .missing-link,
+.nether-editor .file-name {
+  overflow-wrap: anywhere;
+}
+
+.nether-editor .missing-link {
+  color: var(--text);
+}
+
+.nether-editor .file-name {
+  font-weight: 600;
+}
+
+.nether-editor .file-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.nether-editor .file-actions button,
+.nether-editor .file-pick {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.nether-editor .file-actions button:hover,
+.nether-editor .file-pick:hover {
+  border-color: var(--muted);
+}
+
+.nether-editor .file-choose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.nether-editor .file-link {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
 }
 
 .nether-editor .ProseMirror-selectednode {

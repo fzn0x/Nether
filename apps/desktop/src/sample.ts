@@ -24,6 +24,8 @@ left to read it, or see [[Projects/Roadmap|the roadmap]].
 | ----- | ----- |
 | 1 | Local-first notes |
 | 2 | Databases and structure |
+
+![[sketch.svg|240]]
 `,
   "Projects/Ideas.md": `# Ideas
 
@@ -43,4 +45,10 @@ flowchart LR
 \`\`\`
 `,
   "attachments/diagram.png": "not really an image",
+  "attachments/sketch.svg": `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 120" width="240" height="120">
+  <rect x="8" y="8" width="224" height="104" rx="12" fill="#c43d18" fill-opacity="0.12" stroke="#c43d18" stroke-width="2"/>
+  <circle cx="60" cy="60" r="22" fill="#c43d18"/>
+  <path d="M100 60h100" stroke="#c43d18" stroke-width="4" stroke-linecap="round"/>
+</svg>
+`,
 };

@@ -3,12 +3,12 @@
 // its notes change.
 import { type NoteEntry, Vault } from "@nether/storage";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { backend } from "./backend.ts";
+import { type VaultMedia, backend } from "./backend.ts";
 import type { VaultInfo } from "./mygo.ts";
 
 export type VaultState =
   | { readonly status: "opening" }
-  | { readonly status: "open"; readonly vault: Vault }
+  | { readonly status: "open"; readonly vault: Vault; readonly media: VaultMedia }
   | { readonly status: "failed"; readonly error: Error };
 
 export function useVault(info: VaultInfo): VaultState {
@@ -21,7 +21,7 @@ export function useVault(info: VaultInfo): VaultState {
     let closeStore: (() => Promise<void>) | undefined;
     void (async () => {
       try {
-        const { files, store } = await backend.connect(info);
+        const { files, store, media } = await backend.connect(info);
         closeStore = () => store.close();
         if (aborted()) {
           await store.close();
@@ -30,7 +30,7 @@ export function useVault(info: VaultInfo): VaultState {
         const vault = new Vault(files, store);
         await vault.open();
         if (aborted()) return;
-        setState({ status: "open", vault });
+        setState({ status: "open", vault, media });
         await vault.watch(controller.signal);
       } catch (error) {
         if (!aborted()) {

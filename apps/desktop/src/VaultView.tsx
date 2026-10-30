@@ -55,9 +55,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
         )}
       </aside>
       <main className="pane">
-        {vault !== undefined && selected !== undefined ? (
+        {state.status === "open" && selected !== undefined ? (
           <Suspense fallback={null}>
-            <NoteView vault={vault} id={selected} />
+            <NoteView vault={state.vault} media={state.media} id={selected} />
           </Suspense>
         ) : (
           <p className="placeholder">{t("selectNote")}</p>
