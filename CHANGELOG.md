@@ -86,5 +86,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or as a PDF on A4 or Letter, each note on a new page, with math, code,
   diagrams and embedded notes drawn as in the app
   ([ADR 0012](docs/adr/0012-export-from-the-page.md)).
+- Renaming a note from its name above it: every link to it, wiki or
+  Markdown, in notes and in frontmatter, is rewritten to find it, keeping
+  its heading, block and alias.
 
 [Unreleased]: https://github.com/fzn0x/Nether/commits/main

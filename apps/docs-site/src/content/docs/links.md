@@ -58,6 +58,24 @@ type its last bracket. If the vault has no note by that name yet, opening
 the link makes one, at the top of the vault, or in the folder its name
 gives, as in `[[Projects/Next steps]]`.
 
+## Renaming a note
+
+Click a note's name above it, change it, and press Enter; Escape keeps the
+old name. Every link to the note follows: Nether rewrites the links that
+named it, in every note and in its own frontmatter, so they find it under
+its new name.
+
+- A wiki link names the note by its new name, or by its path when another
+  note has that name or the link was written with a path, and keeps its
+  heading, block and alias: `[[Plan#Goals|goals]]` becomes
+  `[[Roadmap#Goals|goals]]`.
+- A Markdown link, `[the plan](Plan.md)`, leads to the note's new path from
+  where it is written.
+- Links in code stay as they are, since they are text.
+
+A name cannot have `\ / : * ? " < > | # ^ [ ]` in it, or start with a dot,
+so that every system can hold the file and every link can name it.
+
 ## How a link finds its note
 
 Nether finds the note a link names as Obsidian does, so links work the
