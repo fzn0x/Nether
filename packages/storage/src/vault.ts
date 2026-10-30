@@ -201,6 +201,11 @@ export class Vault {
     return note === undefined ? undefined : this.note(note);
   }
 
+  /** The paths of every file the vault holds, notes and others, sorted as a file explorer sorts them. */
+  files(): readonly string[] {
+    return [...this.#records.keys()].sort((a, b) => collator.compare(a, b));
+  }
+
   /**
    * The path of the file a link names from the note at `from`, as Obsidian
    * finds it: an embed's `![[photo.png]]` or an image's `![](photo.png)`.

@@ -247,6 +247,20 @@ describe("matchMoves", () => {
   });
 });
 
+describe("Vault.files", () => {
+  it("lists every file it holds, notes and others, as a file explorer sorts them", async () => {
+    const vault = await openVault(
+      new MemoryFiles({
+        "b.md": "B",
+        "a/x 10.png": "",
+        "a/x 9.png": "",
+        ".nether/vault.json": "{}",
+      }),
+    );
+    expect(vault.files()).toEqual(["a/x 9.png", "a/x 10.png", "b.md"]);
+  });
+});
+
 describe("MemoryFiles", () => {
   it("refuses paths that are not in the vault", async () => {
     const files = new MemoryFiles({});
