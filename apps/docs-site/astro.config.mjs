@@ -17,7 +17,7 @@ export default defineConfig({
       customCss: ["./src/styles/theme.css"],
       sidebar: [
         { label: "Start here", items: ["introduction", "roadmap"] },
-        { label: "Notes", items: ["vaults", "markdown"] },
+        { label: "Notes", items: ["vaults", "writing", "markdown"] },
       ],
     }),
   ],
