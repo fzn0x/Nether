@@ -54,6 +54,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the background and kept, so a vault opens without reading every note
   again. A link to a heading or block opens the note there; `![[Note]]`
   embeds a note, its heading's section or a block, read only.
+- The quick switcher, Ctrl+O, opens a note by its name, alias or path, and
+  search, Ctrl+Shift+F, finds notes by their words and phrases, case and
+  accents aside, filtered by tag, folder and property, with exclusions,
+  each with the text around a match, offline.
 - Beside each note, its outline and the notes that link to it, with the
   text around each link; a list of the vault's tags, nested ones under
   theirs, each showing its notes.
