@@ -16,6 +16,7 @@ import { FileDrop, type NoteFiles } from "./files.ts";
 import { blockIdsKey } from "./ids.ts";
 import { LinkMenu, type NoteLinks } from "./LinkMenu.tsx";
 import { type NotePart, findPart } from "./parts.ts";
+import type { LinkPreviews } from "./previews.tsx";
 import { netherExtensions } from "./schema.ts";
 import { SlashMenu } from "./SlashMenu.tsx";
 import { netherNodeViews } from "./views.tsx";
@@ -48,6 +49,8 @@ export interface NoteEditorProps {
   readonly links?: NoteLinks;
   /** Whether the note can be edited; read only, it shows no menus or handles. */
   readonly editable?: boolean;
+  /** Previews of the note's web links, fetched when the user asks. */
+  readonly previews?: LinkPreviews;
   /**
    * A heading or block to go to, as a link to a part of the note asks, or a
    * place in a block's text: the caret goes there and it scrolls into view.
@@ -69,6 +72,7 @@ export function NoteEditor(props: NoteEditorProps) {
     links,
     editable = true,
     focus,
+    previews,
   } = props;
   // The latest callback, so the editor need not be made again when it changes.
   const changed = useRef(onChange);
@@ -81,7 +85,7 @@ export function NoteEditor(props: NoteEditorProps) {
   const editor = useEditor({
     extensions: [
       ...netherExtensions({
-        nodeViews: netherNodeViews(words, files, links),
+        nodeViews: netherNodeViews(words, files, links, 0, previews),
         history: document === undefined,
       }),
       ...(document === undefined

@@ -462,7 +462,7 @@ export function netherExtensions(options: SchemaOptions = {}): AnyExtension[] {
     withView(MathBlock),
     withView(Image),
     withView(File),
-    Bookmark,
+    withView(Bookmark),
     withView(Embed),
     Database,
     RawBlock,

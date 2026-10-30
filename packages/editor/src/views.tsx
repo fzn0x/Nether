@@ -20,6 +20,7 @@ import {
 import { EmbedView, FileView, ImageView, backToNote } from "./embeds.tsx";
 import type { NoteFiles } from "./files.ts";
 import type { NoteLinks } from "./LinkMenu.tsx";
+import { BookmarkView, type LinkPreviews } from "./previews.tsx";
 import { type NodeViews, codeLanguage } from "./schema.ts";
 import { type EditorWords, englishWords } from "./words.ts";
 
@@ -276,6 +277,7 @@ export function netherNodeViews(
   files?: NoteFiles,
   links?: NoteLinks,
   depth = 0,
+  previews?: LinkPreviews,
 ): NodeViews {
   const view = (
     View: ComponentType<
@@ -296,5 +298,8 @@ export function netherNodeViews(
     image: view(ImageView),
     file: view(FileView),
     embed: view(EmbedView),
+    bookmark: ReactNodeViewRenderer(function PreviewedBookmark(props: NodeViewProps) {
+      return <BookmarkView {...props} words={words} previews={previews} />;
+    }),
   };
 }

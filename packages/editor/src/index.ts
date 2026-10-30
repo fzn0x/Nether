@@ -58,6 +58,7 @@ export {
   linkMenuKey,
 } from "./LinkMenu.tsx";
 export { netherNodeViews } from "./views.tsx";
+export { BookmarkView, type LinkPreview, type LinkPreviews } from "./previews.tsx";
 export { diagramToSvg, highlightCode, mathToMathml } from "./render.ts";
 export { type EmbeddedNote, NoteEmbed, embedDepth } from "./NoteEmbed.tsx";
 export {

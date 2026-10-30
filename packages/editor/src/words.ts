@@ -70,6 +70,14 @@ export interface EditorWords {
   readonly noNotes: string;
   /** What an embed of a note the vault does not have says, before its link. */
   readonly missingNote: string;
+  /** Fetches a web link's preview. */
+  readonly showPreview: string;
+  /** What the preview button says while it fetches. */
+  readonly fetchingPreview: string;
+  /** Before why a preview could not be fetched. */
+  readonly previewFailed: string;
+  /** Opens a web link in the system's browser. */
+  readonly openLink: string;
 }
 
 export const englishWords: EditorWords = {
@@ -115,5 +123,9 @@ export const englishWords: EditorWords = {
   embeddedNote: "Embedded note",
   linkMenu: "Notes",
   noNotes: "No note by that name: type ]] to link to a new one",
+  showPreview: "Show preview",
+  fetchingPreview: "Fetching the preview…",
+  previewFailed: "The preview could not be fetched",
+  openLink: "Open",
   missingNote: "No such note or part of one",
 };
