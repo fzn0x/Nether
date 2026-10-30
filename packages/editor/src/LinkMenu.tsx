@@ -20,12 +20,19 @@ export interface LinkSuggestion {
   readonly target: LinkTarget;
   /** The text the link shows, as `[[Roadmap|Plan]]` shows Plan. */
   readonly alias?: string;
+  /** Called when the link goes in, as to write the `^id` of a block the link names. */
+  readonly onChoose?: () => void;
 }
 
 /** The notes a note links to, which the app that shows it knows. */
 export interface NoteLinks {
   /** What `[[` suggests for the text typed after it. */
   suggest(query: string): readonly LinkSuggestion[];
+  /**
+   * What `[[` suggests once it names a note's blocks, as `[[Note#^` and then
+   * text to find a block by, read from the note; undefined for other text.
+   */
+  suggestBlocks?(query: string): Promise<readonly LinkSuggestion[]> | undefined;
   /** Opens what a link names, making the note first when the vault has none by that name. */
   open(target: LinkTarget): void;
   /** Shows the notes with a tag, as a tag in a note does when clicked. */
@@ -90,7 +97,9 @@ export const LinkMenu = Extension.create<LinkMenuOptions>({
         allowSpaces: true,
         allowedPrefixes: null,
         allow: ({ state, range }) => state.doc.resolve(range.from).parent.type.spec.code !== true,
-        items: ({ query }) => [...links.suggest(query)],
+        items: async ({ query }) => [
+          ...((await links.suggestBlocks?.(query)) ?? links.suggest(query)),
+        ],
         command: ({
           editor,
           range,
@@ -109,6 +118,7 @@ export const LinkMenu = Extension.create<LinkMenuOptions>({
               attrs: { target: choice.target, alias: choice.alias ?? null },
             })
             .run();
+          choice.onChoose?.();
         },
         render: popupMenu<LinkSuggestion>({
           describe: (choice) => ({
