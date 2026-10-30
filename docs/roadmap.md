@@ -87,7 +87,7 @@ The Notion core, one feature per pull request, in this order:
 - [x] The table view, with each view's filters, sorts, grouping and visible properties
 - [x] The Obsidian base beside each database, written from its schema, with Obsidian's edits read back
 - [x] The board, list and gallery views
-- [ ] The calendar and timeline views
+- [x] The calendar and timeline views
 - [ ] Relations between databases, both ways, and rollups
 - [ ] Formulas: a documented, sandboxed expression language
 - [ ] Query blocks: a live table or list of the notes a folder, tag or property finds

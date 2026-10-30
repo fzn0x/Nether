@@ -41,7 +41,7 @@ view** adds one. Each view keeps its own settings:
 - **Group by** a property shows the rows under each of its values: a
   select's options in their order, then the rows with no value.
 
-## Boards, lists and galleries
+## Boards, lists, galleries, calendars and timelines
 
 **Layout** shows a view's rows another way, each with its own filter and
 sort:
@@ -56,8 +56,18 @@ sort:
 - A **gallery** shows each row as a card, with a **Cover**: the image a file
   property names, as `[[photo.png]]` or a web address.
 
-Lists and galleries group by a property too. Calendars and timelines come
-next, with relations between databases, rollups and formulas.
+- A **calendar** shows a month, from Monday, with each row on the day of
+  its **Date**: a date property, or the day the row was made or last
+  edited. **+** on a day adds a row with that date; the arrows and
+  **Today** move between months.
+- A **timeline** shows six weeks, each row a bar from its **Date** to its
+  **End**, another date property, or one day long without one. **Earlier**
+  and **Later** move it four weeks.
+
+Rows with no date are listed under a calendar or a timeline. To move a
+row to another day, change its date in a table or in the row's
+properties. Lists and galleries group by a property too. Relations between
+databases, rollups and formulas come next.
 
 ## How a database is written
 

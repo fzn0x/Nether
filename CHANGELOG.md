@@ -135,6 +135,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with a column for each value of a select, multi-select, checkbox or
   person, its cards moved by dragging or by their Move to menu; as a list;
   or as a gallery of cards with a cover a file property names.
+- Calendars and timelines: a calendar shows a month with each row on the
+  day of its date, and makes a row on a day; a timeline shows six weeks
+  with each row a bar from its date to its end.
 - An Obsidian base beside each database, `Projects.base`, so Obsidian shows
   its rows and views: written from the database when it changes, and
   moved with it. A view's columns, grouping and filter changed in
