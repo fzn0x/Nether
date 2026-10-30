@@ -51,3 +51,17 @@ what was deferred and the plan for Phase 1.
 - [x] `LICENSE`, `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`
 - [x] The core data model: note, block, property, database, view, link and workspace, with stable IDs and serialization tests
 - [x] A generator of the reference 50,000-note vault for the performance tests
+
+## Phase 1: Local-first notes
+
+The Obsidian core, one feature per pull request, in this order:
+
+- [x] `packages/markdown`: Markdown to and from Nether's notes, with Obsidian's syntax and a round trip that keeps unchanged blocks byte for byte ([ADR 0006](adr/0006-markdown-file-format.md))
+- [ ] The vault on disk: reading, writing and watching the folder, and the local SQLite store
+- [ ] `packages/editor`: the block editor with live Markdown shortcuts, the slash menu and source mode
+- [ ] Yjs documents per note, kept in step with the files both ways
+- [ ] Links, backlinks, aliases, tags and the outline
+- [ ] The quick switcher and full-text search
+- [ ] Properties, templates, daily notes, the trash and export
+- [ ] The app's interface: sidebar, command palette and keyboard shortcuts
+- [ ] The performance harness on the reference vault, which the gate runs
