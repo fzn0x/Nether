@@ -23,11 +23,18 @@ export async function settle(page: Page) {
   );
 }
 
-/** Opens the browser preview's sample vault and returns its list of notes. */
+/** Opens the browser preview's sample vault and returns its list of notes, shown as a list. */
 export async function openSample(page: Page): Promise<Locator> {
+  await openSampleTree(page);
+  await page.getByRole("button", { name: "List", exact: true }).click();
+  return page.getByRole("list", { name: "Notes" });
+}
+
+/** Opens the browser preview's sample vault, its notes shown as a tree. */
+export async function openSampleTree(page: Page): Promise<Locator> {
   await page.goto("/");
   await page.getByRole("button", { name: "Open a folder" }).click();
-  return page.getByRole("list", { name: "Notes" });
+  return page.getByRole("tree", { name: "Notes" });
 }
 
 /** Opens a note of the sample vault and returns its editor. */
