@@ -69,5 +69,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   checkboxes, dates and numbers. They are written to the note's
   frontmatter, changing only the keys edited, and another app's changes
   merge with them key by key.
+- Templates: Ctrl+N makes a note, blank or from any note, filling
+  Obsidian's `{{title}}`, `{{date}}` and `{{time}}` variables, with formats
+  and offsets, and putting the cursor at `{{cursor}}`. Today's note, and
+  this week's and this month's when turned on, open with one click, made
+  from their templates the first time. A vault moved from Obsidian starts
+  from Obsidian's settings for them
+  ([ADR 0011](docs/adr/0011-templates-and-periodic-notes.md)).
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main
