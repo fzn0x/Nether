@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/sqlite"
+	"github.com/egoist/mygo/plugins/updater"
 )
 
 // AppInfo describes the running app.
@@ -52,6 +53,9 @@ func main() {
 	mygo.Bind(vaults)
 	mygo.Bind(NewExports(vaults))
 	mygo.Bind(NewPreviews())
+	mygo.Bind(Updates{})
+	// Checks for updates in the background, when the build has an update key.
+	mygo.Use(updater.Plugin)
 
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{

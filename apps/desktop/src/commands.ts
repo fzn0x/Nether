@@ -20,6 +20,8 @@ export const commandIds = [
   "showTrash",
   "templateSettings",
   "shortcuts",
+  "checkUpdates",
+  "updateChecks",
   "closeVault",
 ] as const;
 

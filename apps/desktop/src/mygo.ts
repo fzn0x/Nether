@@ -79,6 +79,14 @@ export interface PDFPage {
   landscape: boolean;
 }
 
+/** UpdateSettings is what the page shows of updates. */
+export interface UpdateSettings {
+  /** Available is whether the app can update itself. */
+  available: boolean;
+  /** Automatic is whether it checks for updates on its own. */
+  automatic: boolean;
+}
+
 /** VaultInfo identifies a vault: a folder of notes the user chose. */
 export interface VaultInfo {
   /**
@@ -286,5 +294,26 @@ export const Previews = {
   /** Open opens a web address in the system's browser. */
   open(raw: string): Promise<void> {
     return call("Previews.Open", raw);
+  },
+} as const;
+
+/**
+ * Updates tells the page whether the app updates itself, and lets the user
+ * turn its automatic checks off and on, or check now. A build without an
+ * update key, a development build, and an app a package manager installed,
+ * as the Debian package or the Flatpak, update otherwise, and say so.
+ */
+export const Updates = {
+  /** Check looks for a newer version now, in the update window. */
+  check(): Promise<void> {
+    return call("Updates.Check");
+  },
+  /** SetAutomatic turns the automatic checks on or off; the app remembers it. */
+  setAutomatic(on: boolean): Promise<void> {
+    return call("Updates.SetAutomatic", on);
+  },
+  /** Settings returns whether the app updates itself, and checks on its own. */
+  settings(): Promise<UpdateSettings> {
+    return call("Updates.Settings");
   },
 } as const;

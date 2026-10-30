@@ -18,6 +18,7 @@ import {
 import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
+import { backend } from "./backend.ts";
 import { CommandPalette } from "./CommandPalette.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
@@ -141,6 +142,12 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const [sourceRequest, setSourceRequest] = useState(0);
   const [renameRequest, setRenameRequest] = useState(0);
   const { hotkeys, chosen: chosenHotkeys, save: saveHotkeys } = useHotkeys(vault);
+  // Whether the app updates itself, and checks on its own.
+  const [updates, setUpdates] = useState({ available: false, automatic: false });
+  const readUpdates = useCallback(() => {
+    backend.updateSettings().then(setUpdates, () => undefined);
+  }, []);
+  useEffect(readUpdates, [readUpdates]);
   // While the shortcuts dialog listens for keys, they run no command.
   const listening = useRef(false);
   const setListening = useCallback((value: boolean) => {
@@ -392,9 +399,19 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
             setDialog("shortcuts");
           }
         : undefined,
+      checkUpdates: updates.available
+        ? () => {
+            void backend.checkForUpdates();
+          }
+        : undefined,
+      updateChecks: updates.available
+        ? () => {
+            backend.setAutomaticUpdates(!updates.automatic).then(readUpdates, () => undefined);
+          }
+        : undefined,
       closeVault: onClose,
     };
-  }, [state.status, selected, openPeriodic, trashNote, onClose]);
+  }, [state.status, selected, openPeriodic, trashNote, onClose, updates, readUpdates]);
 
   // Shortcuts run their commands, before the editors, which have their own uses for keys.
   const latest = useRef({ run, hotkeys });
@@ -682,7 +699,16 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
           commands={commandIds.flatMap((id) =>
             run[id] === undefined
               ? []
-              : [{ id, name: t(`command_${id}`), keys: hotkeys[id] ?? [] }],
+              : [
+                  {
+                    id,
+                    name:
+                      id === "updateChecks" && !updates.automatic
+                        ? t("command_updateChecksOn")
+                        : t(`command_${id}`),
+                    keys: hotkeys[id] ?? [],
+                  },
+                ],
           )}
           onRun={(id) => {
             run[id as CommandId]?.();

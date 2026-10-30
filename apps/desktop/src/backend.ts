@@ -20,6 +20,8 @@ import {
   type LinkPreview,
   type PDFPage,
   Previews,
+  type UpdateSettings,
+  Updates,
   type VaultInfo,
   Vaults,
 } from "./mygo.ts";
@@ -90,6 +92,12 @@ export interface Backend {
   fetchPreview(url: string): Promise<LinkPreview>;
   /** Opens a web address in the system's browser. */
   openUrl(url: string): Promise<void>;
+  /** Whether the app updates itself, and checks on its own. */
+  updateSettings(): Promise<UpdateSettings>;
+  /** Turns the automatic update checks on or off. */
+  setAutomaticUpdates(on: boolean): Promise<void>;
+  /** Looks for a newer version now. */
+  checkForUpdates(): Promise<void>;
 }
 
 /** A vault's files through the Go service. */
@@ -159,6 +167,9 @@ const desktop: Backend = {
   kind: "desktop",
   fetchPreview: (url) => Previews.fetch(url),
   openUrl: (url) => Previews.open(url),
+  updateSettings: () => Updates.settings(),
+  setAutomaticUpdates: (on) => Updates.setAutomatic(on),
+  checkForUpdates: () => Updates.check(),
   startup: () => Vaults.startup(),
   recent: () => Vaults.recent(),
   choose: () => Vaults.choose(),
@@ -291,6 +302,10 @@ const preview: Backend = {
     window.open(url, "_blank", "noopener");
     return Promise.resolve();
   },
+  // A page in a browser updates with its server.
+  updateSettings: () => Promise.resolve({ available: false, automatic: false }),
+  setAutomaticUpdates: () => Promise.resolve(),
+  checkForUpdates: () => Promise.resolve(),
   startup: () => Promise.resolve(null),
   recent: () => Promise.resolve([]),
   choose: () => Promise.resolve(sample),
