@@ -82,6 +82,38 @@ describe("LinkIndex.resolve", () => {
     expect(index.linkTo("photo.png", "Projects/Note.md")).toBe("photo.png");
     expect(index.linkTo("Projects/photo.png", "Welcome.md")).toBe("Projects/photo.png");
   });
+
+  it("finds what an index made anew finds, as files are added and removed", () => {
+    const names = ["Plan.md", "plan.md", "Ideas.md", "photo.png"];
+    const folders = ["", "A/", "A/B/", "b/"];
+    const all = folders.flatMap((folder) => names.map((name) => `${folder}${name}`));
+    // A small generator with a seed, so a failure repeats.
+    let seed = 7;
+    const next = (count: number) => {
+      seed = (seed * 1103515245 + 12345) % 2 ** 31;
+      return Math.floor((seed / 2 ** 31) * count);
+    };
+    const index = new LinkIndex([]);
+    const present: string[] = [];
+    for (let step = 0; step < 400; step++) {
+      const path = all[next(all.length)] ?? "";
+      const at = present.indexOf(path);
+      if (at === -1) {
+        index.add(path);
+        present.push(path);
+      } else {
+        index.remove(path);
+        present.splice(at, 1);
+      }
+      const fresh = new LinkIndex(present);
+      for (const link of ["Plan.md", "PLAN.md", "B/plan.md", "/Ideas.md", "photo.png"]) {
+        for (const from of ["Welcome.md", "A/x.md", "A/B/y.md", "b/z.md"]) {
+          expect(index.resolve(link, from), `${link} from ${from}`).toBe(fresh.resolve(link, from));
+        }
+      }
+      expect(index.named("plan.md")).toBe(fresh.named("plan.md"));
+    }
+  });
 });
 
 describe("Vault attachments and links", () => {

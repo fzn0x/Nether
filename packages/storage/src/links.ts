@@ -53,6 +53,18 @@ function addPath(map: Map<string, Paths>, key: string, path: string): void {
   else paths.push(path);
 }
 
+function removePath(map: Map<string, Paths>, key: string, path: string): void {
+  const paths = map.get(key);
+  if (paths === undefined || typeof paths === "string") {
+    if (paths === path) map.delete(key);
+    return;
+  }
+  const at = paths.indexOf(path);
+  if (at !== -1) paths.splice(at, 1);
+  const [only] = paths;
+  if (paths.length === 1 && only !== undefined) map.set(key, only);
+}
+
 function pathList(paths: Paths | undefined): readonly string[] {
   return paths === undefined ? [] : typeof paths === "string" ? [paths] : paths;
 }
@@ -65,11 +77,21 @@ export class LinkIndex {
   readonly #names = new Map<string, Paths>();
 
   constructor(paths: Iterable<string>) {
-    for (const path of paths) {
-      const folded = path.toLowerCase();
-      addPath(this.#folded, folded, path);
-      addPath(this.#names, baseName(folded), path);
-    }
+    for (const path of paths) this.add(path);
+  }
+
+  /** Adds a file, as one that appears in the vault. */
+  add(path: string): void {
+    const folded = path.toLowerCase();
+    addPath(this.#folded, folded, path);
+    addPath(this.#names, baseName(folded), path);
+  }
+
+  /** Forgets a file, as one that leaves the vault or moves from its path. */
+  remove(path: string): void {
+    const folded = path.toLowerCase();
+    removePath(this.#folded, folded, path);
+    removePath(this.#names, baseName(folded), path);
   }
 
   /** The file at a path, as written or else case aside. */
