@@ -70,6 +70,32 @@ wrong when it cannot. Nether draws diagrams with Mermaid's dagre layout:
 it does not include the ELK layout, whose license is not compatible with
 Nether's, so a diagram that asks for ELK shows an error instead.
 
+## Images, PDFs, audio and video
+
+Paste an image into a note, or drop files on it, and Nether adds them to
+the vault's `attachments` folder and embeds them where they land, as
+`![[Pasted image 20261030153000.png]]`. It never writes over a file: a
+second `photo.png` becomes `photo 1.png`. The slash menu's Image and File
+blocks take a path or a link, or a file you choose.
+
+Nether finds the file a link names as Obsidian does, whatever the case of
+its letters: at that path from the note's folder, then from the vault's
+folder, then any file whose path ends with the link, the nearest to the
+note first. So `![[photo.png]]` finds `attachments/photo.png` from any
+note, and links written in either app find the same files.
+
+| Write | To show |
+| --- | --- |
+| `![[photo.png]]` or `![](attachments/photo.png)` | An image |
+| `![[photo.png\|300]]` or `![alt\|300](photo.png)` | An image 300 pixels wide |
+| `![[paper.pdf]]` | A PDF, in the app's viewer |
+| `![[talk.m4a]]`, `![[clip.mp4]]` | Audio or video, with a player |
+| `![](https://example.com/photo.png)` | An image from the web |
+
+A PDF's card can open it in your system's PDF app, and any other file's
+card shows it in your file manager. On Linux, whose web view has no PDF
+viewer, PDFs show as cards.
+
 ## What happens to your file
 
 Nether rewrites only the blocks you change. The rest of the file keeps its
