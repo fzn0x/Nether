@@ -32,6 +32,7 @@ export {
 export {
   type NoteDocuments,
   type NoteEntry,
+  type NoteIndexes,
   Vault,
   type VaultOptions,
   matchMoves,

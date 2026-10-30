@@ -30,6 +30,9 @@ export type NoteDocuments = Pick<
   "document" | "appendUpdates" | "compact" | "setFileHash"
 >;
 
+/** Where a vault keeps what the link index and search read of its notes. */
+export type NoteIndexes = Pick<IndexStore, "noteIndexes" | "putNoteIndexes" | "deleteNoteIndexes">;
+
 export interface VaultOptions {
   /** Makes the ID of a note seen for the first time; a UUID version 7 by default. */
   readonly newId?: () => NoteId;
@@ -81,6 +84,11 @@ export class Vault {
 
   /** Where the vault keeps its notes' documents. */
   get documents(): NoteDocuments {
+    return this.#store;
+  }
+
+  /** Where the vault keeps what the link index and search read of its notes. */
+  get indexes(): NoteIndexes {
     return this.#store;
   }
 
