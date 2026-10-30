@@ -14,7 +14,15 @@ import {
   type VaultFiles,
 } from "@nether/storage";
 import { Channel, isCallError, isMyGo } from "mygo-runtime";
-import { type ExportEntry, Exports, type PDFPage, type VaultInfo, Vaults } from "./mygo.ts";
+import {
+  type ExportEntry,
+  Exports,
+  type LinkPreview,
+  type PDFPage,
+  Previews,
+  type VaultInfo,
+  Vaults,
+} from "./mygo.ts";
 import { sampleVault } from "./sample.ts";
 
 /** Where the page loads a vault's files from, and how it hands them to the system's apps. */
@@ -78,6 +86,10 @@ export interface Backend {
   open(path: string): Promise<VaultInfo>;
   forget(id: string): Promise<void>;
   connect(vault: VaultInfo): Promise<Connection>;
+  /** Fetches what a web page says of itself, when the user asks for a link's preview. */
+  fetchPreview(url: string): Promise<LinkPreview>;
+  /** Opens a web address in the system's browser. */
+  openUrl(url: string): Promise<void>;
 }
 
 /** A vault's files through the Go service. */
@@ -145,6 +157,8 @@ class DesktopFiles implements VaultFiles {
 
 const desktop: Backend = {
   kind: "desktop",
+  fetchPreview: (url) => Previews.fetch(url),
+  openUrl: (url) => Previews.open(url),
   startup: () => Vaults.startup(),
   recent: () => Vaults.recent(),
   choose: () => Vaults.choose(),
@@ -259,8 +273,24 @@ const sample: VaultInfo = {
   path: "In memory",
 };
 
+/** What the end-to-end tests give the preview: a fetcher of link previews in place of the app's. */
+interface PreviewHooks {
+  fetchPreview?: (url: string) => Promise<LinkPreview>;
+}
+
 const preview: Backend = {
   kind: "preview",
+  fetchPreview(url) {
+    const hooks = (globalThis as { netherPreview?: PreviewHooks }).netherPreview;
+    return (
+      hooks?.fetchPreview?.(url) ??
+      Promise.reject(new Error("Link previews are fetched by the desktop app."))
+    );
+  },
+  openUrl(url) {
+    window.open(url, "_blank", "noopener");
+    return Promise.resolve();
+  },
   startup: () => Promise.resolve(null),
   recent: () => Promise.resolve([]),
   choose: () => Promise.resolve(sample),

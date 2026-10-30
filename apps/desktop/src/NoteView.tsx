@@ -10,6 +10,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
+import { linkPreviews } from "./linkPreviews.ts";
 import { noteFiles } from "./noteFiles.ts";
 import { PropertiesPanel } from "./PropertiesPanel.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
@@ -244,6 +245,7 @@ export default function NoteView(props: {
               placeholder={t("emptyNote")}
               files={files}
               links={links}
+              previews={linkPreviews(vault)}
               autofocus={switched}
               {...(focus === undefined ? {} : { focus })}
             />
