@@ -338,21 +338,31 @@ export class Vault {
   }
 
   async #rename(id: NoteId, path: string): Promise<NoteEntry> {
-    const from = this.#need(id);
-    const info = await this.#files.rename(from, path);
-    const record = this.#records.get(from);
-    if (record !== undefined) {
-      await this.#commit({
-        remove: [from],
-        upsert: [
-          {
-            ...moved(record, path, info),
-            ...(record.hash === undefined ? {} : { hash: record.hash }),
-          },
-        ],
-      });
-    }
+    await this.#moveFile(this.#need(id), path);
     return this.note(id) ?? this.#fail(path);
+  }
+
+  /**
+   * Moves a file of any kind, as an image moving with its folder, making the
+   * folders it needs; a note keeps its ID. It throws if a file is there.
+   */
+  moveFile(from: string, to: string): Promise<void> {
+    return this.#serial(() => this.#moveFile(from, to));
+  }
+
+  async #moveFile(from: string, to: string): Promise<void> {
+    const info = await this.#files.rename(from, to);
+    const record = this.#records.get(from);
+    if (record === undefined) return;
+    await this.#commit({
+      remove: [from],
+      upsert: [
+        {
+          ...moved(record, to, info),
+          ...(record.hash === undefined ? {} : { hash: record.hash }),
+        },
+      ],
+    });
   }
 
   /** Moves a note to the vault's trash, recording where it was, and returns where it went. */

@@ -247,6 +247,20 @@ describe("matchMoves", () => {
   });
 });
 
+describe("Vault.moveFile", () => {
+  it("moves a file of any kind, a note keeping its ID", async () => {
+    const files = new MemoryFiles({ "a/x.png": "png", "a/n.md": "N", "b.md": "B" });
+    const vault = await openVault(files);
+    const note = vault.noteAt("a/n.md")?.id;
+    await vault.moveFile("a/x.png", "c/x.png");
+    await vault.moveFile("a/n.md", "c/n.md");
+    expect(vault.files()).toEqual(["b.md", "c/n.md", "c/x.png"]);
+    expect(vault.noteAt("c/n.md")?.id).toBe(note);
+    expect((await files.read("c/x.png")).missing).toBeUndefined();
+    await expect(vault.moveFile("b.md", "c/n.md")).rejects.toThrow(/already there/);
+  });
+});
+
 describe("Vault.files", () => {
   it("lists every file it holds, notes and others, as a file explorer sorts them", async () => {
     const vault = await openVault(
