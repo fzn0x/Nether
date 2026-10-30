@@ -52,14 +52,19 @@ export type Mark =
   | { readonly type: Exclude<MarkType, "link"> }
   | { readonly type: "link"; readonly href: string; readonly title?: string };
 
+interface Marked {
+  /** The formatting over this piece, such as bold around a link: `**[[Note]]**`. */
+  readonly marks?: readonly Mark[];
+}
+
 /** Inline content: what a line of text is made of. */
 export type Inline =
-  | { readonly type: "text"; readonly text: string; readonly marks?: readonly Mark[] }
+  | ({ readonly type: "text"; readonly text: string } & Marked)
   | { readonly type: "hardBreak" }
-  | { readonly type: "wikiLink"; readonly target: LinkTarget; readonly alias?: string }
-  | { readonly type: "tag"; readonly name: string }
-  | { readonly type: "math"; readonly latex: string }
-  | { readonly type: "raw"; readonly markdown: string };
+  | ({ readonly type: "wikiLink"; readonly target: LinkTarget; readonly alias?: string } & Marked)
+  | ({ readonly type: "tag"; readonly name: string } & Marked)
+  | ({ readonly type: "math"; readonly latex: string } & Marked)
+  | ({ readonly type: "raw"; readonly markdown: string } & Marked);
 
 interface BlockBase<Type extends string> {
   readonly id: BlockId;
@@ -314,43 +319,46 @@ function readInline(value: unknown, path: string): Inline {
         fail(`${path}.${key}`, `is not a field of ${type}`);
     }
   };
+  const marked = (): Marked => {
+    if (fields.marks === undefined) return {};
+    const seen = new Set<string>();
+    const marks = readArray(fields.marks, `${path}.marks`).map((item, index) => {
+      const mark = readMark(item, `${path}.marks[${String(index)}]`);
+      if (seen.has(mark.type)) fail(`${path}.marks[${String(index)}]`, `repeats ${mark.type}`);
+      seen.add(mark.type);
+      return mark;
+    });
+    return { marks };
+  };
   switch (type) {
     case "text": {
       allow("text", "marks");
       const text = readString(fields.text, `${path}.text`);
       if (text === "") fail(`${path}.text`, "must not be empty");
-      if (fields.marks === undefined) return { type, text };
-      const seen = new Set<string>();
-      const marks = readArray(fields.marks, `${path}.marks`).map((item, index) => {
-        const mark = readMark(item, `${path}.marks[${String(index)}]`);
-        if (seen.has(mark.type)) fail(`${path}.marks[${String(index)}]`, `repeats ${mark.type}`);
-        seen.add(mark.type);
-        return mark;
-      });
-      return { type, text, marks };
+      return { type, text, ...marked() };
     }
     case "hardBreak":
       allow();
       return { type };
     case "wikiLink": {
-      allow("target", "alias");
+      allow("target", "alias", "marks");
       const target = readLinkTarget(fields.target, `${path}.target`);
       const alias = readOptional(fields, "alias", path, readName);
-      return alias === undefined ? { type, target } : { type, target, alias };
+      return { type, target, ...(alias === undefined ? {} : { alias }), ...marked() };
     }
     case "tag": {
-      allow("name");
+      allow("name", "marks");
       const name = readString(fields.name, `${path}.name`);
       if (!isTagName(name))
         fail(`${path}.name`, "must be a tag name such as project or area/research");
-      return { type, name };
+      return { type, name, ...marked() };
     }
     case "math":
-      allow("latex");
-      return { type, latex: readText(fields.latex, `${path}.latex`) };
+      allow("latex", "marks");
+      return { type, latex: readText(fields.latex, `${path}.latex`), ...marked() };
     case "raw":
-      allow("markdown");
-      return { type, markdown: readText(fields.markdown, `${path}.markdown`) };
+      allow("markdown", "marks");
+      return { type, markdown: readText(fields.markdown, `${path}.markdown`), ...marked() };
   }
 }
 

@@ -363,6 +363,14 @@ describe("blocks", () => {
     [{ type: "tag", name: "a//b" }, "note.content[0].content[0].name must be a tag name"],
     [{ type: "tag", name: "#tag" }, "note.content[0].content[0].name must be a tag name"],
     [{ type: "math", latex: " " }, "note.content[0].content[0].latex must not be empty"],
+    [
+      { type: "tag", name: "a", marks: [{ type: "bold" }, { type: "bold" }] },
+      "note.content[0].content[0].marks[1] repeats bold",
+    ],
+    [
+      { type: "hardBreak", marks: [] },
+      "note.content[0].content[0].marks is not a field of hardBreak",
+    ],
     [{ type: "mention", person: "x" }, "note.content[0].content[0].type must be one of"],
   ])("rejects inline %j", (inline, message) => {
     rejects(paragraph(inline), message);
