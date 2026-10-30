@@ -140,6 +140,7 @@ export const messages = {
   exportFailed: "The export failed: {error}",
   showInFolder: "Show in folder",
   close: "Close",
+  renameHint: "Click to rename the note; links to it follow",
   errorTitle: "Something went wrong",
   dismiss: "Dismiss",
 } as const;

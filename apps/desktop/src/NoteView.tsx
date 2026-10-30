@@ -6,7 +6,7 @@ import { NoteEditor } from "@nether/editor";
 import "@nether/editor/math.css";
 import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
-import { type KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
+import { type KeyboardEvent, Suspense, lazy, useMemo, useRef, useState } from "react";
 import type { VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
 import { noteFiles } from "./noteFiles.ts";
@@ -58,9 +58,23 @@ export default function NoteView(props: {
   readonly onTrash: () => void;
   /** Exports the note, its folder or the vault. */
   readonly onExport: () => void;
+  /** Renames the note in its folder, and the links to it; rejects with why it could not. */
+  readonly onRename: (name: string) => Promise<void>;
 }) {
-  const { vault, media, graph, id, focus, mode, onMode, onOpenNote, onOpenTag, onTrash, onExport } =
-    props;
+  const {
+    vault,
+    media,
+    graph,
+    id,
+    focus,
+    mode,
+    onMode,
+    onOpenNote,
+    onOpenTag,
+    onTrash,
+    onExport,
+    onRename,
+  } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
   const [fileError, setFileError] = useState<string | undefined>();
@@ -112,7 +126,13 @@ export default function NoteView(props: {
     <div className="note-layout">
       <article className="note" aria-labelledby="note-title" onKeyDownCapture={onKeyDownCapture}>
         <header className="note-header">
-          <h1 id="note-title">{note.title}</h1>
+          <NoteTitle
+            title={note.title}
+            onRename={onRename}
+            onError={(error) => {
+              setFileError(error);
+            }}
+          />
           {state.status === "ready" ? (
             <div className="note-tools">
               {mode === "source" ? (
@@ -206,6 +226,56 @@ export default function NoteView(props: {
       </article>
       <NotePanel graph={graph} id={id} onOpenNote={onOpenNote} />
     </div>
+  );
+}
+
+/**
+ * The note's name, edited in place: Enter or leaving it renames the note,
+ * Escape puts the name back.
+ */
+function NoteTitle(props: {
+  readonly title: string;
+  readonly onRename: (name: string) => Promise<void>;
+  readonly onError: (error: string) => void;
+}) {
+  const { title, onRename, onError } = props;
+  const element = useRef<HTMLHeadingElement>(null);
+  const commit = () => {
+    const name = element.current?.textContent.trim() ?? title;
+    if (name === title) return;
+    onRename(name).catch((error: unknown) => {
+      if (element.current !== null) element.current.textContent = title;
+      onError(error instanceof Error ? error.message : String(error));
+    });
+  };
+  return (
+    <h1
+      // A new name starts the heading anew, so React and the browser agree on its text.
+      key={title}
+      id="note-title"
+      ref={element}
+      className="note-title-field"
+      contentEditable="plaintext-only"
+      suppressContentEditableWarning
+      spellCheck={false}
+      role="textbox"
+      aria-label={t("noteName")}
+      aria-multiline="false"
+      title={t("renameHint")}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          element.current?.blur();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          if (element.current !== null) element.current.textContent = title;
+          element.current?.blur();
+        }
+      }}
+    >
+      {title}
+    </h1>
   );
 }
 

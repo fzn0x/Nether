@@ -38,6 +38,8 @@ const loadNoteView = () => import("./NoteView.tsx");
 const NoteView = lazy(loadNoteView);
 // Making a note from a template takes the editor's document and the parser.
 const loadCreateNote = () => import("./createNote.ts");
+// Renaming a note reads the links to it with the parser.
+const loadRenameNote = () => import("./renameNote.ts");
 
 const numbers = new Intl.NumberFormat();
 
@@ -223,6 +225,23 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       );
     },
     [vault],
+  );
+
+  /** Renames a note in its folder, once the link index knows every link to it. */
+  const renameCurrent = useCallback(
+    async (id: NoteId, name: string) => {
+      if (state.status !== "open") return;
+      const note = state.vault.note(id);
+      if (note === undefined) return;
+      const { renameNote, renamedPath } = await loadRenameNote();
+      const target = renamedPath(note.path, name);
+      if ("error" in target) {
+        throw new Error(target.error === "empty" ? t("noteNameEmpty") : t("noteNameUnsafe"));
+      }
+      await state.indexer.idle();
+      await renameNote(state.vault, state.indexer.graph, id, target.path);
+    },
+    [state],
   );
 
   /** Opens a note restored from the trash. */
@@ -476,6 +495,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               onExport={() => {
                 setDialog("export");
               }}
+              onRename={(name) => renameCurrent(selected, name)}
             />
           </Suspense>
         ) : (
