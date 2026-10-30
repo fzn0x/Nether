@@ -26,8 +26,6 @@ export const messages = {
   sourceMode: "Markdown source",
   sourceModeHint: "Show the note as its Markdown, or as blocks again (Ctrl+/)",
   vimKeys: "Vim keys",
-  conflict:
-    "Another app changed this note while you were editing it. Your version is kept as {path}.",
   saveFailed: "The note could not be saved: {error}",
   fileFailed: "The file could not be added or opened: {error}",
   errorTitle: "Something went wrong",

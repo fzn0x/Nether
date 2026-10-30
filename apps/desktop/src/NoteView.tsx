@@ -46,7 +46,7 @@ export default function NoteView(props: {
 }) {
   const { vault, media, id, mode, onMode } = props;
   const note = vault.note(id);
-  const { state, conflict, saveError, edit, editText, refresh } = useNote(vault, id);
+  const { state, saveError, editText, refresh } = useNote(vault, id);
   const [fileError, setFileError] = useState<string | undefined>();
   const [vim, setVim] = useState(storedVim);
   // The editor takes focus when the user switches modes, not when a note opens.
@@ -110,11 +110,6 @@ export default function NoteView(props: {
           </div>
         ) : null}
       </header>
-      {conflict === undefined ? null : (
-        <p className="notice" role="status">
-          {t("conflict", { path: conflict })}
-        </p>
-      )}
       {saveError === undefined ? null : <p role="alert">{t("saveFailed", { error: saveError })}</p>}
       {fileError === undefined ? null : <p role="alert">{t("fileFailed", { error: fileError })}</p>}
       {state.status === "failed" ? (
@@ -124,7 +119,7 @@ export default function NoteView(props: {
       ) : state.status === "loading" ? null : mode === "source" ? (
         <Suspense fallback={null}>
           <SourceEditor
-            // A note read again, or the other editor's changes, start a new editor.
+            // The text read again starts a new editor.
             key={state.version}
             text={state.text}
             onChange={editText}
@@ -136,9 +131,9 @@ export default function NoteView(props: {
         </Suspense>
       ) : (
         <NoteEditor
-          key={state.version}
-          blocks={state.blocks}
-          onChange={edit}
+          // The editor shows the document as it changes; a new document starts a new editor.
+          key={state.document.guid}
+          document={state.document}
           label={t("noteBody", { title: note.title })}
           placeholder={t("emptyNote")}
           files={files}

@@ -1,65 +1,89 @@
-// One open note: its Markdown read and parsed, the editor's changes written
-// back after a pause in typing, and changes other apps make picked up. The
-// changes are blocks from the block editor, or the whole text from source
-// mode. A save writes only over the file it read; when the file changed
-// meanwhile, the edits are kept in a conflict copy beside it, so nothing is
-// lost, until the merge that sync brings (ADR 0003).
-import type { ContentBlock, NoteId } from "@nether/core";
+// One open note, as ADR 0003 has it: its Yjs document is the truth inside
+// Nether, kept in the vault's index before an edit counts as saved, and its
+// file is kept in step both ways. Edits are written to the file after a
+// pause in typing, keeping every unchanged block's bytes. An edit another
+// app makes to the file is merged into the document, block by block and
+// character by character, so neither side's edits are lost. Source mode's
+// text is written as typed, then merged into the document the same way.
+import { type ContentBlock, type NoteId, newBlockId } from "@nether/core";
+import { documentBlocks, isEmptyDocument, setDocumentBlocks } from "@nether/editor";
 import {
   type ParsedMarkdown,
-  type Source,
+  alignBlocks,
+  fingerprint,
+  mergeBlocks,
   parseMarkdown,
   serializeMarkdown,
 } from "@nether/markdown";
-import { ChangedOnDisk, type Vault, folderOf } from "@nether/storage";
+import { ChangedOnDisk, type Vault } from "@nether/storage";
 import { useCallback, useEffect, useRef, useState } from "react";
+import * as Y from "yjs";
 
 /** Quiet time before a save, and the longest an edit waits while typing goes on. */
 const quiet = 500;
 const longest = 2000;
+/** How often the document's updates go to the index, and how many rows it keeps before a snapshot. */
+const persistEvery = 250;
+const compactAfter = 100;
+
+/** The origin of the document's edits that come from the note's file. */
+const fromFile = Symbol("file");
 
 export type NoteState =
   | { readonly status: "loading" }
   | {
       readonly status: "ready";
-      readonly blocks: readonly ContentBlock[];
+      /** The note's Yjs document, which the block editor edits. */
+      readonly document: Y.Doc;
       /** The note's Markdown, as source mode shows it. */
       readonly text: string;
-      /** Changes whenever the note is read again, to start its editor anew. */
+      /** Changes whenever the note's text is read again, to start source mode anew. */
       readonly version: number;
     }
   | { readonly status: "binary" }
   | { readonly status: "missing" }
   | { readonly status: "failed"; readonly error: Error };
 
-/** An edit waiting to be saved: the block editor's blocks, or source mode's text. */
-type Edit = { readonly blocks: ContentBlock[] } | { readonly text: string };
-
 interface Open {
-  parsed: ParsedMarkdown;
-  /** The blocks as last saved or read. */
-  blocks: readonly ContentBlock[];
-  source: Source;
-  /** The hash of the file as last read or written. */
+  readonly document: Y.Doc;
+  /** The file as last written or read: its parse, aligned to the document's IDs. */
+  file: ParsedMarkdown;
+  /** The hash of the file as last written or read. */
   hash: string;
-  pending: Edit | undefined;
+  /** Whether the document has changed since the file was last written. */
+  dirty: boolean;
+  /** Source mode's text, waiting to be written. */
+  text: string | undefined;
   firstPending: number | undefined;
   timer: ReturnType<typeof setTimeout> | undefined;
   saving: Promise<void> | undefined;
+  /** The document's updates waiting for the index; the number of the last stored, and the rows kept. */
+  updates: Uint8Array[];
+  seq: number;
+  rows: number;
+  persisting: Promise<void>;
+  persistTimer: ReturnType<typeof setTimeout> | undefined;
+  closed: boolean;
 }
 
-function stamp(now: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${String(now.getFullYear())}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+/** Whether a note has edits waiting for its file: text from source mode, or the document's. */
+function waiting(note: Open): boolean {
+  return note.dirty || note.text !== undefined;
+}
+
+function sameBlocks(a: readonly ContentBlock[], b: readonly ContentBlock[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((block, index) => {
+      const other = b[index];
+      return block.id === other?.id && fingerprint(block) === fingerprint(other);
+    })
+  );
 }
 
 export interface NoteDocument {
   readonly state: NoteState;
-  /** Where the edits that met another app's were kept, when they did. */
-  readonly conflict: string | undefined;
   readonly saveError: string | undefined;
-  /** Takes the editor's blocks after a change and saves them after a pause. */
-  readonly edit: (blocks: ContentBlock[]) => void;
   /** Takes source mode's text after a change and saves it after a pause. */
   readonly editText: (text: string) => void;
   /**
@@ -71,156 +95,249 @@ export interface NoteDocument {
 
 export function useNote(vault: Vault, id: NoteId): NoteDocument {
   const [state, setState] = useState<NoteState>({ status: "loading" });
-  const [conflict, setConflict] = useState<string | undefined>();
   const [saveError, setSaveError] = useState<string | undefined>();
   const open = useRef<Open | undefined>(undefined);
   const version = useRef(0);
 
-  const load = useCallback(async () => {
-    try {
-      const file = await vault.read(id);
-      if (file.missing === true) {
-        setState({ status: "missing" });
-        return;
-      }
-      if (file.binary === true) {
-        setState({ status: "binary" });
-        return;
-      }
-      const parsed = parseMarkdown(file.text);
-      open.current = {
-        parsed,
-        blocks: parsed.content,
-        source: parsed.source,
-        hash: file.hash,
-        pending: undefined,
-        firstPending: undefined,
-        timer: undefined,
-        saving: undefined,
-      };
-      version.current += 1;
-      setState({
-        status: "ready",
-        blocks: parsed.content,
-        text: parsed.source.text,
-        version: version.current,
-      });
-    } catch (error) {
-      setState({
-        status: "failed",
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-    }
-  }, [vault, id]);
+  const ready = useCallback((current: Open) => {
+    version.current += 1;
+    setState({
+      status: "ready",
+      document: current.document,
+      text: current.file.source.text,
+      version: version.current,
+    });
+  }, []);
 
-  const flush = useCallback(async (): Promise<void> => {
-    const current = open.current;
-    if (current?.pending === undefined) return;
-    if (current.saving !== undefined) {
+  /** Sends the document's waiting updates to the index as one row, and compacts it now and then. */
+  const persist = useCallback(
+    (current: Open): Promise<void> => {
+      clearTimeout(current.persistTimer);
+      current.persistTimer = undefined;
+      current.persisting = current.persisting.then(async () => {
+        if (current.updates.length === 0) return;
+        const batch = Y.mergeUpdates(current.updates);
+        current.updates = [];
+        await vault.documents.appendUpdates(id, [batch]);
+        current.seq += 1;
+        current.rows += 1;
+        if (current.rows > compactAfter) {
+          await vault.documents.compact(id, Y.encodeStateAsUpdate(current.document), current.seq);
+          current.rows = 1;
+        }
+      });
+      return current.persisting;
+    },
+    [vault, id],
+  );
+
+  /**
+   * Merges the file's text as it is now into the document: what changed in
+   * it since it was last written or read joins what changed in the document.
+   */
+  const mergeFile = useCallback(
+    (current: Open, text: string, hash: string) => {
+      const theirs = alignBlocks(parseMarkdown(text), current.file.content);
+      const ours = documentBlocks(current.document, newBlockId);
+      const merged = mergeBlocks(current.file.content, ours, theirs.content, newBlockId);
+      setDocumentBlocks(current.document, merged, fromFile);
+      current.file = theirs;
+      current.hash = hash;
+      // What the file lacks of the document is written back.
+      current.dirty = !sameBlocks(merged, theirs.content);
+      void vault.documents.setFileHash(id, hash);
+    },
+    [vault, id],
+  );
+
+  /** Writes what is waiting to the file: source mode's text, or the document. */
+  const flush = useCallback(
+    async (current: Open): Promise<void> => {
+      if (!waiting(current)) return;
+      if (current.saving !== undefined) {
+        await current.saving;
+        return flush(current);
+      }
+      clearTimeout(current.timer);
+      current.firstPending = undefined;
+      const bom = current.file.source.bom ? "﻿" : "";
+      const typed = current.text;
+      current.text = undefined;
+      current.dirty = false;
+      const blocks = typed === undefined ? documentBlocks(current.document, newBlockId) : undefined;
+      const text =
+        blocks === undefined
+          ? bom + (typed ?? "")
+          : serializeMarkdown(
+              { properties: current.file.properties, content: blocks },
+              { source: current.file.source, writeIds: current.file.writtenIds },
+            ).text;
+      if (text === bom + current.file.source.text) return;
+      current.saving = (async () => {
+        try {
+          const written = await vault.write(id, text, current.hash);
+          if (blocks === undefined) {
+            // Source mode's text, merged into the document as the file it now is.
+            mergeFile(current, written.text, written.hash);
+          } else {
+            current.file = alignBlocks(parseMarkdown(written.text), blocks);
+            current.hash = written.hash;
+            await vault.documents.setFileHash(id, written.hash);
+          }
+          setSaveError(undefined);
+        } catch (error) {
+          if (error instanceof ChangedOnDisk) {
+            // Another app changed the file since it was read: merge its edit
+            // into the document, then write the document.
+            const disk = await vault.read(id);
+            if (disk.missing !== true && disk.binary !== true) {
+              mergeFile(current, disk.text, disk.hash);
+              if (typed !== undefined) {
+                // Then the text typed in source mode, against the file it was typed over.
+                const theirs = alignBlocks(parseMarkdown(bom + typed), current.file.content);
+                const merged = mergeBlocks(
+                  current.file.content,
+                  documentBlocks(current.document, newBlockId),
+                  theirs.content,
+                  newBlockId,
+                );
+                setDocumentBlocks(current.document, merged, fromFile);
+              }
+              current.dirty = true;
+            }
+          } else {
+            if (typed === undefined) current.dirty = true;
+            else current.text ??= typed;
+            setSaveError(error instanceof Error ? error.message : String(error));
+          }
+        } finally {
+          current.saving = undefined;
+        }
+      })();
       await current.saving;
-      return flush();
-    }
-    const pending = current.pending;
-    current.pending = undefined;
-    current.firstPending = undefined;
-    const bom = current.source.bom ? "\uFEFF" : "";
-    const written =
-      "blocks" in pending
-        ? serializeMarkdown(
-            { properties: current.parsed.properties, content: pending.blocks },
-            { source: current.source, writeIds: current.parsed.writtenIds },
-          )
-        : undefined;
-    const text = written?.text ?? bom + ("text" in pending ? pending.text : "");
-    if (text === bom + current.source.text) return;
-    current.saving = (async () => {
-      try {
-        const file = await vault.write(id, text, current.hash);
-        if (written !== undefined && "blocks" in pending) {
-          current.blocks = pending.blocks;
-          current.source = written.source;
-        } else {
-          // Text from source mode: read it as the next save from blocks will.
-          current.parsed = parseMarkdown(text);
-          current.blocks = current.parsed.content;
-          current.source = current.parsed.source;
-        }
-        current.hash = file.hash;
-        setSaveError(undefined);
-      } catch (error) {
-        if (error instanceof ChangedOnDisk) {
-          // Another app changed the file since it was read: keep these edits
-          // beside it, then show what is on disk now.
-          const note = vault.note(id);
-          const folder = note === undefined ? "" : folderOf(note.path);
-          const name = `${note?.title ?? "Note"} (conflict ${stamp(new Date())}).md`;
-          const copy = await vault.create(folder === "" ? name : `${folder}/${name}`, text);
-          setConflict(copy.path);
-          await load();
-        } else {
-          current.pending ??= pending;
-          setSaveError(error instanceof Error ? error.message : String(error));
-        }
-      } finally {
-        current.saving = undefined;
-      }
-    })();
-    await current.saving;
-  }, [vault, id, load]);
+      // Edits made, or merged, while the file was being written.
+      if (waiting(current) && !current.closed) await flush(current);
+    },
+    [vault, id, mergeFile],
+  );
 
-  const change = useCallback(
-    (pending: Edit) => {
-      const current = open.current;
-      if (current === undefined) return;
-      current.pending = pending;
+  /** Saves after a pause, or soon while typing goes on. */
+  const schedule = useCallback(
+    (current: Open) => {
       const now = Date.now();
       current.firstPending ??= now;
       clearTimeout(current.timer);
       const wait = Math.max(0, Math.min(quiet, current.firstPending + longest - now));
-      current.timer = setTimeout(() => void flush(), wait);
+      current.timer = setTimeout(() => void flush(current), wait);
     },
     [flush],
   );
-  const edit = useCallback(
-    (blocks: ContentBlock[]) => {
-      change({ blocks });
-    },
-    [change],
-  );
-  const editText = useCallback(
-    (text: string) => {
-      change({ text });
-    },
-    [change],
-  );
-
-  const refresh = useCallback(async () => {
-    const current = open.current;
-    if (current === undefined) return;
-    clearTimeout(current.timer);
-    await flush();
-    if (open.current !== current) return;
-    version.current += 1;
-    setState({
-      status: "ready",
-      blocks: current.blocks,
-      text: current.source.text,
-      version: version.current,
-    });
-  }, [flush]);
 
   useEffect(() => {
-    void load();
+    // Each run of this effect loads the note once; React may run it twice,
+    // and only the run still current may change the document.
+    const controller = new AbortController();
+    // A function, so each await reads the signal again.
+    const cancelled = () => controller.signal.aborted;
+    void (async () => {
+      try {
+        const file = await vault.read(id);
+        if (cancelled()) return;
+        if (file.missing === true) {
+          setState({ status: "missing" });
+          return;
+        }
+        if (file.binary === true) {
+          setState({ status: "binary" });
+          return;
+        }
+        const stored = await vault.documents.document(id);
+        if (cancelled()) return;
+        const document = new Y.Doc();
+        for (const update of stored.updates) Y.applyUpdate(document, update.data);
+        const parsed = parseMarkdown(file.text);
+        const current: Open = {
+          document,
+          file: parsed,
+          hash: file.hash,
+          dirty: false,
+          text: undefined,
+          firstPending: undefined,
+          timer: undefined,
+          saving: undefined,
+          updates: [],
+          seq: stored.updates[stored.updates.length - 1]?.seq ?? 0,
+          rows: stored.updates.length,
+          persisting: Promise.resolve(),
+          persistTimer: undefined,
+          closed: false,
+        };
+        // From here on, every change to the document goes to the index.
+        document.on("update", (update: Uint8Array) => {
+          current.updates.push(update);
+          current.persistTimer ??= setTimeout(() => void persist(current), persistEvery);
+        });
+        if (isEmptyDocument(document)) {
+          // A note opened for the first time: its document starts from its file.
+          setDocumentBlocks(document, parsed.content, fromFile);
+        } else {
+          const ours = documentBlocks(document, newBlockId);
+          const aligned = alignBlocks(parsed, ours);
+          current.file = aligned;
+          if (stored.fileHash === file.hash) {
+            // The file is the document's last write: edits it lacks, as after a crash, are written.
+            current.dirty = !sameBlocks(ours, aligned.content);
+          } else {
+            // Another app changed the file while the note was closed.
+            setDocumentBlocks(document, aligned.content, fromFile);
+          }
+        }
+        void vault.documents.setFileHash(id, file.hash);
+        open.current = current;
+        ready(current);
+      } catch (error) {
+        if (!cancelled()) {
+          setState({
+            status: "failed",
+            error: error instanceof Error ? error : new Error(String(error)),
+          });
+        }
+      }
+    })();
     return () => {
-      // Leaving the note saves what is pending at once.
+      controller.abort();
+      // Leaving the note saves what is waiting at once, then lets the document go.
       const current = open.current;
-      clearTimeout(current?.timer);
-      void flush();
+      if (current === undefined) return;
+      open.current = undefined;
+      void (async () => {
+        await flush(current);
+        current.closed = true;
+        clearTimeout(current.timer);
+        await persist(current);
+        current.document.destroy();
+      })();
     };
-  }, [load, flush]);
+  }, [vault, id, ready, flush, persist]);
 
-  // When another app changes the file, read it again, unless edits are waiting:
-  // their save finds the change and keeps both.
+  // The editor's edits mark the document for writing to the file.
+  useEffect(() => {
+    if (state.status !== "ready") return;
+    const current = open.current;
+    if (current?.document !== state.document) return;
+    const onUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (origin === fromFile) return;
+      current.dirty = true;
+      schedule(current);
+    };
+    current.document.on("update", onUpdate);
+    if (current.dirty) schedule(current);
+    return () => {
+      current.document.off("update", onUpdate);
+    };
+  }, [state, schedule]);
+
+  // When another app changes the file, merge its edit into the document.
   useEffect(() => {
     let modified = vault.note(id)?.modified;
     return vault.subscribe(() => {
@@ -232,19 +349,40 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
       if (note.modified === modified) return;
       modified = note.modified;
       const current = open.current;
-      if (current === undefined || current.pending !== undefined || current.saving !== undefined)
-        return;
+      if (current === undefined || current.saving !== undefined) return;
       void vault.read(id).then((file) => {
         if (
-          file.hash !== current.hash &&
-          open.current === current &&
-          current.pending === undefined
+          file.missing === true ||
+          file.binary === true ||
+          file.hash === current.hash ||
+          open.current !== current
         ) {
-          void load();
+          return;
         }
+        mergeFile(current, file.text, file.hash);
+        if (current.dirty) schedule(current);
+        // Source mode shows the file as it is now, unless typing is waiting to be saved.
+        if (current.text === undefined) ready(current);
       });
     });
-  }, [vault, id, load]);
+  }, [vault, id, mergeFile, schedule, ready]);
 
-  return { state, conflict, saveError, edit, editText, refresh };
+  const editText = useCallback(
+    (text: string) => {
+      const current = open.current;
+      if (current === undefined) return;
+      current.text = text;
+      schedule(current);
+    },
+    [schedule],
+  );
+
+  const refresh = useCallback(async () => {
+    const current = open.current;
+    if (current === undefined) return;
+    await flush(current);
+    if (open.current === current) ready(current);
+  }, [flush, ready]);
+
+  return { state, saveError, editText, refresh };
 }
