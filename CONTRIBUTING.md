@@ -55,7 +55,7 @@ Some parts have checks of their own, which CI runs too:
 | Part | Command |
 | --- | --- |
 | The desktop app's Go side | `go vet ./...` and `go test ./...` in `apps/desktop`, and `gofmt -l .` |
-| The desktop page in Chromium | `pnpm --filter @nether/desktop exec playwright install chromium` once, then `pnpm --filter @nether/desktop test:e2e` |
+| The desktop page in Chromium | `pnpm --filter @nether/desktop exec playwright install chromium` once, then `pnpm --filter @nether/desktop test:e2e`, which checks every screen against WCAG 2.2 AA with axe too |
 | The server with every enterprise feature off | `pnpm --filter @nether/server build`, then `pnpm --filter @nether/server smoke` |
 | Dependency licenses | `node .github/scripts/check-licenses.mjs` |
 | The performance targets on 50,000 notes | `pnpm perf:bench` and `pnpm --filter @nether/desktop perf:ui`; on Windows, `tools/perf/desktop.ps1` before a phase's gate ([tools/perf](tools/perf/)) |

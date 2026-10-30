@@ -108,13 +108,16 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Linux packages: an AppImage and a Flatpak, besides MyGO's Debian package
   and self-updating archive. Builds signed with an update key check for
   updates in the background, which the command palette turns off.
-
 - The performance harness on the reference vault of 50,000 notes:
   `pnpm perf:bench` times search and parsing in Node.js, and
   `pnpm --filter @nether/desktop perf:ui` switching notes and typing in
   Chromium, both in CI; `tools/perf/desktop.ps1` times the desktop app's
   start, its memory and how soon it picks up a note another app writes,
   on Windows.
+- Each paragraph of a note reads in the direction of its own text, so a
+  paragraph in Arabic or Hebrew starts at the right, and the interface
+  lays itself out right to left in a language written so
+  ([ADR 0015](docs/adr/0015-check-accessibility-and-lay-out-by-direction.md)).
 
 ### Changed
 
@@ -130,5 +133,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - A dialog opened just after a note no longer loses its focus to the
   note's editor; dialogs keep focus while they are open.
+- Every dialog opens with focus in it, so Escape closes the template
+  settings too.
+- Screen readers read rendered math as the math, not as a hint.
+- Highlighted text in the dark theme, and tags and links in a note in
+  the light theme, meet WCAG AA's contrast.
+- While the link index read notes for the first time, the backlinks
+  panel could miss the text around their links.
 
 [Unreleased]: https://github.com/fzn0x/Nether/commits/main

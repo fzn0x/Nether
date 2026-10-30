@@ -118,6 +118,14 @@ In source mode, Ctrl+F finds and replaces, Tab indents, and Escape then
 Tab leaves the editor. Turn on **Vim keys** to edit with Vim's modes and
 commands; Nether remembers the choice.
 
+## Right-to-left text
+
+Each paragraph, heading, list item, quote and table cell reads in the
+direction of its own text, as each line does in source mode: write a
+paragraph in Arabic, Hebrew, Persian or Urdu and it starts at the right,
+beside paragraphs in English that start at the left. Nothing is added to
+the file for it.
+
 ## What happens to your file
 
 Nether rewrites only the blocks you change. The rest of the file keeps its
