@@ -1,7 +1,8 @@
 // The vault's links, held in memory: which note each link names, as
 // Obsidian finds it or by an alias, the notes that link to a note, and the
-// vault's tags. Changes to one note change only its entry; what depends on
-// every note, backlinks and tags, is worked out again when next asked for.
+// vault's tags. Changes to one note change only its entry, and its own
+// backlinks when no path or alias changed; what else depends on every
+// note is worked out again when next asked for.
 import type { NoteId } from "@nether/core";
 import { LinkIndex } from "@nether/storage";
 import type { LinkRef, NoteIndex } from "./extract.ts";
@@ -62,22 +63,78 @@ export class LinkGraph {
    * pass over every note.
    */
   setMany(entries: Iterable<GraphEntry>): void {
-    let any = false;
+    const edited: (readonly [GraphNote, GraphNote])[] = [];
+    let renamed = false;
     for (const { id, path, index } of entries) {
-      any = true;
       const before = this.#notes.get(id);
-      this.#notes.set(id, { id, path, title: titleOf(path), index });
+      const note = { id, path, title: titleOf(path), index };
+      this.#notes.set(id, note);
       if (before?.path !== path) {
         this.#paths = undefined;
         this.#byPath = undefined;
+        renamed = true;
       }
       if (before?.index.aliases.join("|") !== index.aliases.join("|")) {
         this.#aliases = undefined;
+        renamed = true;
       }
+      if (before !== undefined) edited.push([before, note]);
     }
-    if (!any) return;
-    this.#backlinks = undefined;
+    if (!renamed && edited.length === 0) return;
+    // A change that keeps every path and alias, as a save, leaves every
+    // other note's links naming what they named: only the edited notes'
+    // own links move, where working out every backlink again took 150 ms
+    // a key on 50,000 notes.
+    if (renamed) this.#backlinks = undefined;
+    else if (this.#backlinks !== undefined) {
+      for (const [before, after] of edited) this.#relink(this.#backlinks, before, after);
+    }
     this.#changed();
+  }
+
+  /** Moves a note from the backlinks of the notes it linked to, to those of the notes it links to now. */
+  #relink(incoming: Map<NoteId, NoteId[]>, before: GraphNote, after: GraphNote): void {
+    const was = this.#targets(before);
+    const now = this.#targets(after);
+    for (const target of was) {
+      if (now.has(target)) continue;
+      const sources = incoming.get(target) ?? [];
+      const at = sources.indexOf(after.id);
+      if (at !== -1) sources.splice(at, 1);
+      if (sources.length === 0) incoming.delete(target);
+    }
+    for (const target of now) {
+      if (was.has(target)) continue;
+      const sources = incoming.get(target);
+      if (sources === undefined) {
+        incoming.set(target, [after.id]);
+        continue;
+      }
+      // In path order, as #incoming sorts them.
+      let low = 0;
+      let high = sources.length;
+      while (low < high) {
+        const middle = (low + high) >>> 1;
+        if (this.#pathOf(sources[middle]).localeCompare(after.path) < 0) low = middle + 1;
+        else high = middle;
+      }
+      sources.splice(low, 0, after.id);
+    }
+  }
+
+  /** The notes a note links to or embeds, itself aside. */
+  #targets(note: GraphNote): Set<NoteId> {
+    const targets = new Set<NoteId>();
+    for (const link of note.index.links) {
+      if (link.target === "") continue;
+      const target = this.resolve(link.target, note.path);
+      if (target !== undefined && target !== note.id) targets.add(target);
+    }
+    return targets;
+  }
+
+  #pathOf(note: NoteId | undefined): string {
+    return note === undefined ? "" : (this.#notes.get(note)?.path ?? "");
   }
 
   /** Forgets a note that left the vault. */
@@ -188,9 +245,8 @@ export class LinkGraph {
         else if (sources[sources.length - 1] !== source.id) sources.push(source.id);
       }
     }
-    const pathOf = (note: NoteId) => this.#notes.get(note)?.path ?? "";
     for (const sources of incoming.values()) {
-      sources.sort((a, b) => pathOf(a).localeCompare(pathOf(b)));
+      sources.sort((a, b) => this.#pathOf(a).localeCompare(this.#pathOf(b)));
     }
     return incoming;
   }
