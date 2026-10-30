@@ -64,5 +64,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Source mode: Ctrl+/ shows a note as its Markdown in a text editor, with
   find and replace and optional Vim keys, and goes back to blocks with
   nothing lost; a file's line endings stay as they are.
+- Properties above each note, each with a type the vault remembers for its
+  name, as Obsidian does, and an editor for that type: lists as chips,
+  checkboxes, dates and numbers. They are written to the note's
+  frontmatter, changing only the keys edited, and another app's changes
+  merge with them key by key.
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main

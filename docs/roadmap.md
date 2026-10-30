@@ -62,6 +62,7 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] Yjs documents per note, kept in step with the files both ways
 - [x] Links, backlinks, aliases, tags and the outline: the link index, `[[` links and aliases, heading and block links, the backlinks panel, tags, the outline, and embeds of notes and blocks (making a block link from `[[`, and updating links when a note is renamed, come with renaming in the app's interface)
 - [x] The quick switcher and full-text search
-- [ ] Properties, templates, daily notes, the trash and export
+- [x] Properties: typed properties above each note, kept in its Yjs document and its frontmatter
+- [ ] Templates, daily notes, the trash and export
 - [ ] The app's interface: sidebar, command palette and keyboard shortcuts
 - [ ] The performance harness on the reference vault, which the gate runs
