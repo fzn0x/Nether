@@ -71,6 +71,19 @@ export class Indexer {
     this.#worker.terminate();
   }
 
+  /** Waits until every note the vault has is read, as a rename does before it rewrites links. */
+  idle(): Promise<void> {
+    const done = () => !this.#running && this.#queue.size === 0;
+    if (done()) return Promise.resolve();
+    return new Promise((resolve) => {
+      const stop = this.subscribe(() => {
+        if (!done()) return;
+        stop();
+        resolve();
+      });
+    });
+  }
+
   progress(): IndexProgress {
     return this.#progress;
   }
