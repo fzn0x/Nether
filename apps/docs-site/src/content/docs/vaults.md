@@ -17,6 +17,13 @@ start Nether with a folder:
 nether ~/Notes
 ```
 
+Name a note after the folder to open the vault at it, by its path in the
+vault or on disk; otherwise Nether opens at the note you had open last:
+
+```sh
+nether ~/Notes Projects/Plan.md
+```
+
 Nether follows the folder while the vault is open: a note you add, change,
 move or delete with another app shows up in Nether within moments.
 

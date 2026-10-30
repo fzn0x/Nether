@@ -79,6 +79,19 @@ export interface PDFPage {
   landscape: boolean;
 }
 
+/**
+ * Startup is what the app was started with: a vault, and a note in it to
+ * open first.
+ */
+export interface Startup {
+  vault: VaultInfo;
+  /**
+   * Note is the note's path in the vault, separated by slashes, or ""
+   * for the note open when the vault was last closed.
+   */
+  note: string;
+}
+
 /** UpdateSettings is what the page shows of updates. */
 export interface UpdateSettings {
   /** Available is whether the app can update itself. */
@@ -220,10 +233,11 @@ export const Vaults = {
   },
   /**
    * Startup opens the vault the app was started with, the first folder named
-   * on its command line as in `nether ~/Notes`, and returns nil when there is
-   * none.
+   * on its command line as in `nether ~/Notes`, with the first Markdown file
+   * in it named too, by its path in the vault or on disk, as in
+   * `nether ~/Notes Projects/Plan.md`. It returns nil when no folder is named.
    */
-  startup(): Promise<VaultInfo | null> {
+  startup(): Promise<Startup | null> {
     return call("Vaults.Startup");
   },
   /**

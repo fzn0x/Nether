@@ -135,13 +135,47 @@ func TestStartupOpensTheFolderNamedOnTheCommandLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	vaults := NewVaults(t.TempDir(), picker{}, []string{"--flag", file, root})
-	info, err := vaults.Startup()
-	if err != nil || info == nil || info.Name != filepath.Base(root) {
-		t.Fatalf("Startup: %+v, %v", info, err)
+	start, err := vaults.Startup()
+	if err != nil || start == nil || start.Vault.Name != filepath.Base(root) || start.Note != "" {
+		t.Fatalf("Startup: %+v, %v", start, err)
 	}
 	none, err := NewVaults(t.TempDir(), picker{}, []string{file}).Startup()
 	if none != nil || err != nil {
 		t.Fatalf("Startup with no folder: %+v, %v", none, err)
+	}
+}
+
+func TestStartupOpensTheNoteNamedAfterTheFolder(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"Projects/Plan.md", ".trash/Old.md", "photo.png"} {
+		full := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outside := filepath.Join(t.TempDir(), "note.md")
+	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		args []string
+		note string
+	}{
+		// By its path in the vault, and by its path on disk.
+		{[]string{root, "Projects/Plan.md"}, "Projects/Plan.md"},
+		{[]string{root, filepath.Join(root, "Projects", "Plan.md")}, "Projects/Plan.md"},
+		// The first that is a note of the vault.
+		{[]string{root, outside, ".trash/Old.md", "photo.png", "Missing.md", "Projects/Plan.md"}, "Projects/Plan.md"},
+		{[]string{root, outside}, ""},
+	}
+	for _, c := range cases {
+		start, err := NewVaults(t.TempDir(), picker{}, c.args).Startup()
+		if err != nil || start == nil || start.Note != c.note {
+			t.Errorf("Startup(%q): %+v, %v; want note %q", c.args, start, err, c.note)
+		}
 	}
 }
 
