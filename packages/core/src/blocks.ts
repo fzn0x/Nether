@@ -254,7 +254,9 @@ export const blockTypes = [
 type BuiltInType = (typeof blockTypes)[number];
 
 const pluginTypePattern = /^[a-z][a-z0-9-]*\/[a-z][a-zA-Z0-9-]*$/;
-const tagPattern = /^[\p{L}\p{N}_-]+(?:\/[\p{L}\p{N}_-]+)*$/u;
+// Letters, digits and the marks that combine with them, as an accent written
+// as its own character after a letter.
+const tagPattern = /^[\p{L}\p{N}\p{M}_-]+(?:\/[\p{L}\p{N}\p{M}_-]+)*$/u;
 
 /** Whether a string is a tag name as Obsidian allows it, without its `#`: `project` or `area/research`. */
 export function isTagName(name: string): boolean {
