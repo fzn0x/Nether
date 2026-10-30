@@ -5,7 +5,7 @@
 // and then each note again whenever its file changes or moves.
 import type { NoteId } from "@nether/core";
 import { type GraphEntry, LinkGraph, type NoteIndex } from "@nether/graph";
-import type { NoteIndexRow, Vault } from "@nether/storage";
+import type { NoteEntry, NoteIndexRow, Vault } from "@nether/storage";
 import type { IndexRequest, IndexResponse } from "./indexer.worker.ts";
 
 /** How many notes go to the worker at once. */
@@ -144,8 +144,8 @@ export class Indexer {
     this.#loading = false;
     this.#emit({ done: 0, total: 0 });
     if (this.#stopped) return;
-    this.#unsubscribe = this.#vault.subscribe(() => {
-      this.#sync();
+    this.#unsubscribe = this.#vault.subscribe((changed) => {
+      this.#sync(changed);
     });
     this.#sync();
   }
@@ -184,12 +184,15 @@ export class Indexer {
     for (const listener of this.#listeners) listener();
   }
 
-  /** Finds the notes that are new, changed, moved or gone since the index last saw them. */
-  #sync(): void {
+  /**
+   * Finds the notes that are new, changed, moved or gone since the index
+   * last saw them: among the notes a change of the vault names, or else
+   * among them all, as when the index starts. Looking at all 50,000 on
+   * every save took more of the main thread than the save.
+   */
+  #sync(changed?: readonly NoteId[]): void {
     if (this.#stopped) return;
-    const present = new Set<NoteId>();
-    for (const note of this.#vault.notes()) {
-      present.add(note.id);
+    const check = (note: NoteEntry) => {
       const known = this.#known.get(note.id);
       // Changed or moved: a move changes the title, which search reads.
       if (
@@ -199,8 +202,23 @@ export class Indexer {
       ) {
         this.#queue.add(note.id);
       }
+    };
+    let gone: NoteId[];
+    if (changed === undefined) {
+      const present = new Set<NoteId>();
+      for (const note of this.#vault.notes()) {
+        present.add(note.id);
+        check(note);
+      }
+      gone = [...this.#known.keys()].filter((id) => !present.has(id));
+    } else {
+      gone = [];
+      for (const id of changed) {
+        const note = this.#vault.note(id);
+        if (note !== undefined) check(note);
+        else if (this.#known.has(id)) gone.push(id);
+      }
     }
-    const gone = [...this.#known.keys()].filter((id) => !present.has(id));
     for (const id of gone) {
       this.#known.delete(id);
       this.graph.remove(id);

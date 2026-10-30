@@ -15,6 +15,32 @@ test("a note's panel shows its outline and the notes that link to it", async ({ 
   expect(errors).toEqual([]);
 });
 
+test("a link written into a note joins its target's backlinks, and leaves them with the note", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  const notes = await openSample(page);
+  await notes.getByRole("button", { name: /Ideas/ }).click();
+  const editor = page.getByRole("textbox", { name: "Ideas, note text" });
+  await endOfFirstParagraph(page, editor);
+  // By the roadmap's alias.
+  await page.keyboard.type(" See the [[Plan]].");
+  await expect(editor.locator(".chip-wikiLink", { hasText: "Plan" })).toBeVisible();
+  await notes.getByRole("button", { name: /Roadmap/ }).click();
+  const linkedFrom = page
+    .getByRole("complementary", { name: "About this note" })
+    .getByRole("region", { name: "Linked from" });
+  await expect(linkedFrom.getByRole("button")).toHaveText(["Ideas", "Welcome"]);
+  await expect(linkedFrom).toContainText("See the Plan.");
+
+  await notes.getByRole("button", { name: /Ideas/ }).click();
+  await page.getByRole("button", { name: "Move to trash" }).click();
+  await expect(page.getByText("5 notes")).toBeVisible();
+  await notes.getByRole("button", { name: /Roadmap/ }).click();
+  await expect(linkedFrom.getByRole("button")).toHaveText(["Welcome"]);
+  expect(errors).toEqual([]);
+});
+
 test("tags list the vault's notes with them", async ({ page }) => {
   const notes = await openSample(page);
   await page.getByRole("button", { name: "Tags" }).click();
