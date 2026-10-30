@@ -1,6 +1,7 @@
 // A note in the editor, with its title and what happened to its last save.
 import type { NoteId } from "@nether/core";
 import { NoteEditor } from "@nether/editor";
+import "@nether/editor/math.css";
 import type { Vault } from "@nether/storage";
 import { t } from "./messages.ts";
 import { useNote } from "./useNote.ts";

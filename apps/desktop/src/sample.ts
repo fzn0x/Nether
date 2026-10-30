@@ -28,6 +28,19 @@ left to read it, or see [[Projects/Roadmap|the roadmap]].
   "Projects/Ideas.md": `# Ideas
 
 A ==highlight==, some $e^{i\\pi}$ and a %%hidden comment%%.
+
+$$
+\\int_0^1 x^2 \\, dx = \\frac{1}{3}
+$$
+
+\`\`\`ts
+const answer: number = 42;
+\`\`\`
+
+\`\`\`mermaid
+flowchart LR
+  Write --> Link --> Find
+\`\`\`
 `,
   "attachments/diagram.png": "not really an image",
 };
