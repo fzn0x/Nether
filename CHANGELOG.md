@@ -47,6 +47,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   change to a note's file, made while Nether is open or closed, is merged
   into the note with what was typed meanwhile, character by character;
   nothing either side wrote is lost.
+- Links between notes: `[[` suggests the vault's notes, by name, path or
+  alias, and their headings after `#`; a link typed in full becomes a link;
+  a link opens its note, and makes it when the vault has none by that name.
+  Links find notes as Obsidian finds them. The vault's links are read in
+  the background and kept, so a vault opens without reading every note
+  again.
 - Source mode: Ctrl+/ shows a note as its Markdown in a text editor, with
   find and replace and optional Vim keys, and goes back to blocks with
   nothing lost; a file's line endings stay as they are.
