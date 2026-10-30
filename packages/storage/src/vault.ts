@@ -226,6 +226,14 @@ export class Vault {
     return [...this.#records.keys()].sort((a, b) => collator.compare(a, b));
   }
 
+  /** The file at a path, note or not, with its size and time, if the vault holds one. */
+  fileInfo(path: string): FileInfo | undefined {
+    const record = this.#records.get(path);
+    return record === undefined
+      ? undefined
+      : { path: record.path, size: record.size, modified: record.modified };
+  }
+
   /**
    * The path of the file a link names from the note at `from`, as Obsidian
    * finds it: an embed's `![[photo.png]]` or an image's `![](photo.png)`.
@@ -327,6 +335,32 @@ export class Vault {
   /** Creates a note with its text at a path where no file is. */
   create(path: string, text: string): Promise<NoteEntry> {
     return this.#serial(() => this.#create(path, text));
+  }
+
+  /** Reads a file of the vault that is not a note, as the Obsidian base beside a database. */
+  readFile(path: string): Promise<FileText> {
+    return this.#serial(() => this.#files.read(path));
+  }
+
+  /**
+   * Writes a file of the vault that is not a note. `base` is the hash of
+   * its text last read, or "" for a file that must not exist yet; if the
+   * file is no longer that, it throws a `ChangedOnDisk` and writes nothing.
+   */
+  writeFile(path: string, text: string, base: string): Promise<FileText> {
+    return this.#serial(async () => {
+      if (isNotePath(path)) throw new Error(`${path} is a note: write it by its ID.`);
+      const written = await this.#files.write(path, text, base);
+      const record = this.#records.get(path);
+      await this.#commit({
+        upsert: [
+          record === undefined
+            ? { path, size: written.size, modified: written.modified, hash: written.hash }
+            : { ...moved(record, path, written), hash: written.hash },
+        ],
+      });
+      return written;
+    });
   }
 
   async #create(path: string, text: string): Promise<NoteEntry> {

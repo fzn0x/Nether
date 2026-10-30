@@ -121,6 +121,24 @@ describe("Vault notes", () => {
     expect(calls).toBe(1);
   });
 
+  it("reads and writes a file that is not a note, refusing a write over a change it has not seen", async () => {
+    const files = new MemoryFiles({ "Projects.md": "A database" });
+    const vault = await openVault(files);
+    const first = await vault.writeFile("Projects.base", "views: []\n", "");
+    expect(vault.files()).toContain("Projects.base");
+    expect((await vault.readFile("Projects.base")).text).toBe("views: []\n");
+    const second = await vault.writeFile("Projects.base", "views:\n  - type: table\n", first.hash);
+    expect(second.hash).toBe(await sha256("views:\n  - type: table\n"));
+    files.edit("Projects.base", "edited in Obsidian\n");
+    await expect(vault.writeFile("Projects.base", "again\n", second.hash)).rejects.toBeInstanceOf(
+      ChangedOnDisk,
+    );
+    // A new file's write finds one there.
+    await expect(vault.writeFile("Projects.base", "new\n", "")).rejects.toThrow(/already there/);
+    await expect(vault.writeFile("Notes.md", "x", "")).rejects.toThrow(/is a note/);
+    expect((await vault.readFile("Missing.base")).missing).toBe(true);
+  });
+
   it("tells its listeners which notes each change added, changed, moved or removed", async () => {
     const vault = await openVault(new MemoryFiles({ "a.md": "A", "b.md": "B" }));
     const [a, b] = vault.notes().map((note) => note.id);
