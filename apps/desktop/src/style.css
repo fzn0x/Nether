@@ -638,8 +638,8 @@ button {
 
 .nether-editor .callout {
   padding: 0.75rem 1rem;
-  border-left: 3px solid var(--accent);
-  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: 6px;
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
