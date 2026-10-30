@@ -77,6 +77,8 @@ export interface IndexStore {
   compact(note: NoteId, snapshot: Uint8Array, through: number): Promise<void>;
   /** Records the hash of the file the document now matches. */
   setFileHash(note: NoteId, hash: string): Promise<void>;
+  /** Forgets a note's document, its updates and its file's hash, as when the note is deleted for good. */
+  deleteDocument(note: NoteId): Promise<void>;
   /** What the link index and search keep of every note read so far. */
   noteIndexes(): Promise<readonly NoteIndexRow[]>;
   /** Keeps notes' index rows, replacing those they had. */
@@ -162,6 +164,11 @@ export class MemoryStore implements IndexStore {
       { seq: through, data: snapshot.slice() },
       ...document.updates.filter((update) => update.seq > through),
     ];
+    return Promise.resolve();
+  }
+
+  deleteDocument(note: NoteId): Promise<void> {
+    this.#documents.delete(note);
     return Promise.resolve();
   }
 

@@ -54,6 +54,20 @@ describe.each(stores)("%s documents", (_name, open) => {
     await store.setFileHash(note, "def");
     expect(await store.document(note)).toEqual({ updates: [], fileHash: "def" });
   });
+
+  it("forgets a note's document and nothing of another's", async () => {
+    const store = await open();
+    await store.appendUpdates(note, [bytes(1)]);
+    await store.setFileHash(note, "abc");
+    await store.appendUpdates(other, [bytes(9)]);
+    await store.deleteDocument(note);
+    expect(await store.document(note)).toEqual({ updates: [] });
+    expect((await store.document(other)).updates).toHaveLength(1);
+    // A note never kept is forgotten all the same.
+    await store.deleteDocument(note);
+    await store.appendUpdates(note, [bytes(2)]);
+    expect((await store.document(note)).updates.map((update) => update.seq)).toEqual([1]);
+  });
 });
 
 describe("SqliteStore documents", () => {

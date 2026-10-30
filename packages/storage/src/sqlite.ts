@@ -214,6 +214,13 @@ export class SqliteStore implements IndexStore {
     ]);
   }
 
+  async deleteDocument(note: NoteId): Promise<void> {
+    await this.#database.transaction([
+      { sql: "DELETE FROM document_updates WHERE note = ?", params: [note] },
+      { sql: "DELETE FROM documents WHERE note = ?", params: [note] },
+    ]);
+  }
+
   async setFileHash(note: NoteId, hash: string): Promise<void> {
     await this.#database.execute(
       `INSERT INTO documents (note, file_hash) VALUES (?, ?)
