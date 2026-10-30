@@ -1633,3 +1633,104 @@ button {
 .note-title-field:hover {
   background: color-mix(in srgb, var(--rule) 40%, transparent);
 }
+
+/* How the sidebar shows notes: folders, pages or a list. */
+.view-switch {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0 0.75rem 0.4rem;
+}
+
+.view-switch button {
+  padding: 0.1rem 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.view-switch button[aria-pressed="true"] {
+  background: var(--rule);
+  color: var(--text);
+}
+
+/* The file tree and the page tree. */
+.note-tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.note-tree [role="tree"] {
+  position: relative;
+}
+
+.tree-row {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0 0.5rem 0 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tree-row:hover {
+  background: color-mix(in srgb, var(--rule) 50%, transparent);
+}
+
+.tree-row[aria-selected="true"] {
+  background: var(--rule);
+}
+
+.tree-row.drop-target,
+.note-tree.drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.tree-indent {
+  flex-shrink: 0;
+}
+
+.tree-toggle {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 1rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.tree-folder {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+}
+
+.tree-add {
+  margin-left: auto;
+  padding: 0 0.35rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.tree-row:hover .tree-add,
+.tree-row:focus-within .tree-add,
+.tree-row:focus .tree-add {
+  opacity: 1;
+}
+
+.tree-add:hover {
+  color: var(--text);
+}

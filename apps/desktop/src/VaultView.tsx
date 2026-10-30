@@ -21,6 +21,7 @@ import type { VaultInfo } from "./mygo.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { NewNoteDialog } from "./NewNoteDialog.tsx";
 import { NoteList } from "./NoteList.tsx";
+import { type Dragged, NoteTree } from "./NoteTree.tsx";
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
 import { SearchPanel } from "./SearchPanel.tsx";
 import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
@@ -42,6 +43,28 @@ const loadCreateNote = () => import("./createNote.ts");
 const loadRenameNote = () => import("./renameNote.ts");
 
 const numbers = new Intl.NumberFormat();
+
+type NotesView = "folders" | "pages" | "list";
+const notesViews: readonly NotesView[] = ["folders", "pages", "list"];
+const viewKey = "nether.notesView";
+
+/** How the sidebar shows notes, as the user last chose; storage may be closed to the page. */
+function storedView(): NotesView {
+  try {
+    const stored = localStorage.getItem(viewKey);
+    return notesViews.find((view) => view === stored) ?? "folders";
+  } catch {
+    return "folders";
+  }
+}
+
+function storeView(view: NotesView): void {
+  try {
+    localStorage.setItem(viewKey, view);
+  } catch {
+    // Not remembered: the view holds until the app closes.
+  }
+}
 
 /** How far the link index has read, while it is reading. */
 function IndexStatus(props: { readonly indexer: Indexer }) {
@@ -107,6 +130,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
   const [dialog, setDialog] = useState<"newNote" | "settings" | "export" | undefined>();
+  // The folder a new note goes in, when made from the tree.
+  const [newIn, setNewIn] = useState("");
+  const [notesView, setNotesView] = useState<NotesView>(storedView);
   // What happened to a note: a template the vault no longer has, or the note moved to the trash.
   const [notice, setNotice] = useState<
     { readonly text: string; readonly restore?: string } | undefined
@@ -129,6 +155,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
         setSwitcher(true);
       } else if (key === "n" && !event.shiftKey) {
         event.preventDefault();
+        setNewIn("");
         setDialog("newNote");
       } else if (key === "f" && event.shiftKey) {
         event.preventDefault();
@@ -233,16 +260,54 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       if (state.status !== "open") return;
       const note = state.vault.note(id);
       if (note === undefined) return;
-      const { renameNote, renamedPath } = await loadRenameNote();
+      const { moveFiles, pageMoves, renamedPath } = await loadRenameNote();
       const target = renamedPath(note.path, name);
       if ("error" in target) {
         throw new Error(target.error === "empty" ? t("noteNameEmpty") : t("noteNameUnsafe"));
       }
       await state.indexer.idle();
-      await renameNote(state.vault, state.indexer.graph, id, target.path);
+      // Its pages, in the folder with its name, follow it.
+      await moveFiles(
+        state.vault,
+        state.indexer.graph,
+        pageMoves(state.vault, note.path, target.path),
+      );
     },
     [state],
   );
+
+  /** Moves a note, with its pages, or a folder, with the page that names it, into a folder. */
+  const moveInTree = useCallback(
+    (dragged: Dragged, folder: string) => {
+      if (state.status !== "open") return;
+      const { vault: open, indexer } = state;
+      const name = dragged.path.slice(dragged.path.lastIndexOf("/") + 1);
+      const to = folder === "" ? name : `${folder}/${name}`;
+      setNotice(undefined);
+      void (async () => {
+        const { folderMoves, moveFiles, pageMoves } = await loadRenameNote();
+        const moves =
+          dragged.kind === "note"
+            ? pageMoves(open, dragged.path, to)
+            : [
+                ...folderMoves(open, dragged.path, to),
+                ...(open.noteAt(`${dragged.path}.md`) === undefined
+                  ? []
+                  : [{ from: `${dragged.path}.md`, to: `${to}.md` }]),
+              ];
+        await indexer.idle();
+        await moveFiles(open, indexer.graph, moves);
+      })().catch((error: unknown) => {
+        setNotice({ text: error instanceof Error ? error.message : String(error) });
+      });
+    },
+    [state],
+  );
+
+  const newNoteIn = useCallback((folder: string) => {
+    setNewIn(folder);
+    setDialog("newNote");
+  }, []);
 
   /** Opens a note restored from the trash. */
   const openRestored = useCallback(
@@ -298,6 +363,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
                 aria-keyshortcuts="Control+N Meta+N"
                 title={t("newNoteHint")}
                 onClick={() => {
+                  setNewIn("");
                   setDialog("newNote");
                 }}
               >
@@ -408,12 +474,42 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
                     </button>
                   </p>
                 )}
-                <NoteList
-                  notes={shown}
-                  selected={selected}
-                  onSelect={openNote}
-                  label={t("notes")}
-                />
+                {tag === undefined ? (
+                  <div className="view-switch" role="group" aria-label={t("notesView")}>
+                    {notesViews.map((view) => (
+                      <button
+                        key={view}
+                        type="button"
+                        aria-pressed={notesView === view}
+                        onClick={() => {
+                          setNotesView(view);
+                          storeView(view);
+                        }}
+                      >
+                        {t(`view_${view}`)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {tag !== undefined || notesView === "list" ? (
+                  <NoteList
+                    notes={shown}
+                    selected={selected}
+                    onSelect={openNote}
+                    label={t("notes")}
+                  />
+                ) : (
+                  <NoteTree
+                    notes={notes}
+                    mode={notesView}
+                    selected={selected}
+                    onSelect={openNote}
+                    onMove={moveInTree}
+                    onNewIn={newNoteIn}
+                    label={t("notes")}
+                    storageKey={`nether.tree.${info.id}.${notesView}`}
+                  />
+                )}
                 <p className="count" role="status">
                   {notes.length === 1
                     ? t("oneNote")
@@ -438,6 +534,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       {dialog === "newNote" && state.status === "open" ? (
         <NewNoteDialog
           notes={notes}
+          folder={newIn}
           settings={settings}
           onCreate={(path, template) => makeNote(path, template, new Date())}
           onClose={() => {

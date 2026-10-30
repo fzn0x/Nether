@@ -141,6 +141,11 @@ export const messages = {
   showInFolder: "Show in folder",
   close: "Close",
   renameHint: "Click to rename the note; links to it follow",
+  notesView: "Show notes as",
+  view_folders: "Folders",
+  view_pages: "Pages",
+  view_list: "List",
+  newNoteIn: "New note in {name}",
   errorTitle: "Something went wrong",
   dismiss: "Dismiss",
 } as const;
