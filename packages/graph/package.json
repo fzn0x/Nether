@@ -15,10 +15,10 @@
   },
   "dependencies": {
     "@nether/core": "workspace:*",
+    "@nether/markdown": "workspace:*",
     "@nether/storage": "workspace:*"
   },
   "devDependencies": {
-    "@nether/markdown": "workspace:*",
     "@vitest/coverage-v8": "^5.0.5",
     "vitest": "^5.0.5"
   }

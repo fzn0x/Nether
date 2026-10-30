@@ -43,6 +43,15 @@ describe("renameNote", () => {
     expect(await text("Other.md")).toBe("Nothing here.\n");
   });
 
+  it("rewrites a note whose one link to it is an embed within a line", async () => {
+    const { vault, graph, id, text } = await setUp({
+      "Plan.md": "# Plan\n",
+      "Daily.md": "Today: ![[Plan#Plan]] and more.\n",
+    });
+    await renameNote(vault, graph, id("Plan.md"), "Roadmap.md");
+    expect(await text("Daily.md")).toBe("Today: ![[Roadmap#Plan]] and more.\n");
+  });
+
   it("writes a path where another note has the name, or where the link wrote one", async () => {
     const { vault, graph, id, text } = await setUp({
       "Projects/Plan.md": "Plan\n",

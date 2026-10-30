@@ -59,6 +59,21 @@ describe("indexNote", () => {
     expect(note.aliases).toEqual(["Only one"]);
     expect(note.tags).toEqual(["a", "b"]);
   });
+
+  it("reads an embed within a line as a link, as Obsidian does", () => {
+    const note = index("Then ![[Roadmap#Next|the plan]] and [[Ideas]], not `![[Code]]`.\n");
+    expect(note.links).toEqual([
+      expect.objectContaining({ target: "Roadmap", heading: "Next", embed: true }),
+      expect.objectContaining({ target: "Ideas", embed: false }),
+    ]);
+    expect(note.links[0]?.context).toBe(
+      "Then ![[Roadmap#Next|the plan]] and Ideas, not ![[Code]].",
+    );
+    const graph = new LinkGraph();
+    graph.set(id("roadmap"), "Roadmap.md", index("# Next\n"));
+    graph.set(id("daily"), "Daily.md", index("Today: ![[Roadmap]] and more.\n"));
+    expect(graph.backlinks(id("roadmap")).map((backlink) => backlink.source)).toEqual(["daily"]);
+  });
 });
 
 describe("LinkGraph", () => {

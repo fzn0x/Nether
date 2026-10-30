@@ -3,6 +3,7 @@
 // enough to keep for every note of a large vault, and rebuilt only when a
 // note's file changes.
 import type { Block, BlockId, ContentBlock, Inline, LinkTarget, PropertyEntry } from "@nether/core";
+import { parseWikiLink } from "@nether/markdown";
 
 /** A link in a note, to another note, a part of one, or a part of the same note. */
 export interface LinkRef {
@@ -134,6 +135,12 @@ export function indexNote(
         if (ref !== undefined) links.push(ref);
       } else if (inline.type === "tag") {
         tag(inline.name);
+      } else if (inline.type === "raw" && /^!\[\[[^[\]\n]+\]\]$/.test(inline.markdown)) {
+        // An embed within a line stays as its Markdown in the note, and
+        // still links to what it names, as Obsidian counts it.
+        const link = parseWikiLink(inline.markdown.slice(3, -2));
+        const ref = link === undefined ? undefined : linkRef(link.target, true, context);
+        if (ref !== undefined) links.push(ref);
       }
       if ("marks" in inline) {
         for (const mark of inline.marks ?? []) {

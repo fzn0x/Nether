@@ -270,13 +270,13 @@ importers:
       '@nether/core':
         specifier: workspace:*
         version: link:../core
+      '@nether/markdown':
+        specifier: workspace:*
+        version: link:../markdown
       '@nether/storage':
         specifier: workspace:*
         version: link:../storage
     devDependencies:
-      '@nether/markdown':
-        specifier: workspace:*
-        version: link:../markdown
       '@vitest/coverage-v8':
         specifier: ^5.0.5
         version: 5.0.5(vitest@5.0.5)
