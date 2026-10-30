@@ -1207,3 +1207,100 @@ button {
   color: var(--muted);
   font-size: 0.875rem;
 }
+
+/* Search: the field, and the notes found with the text around a match. */
+.search-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.search-input,
+.switcher-input {
+  margin: 0 0.75rem 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.search-results {
+  flex: 1;
+  margin: 0;
+  padding: 0 0.5rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.search-results li {
+  padding: 0.35rem 0.5rem;
+}
+
+.search-results button {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.search-results button:hover .note-title {
+  color: var(--accent);
+}
+
+.search-snippet {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.search-snippet mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, #f5d547 55%, transparent);
+  color: var(--text);
+}
+
+/* The quick switcher, over the vault. */
+.switcher-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgb(0 0 0 / 25%);
+}
+
+.switcher {
+  display: flex;
+  flex-direction: column;
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: 60vh;
+  padding-top: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: var(--panel-shadow);
+}
+
+.switcher-input {
+  font-size: 1rem;
+}
+
+.switcher-list {
+  margin: 0;
+  padding: 0.25rem;
+  overflow-y: auto;
+  list-style: none;
+  font-size: 0.9375rem;
+}

@@ -23,6 +23,7 @@
     "@nether/editor": "workspace:*",
     "@nether/graph": "workspace:*",
     "@nether/markdown": "workspace:*",
+    "@nether/search": "workspace:*",
     "@nether/storage": "workspace:*",
     "mygo-runtime": "0.6.2",
     "react": "^19.3.1",

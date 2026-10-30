@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -15,6 +16,8 @@ import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
 import { NoteList } from "./NoteList.tsx";
+import { QuickSwitcher } from "./QuickSwitcher.tsx";
+import { SearchPanel } from "./SearchPanel.tsx";
 import type { NotePart } from "./noteLinks.ts";
 import type { NoteMode } from "./NoteView.tsx";
 import { useGraph } from "./useGraph.ts";
@@ -86,13 +89,36 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const [focus, setFocus] = useState<(NotePart & { readonly key: number }) | undefined>();
   // Blocks or source, kept from note to note.
   const [mode, setMode] = useState<NoteMode>("blocks");
-  const [panel, setPanel] = useState<"notes" | "tags">("notes");
+  const [panel, setPanel] = useState<"notes" | "tags" | "search">("notes");
+  const [switcher, setSwitcher] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
   const version = useGraph(graph);
 
   useEffect(() => {
     // Start loading the editor as the vault opens, before a note is picked.
     void loadNoteView();
+  }, []);
+
+  // Ctrl or Cmd and O opens the quick switcher; with Shift and F, search.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const key = event.key.toLowerCase();
+      if (key === "o" && !event.shiftKey) {
+        event.preventDefault();
+        setSwitcher(true);
+      } else if (key === "f" && event.shiftKey) {
+        event.preventDefault();
+        setPanel("search");
+        // Once the panel shows.
+        requestAnimationFrame(() => searchInput.current?.focus());
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
   }, []);
 
   const openNote = useCallback((id: NoteId, part?: NotePart) => {
@@ -151,8 +177,25 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               >
                 {t("tags")}
               </button>
+              <button
+                type="button"
+                aria-pressed={panel === "search"}
+                aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
+                onClick={() => {
+                  setPanel("search");
+                }}
+              >
+                {t("search")}
+              </button>
             </div>
-            {panel === "tags" ? (
+            {panel === "search" ? (
+              <SearchPanel
+                vault={state.vault}
+                graph={state.indexer.graph}
+                onOpen={openNote}
+                input={searchInput}
+              />
+            ) : panel === "tags" ? (
               <TagList graph={state.indexer.graph} onSelect={showTag} />
             ) : notes.length === 0 ? (
               <p className="placeholder">{t("noNotes")}</p>
@@ -189,6 +232,16 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
           </>
         )}
       </aside>
+      {switcher && state.status === "open" ? (
+        <QuickSwitcher
+          vault={state.vault}
+          graph={state.indexer.graph}
+          onOpen={openNote}
+          onClose={() => {
+            setSwitcher(false);
+          }}
+        />
+      ) : null}
       <main className="pane">
         {state.status === "open" && selected !== undefined ? (
           <Suspense fallback={null}>

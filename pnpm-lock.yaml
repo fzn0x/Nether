@@ -62,6 +62,9 @@ importers:
       '@nether/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
+      '@nether/search':
+        specifier: workspace:*
+        version: link:../../packages/search
       '@nether/storage':
         specifier: workspace:*
         version: link:../../packages/storage
