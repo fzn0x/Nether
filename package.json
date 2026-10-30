@@ -21,6 +21,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "vault:generate": "pnpm --filter @nether/vault-generator generate",
+    "perf:bench": "pnpm --filter @nether/perf bench",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

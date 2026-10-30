@@ -5,6 +5,9 @@
   "description": "Generates the reference vault of Markdown notes that Nether's performance tests run against.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "exports": {
+    ".": "./src/generate.ts"
+  },
   "scripts": {
     "generate": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts",
     "typecheck": "tsc -p tsconfig.json",

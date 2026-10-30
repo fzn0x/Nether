@@ -1,0 +1,23 @@
+{
+  "name": "@nether/perf",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Measures Nether's performance targets on the reference vault.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "bench": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/bench.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nether/core": "workspace:*",
+    "@nether/graph": "workspace:*",
+    "@nether/markdown": "workspace:*",
+    "@nether/search": "workspace:*",
+    "@nether/storage": "workspace:*",
+    "@nether/vault-generator": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2"
+  }
+}
