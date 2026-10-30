@@ -15,9 +15,12 @@ are plain files you own; the same notes can become databases, wikis and
 shared projects, synced through **a server you control**, or through none.
 
 > [!NOTE]
-> Nether is in early development: [Phase 0](docs/reports/phase-0.md) of six
-> is done and Phase 1 is next, and nothing is ready to install yet. Watch
-> the repository to follow along.
+> Nether is in early development, and nothing is ready to install yet.
+> [Phase 0](docs/reports/phase-0.md) of six is done, and Phase 1, the
+> local-first notes, is under way: the vault on disk, the block editor,
+> links, backlinks, tags, search and properties are in, and the
+> [roadmap](docs/roadmap.md#phase-1-local-first-notes) ticks off the rest as
+> it lands. Watch the repository to follow along.
 
 [Documentation](https://fzn0x.github.io/nether/) ·
 [Roadmap](docs/roadmap.md) · [Requirements](docs/requirements.md) ·
@@ -48,7 +51,7 @@ shared projects, synced through **a server you control**, or through none.
 | Phase | What it delivers |
 | --- | --- |
 | 0. Foundations (done) | Decisions, the repository, CI, the data model, a 50,000-note test vault |
-| 1. Local-first notes | The desktop app: a vault on disk, the block and Markdown editor, links and backlinks, tags, search, templates, export |
+| 1. Local-first notes (under way) | The desktop app: a vault on disk, the block and Markdown editor, links and backlinks, tags, search, templates, export |
 | 2. Databases and structure | Databases with six views, relations, rollups, formulas, synced blocks, the graph view, importers from Obsidian and Notion |
 | 3. Sync and collaboration | The first public release: the server, end-to-end encrypted sync, co-editing, comments, permissions, the web app, the canvas, backups |
 | 4. Platform | Plugins in a sandbox, bring-your-own AI, publishing, the REST API, the web clipper, automations |
