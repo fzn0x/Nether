@@ -233,6 +233,24 @@ export const PluginBlock = cardNode("pluginBlock", {
   data: jsonAttribute("data", {}),
 } as Record<string, ReturnType<typeof dataAttribute>>);
 
+/**
+ * A line break inside a paragraph as Markdown writes one, a new line, which
+ * Obsidian shows as a break; a hard break is written with a backslash. Text
+ * holds no new lines of its own: ProseMirror reads a page's new lines as
+ * hard breaks.
+ */
+export const SoftBreak = Node.create({
+  name: "softBreak",
+  group: "inline",
+  inline: true,
+  atom: true,
+  selectable: false,
+  // Before the hard break's rule for every <br>.
+  parseHTML: () => [{ tag: "br[data-soft]", priority: 60 }],
+  renderHTML: () => ["br", { "data-soft": "" }],
+  renderText: () => "\n",
+});
+
 /** An inline atom, shown as a chip. */
 function chipNode(
   name: string,
@@ -393,6 +411,7 @@ export function netherExtensions(options: SchemaOptions = {}): AnyExtension[] {
     Tag,
     withView(MathInline),
     RawInline,
+    SoftBreak,
     BlockIds.configure({
       types: [...blockNodes],
       generate: options.newId ?? (() => newBlockId()),

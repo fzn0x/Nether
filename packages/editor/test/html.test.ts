@@ -59,6 +59,17 @@ const note: ContentBlock[] = [
     ],
   },
   {
+    // Markdown's soft breaks, new lines in text, apart from its hard breaks.
+    id: id("soft"),
+    type: "paragraph",
+    content: [
+      text("first line\nsecond "),
+      { type: "text", text: "bold\nline", marks: [{ type: "bold" }] },
+      { type: "hardBreak" },
+      text("after a hard break"),
+    ],
+  },
+  {
     id: id("list"),
     type: "taskListItem",
     attrs: { checked: true },

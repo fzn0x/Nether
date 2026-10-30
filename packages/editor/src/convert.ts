@@ -47,11 +47,21 @@ function withMarks(node: JSONContent, marks: readonly Mark[] | undefined): JSONC
   return editorMarks === undefined ? node : { ...node, marks: editorMarks };
 }
 
+/** Text with its new lines as soft breaks, which the editor holds apart from text. */
+function textToEditor(text: string, marks: readonly Mark[] | undefined): JSONContent[] {
+  return text
+    .split("\n")
+    .flatMap((line, index) => [
+      ...(index === 0 ? [] : [withMarks({ type: "softBreak" }, marks)]),
+      ...(line === "" ? [] : [withMarks({ type: "text", text: line }, marks)]),
+    ]);
+}
+
 export function inlinesToEditor(inlines: readonly Inline[]): JSONContent[] {
-  return inlines.map((inline): JSONContent => {
+  return inlines.flatMap<JSONContent>((inline) => {
     switch (inline.type) {
       case "text":
-        return withMarks({ type: "text", text: inline.text }, inline.marks);
+        return textToEditor(inline.text, inline.marks);
       case "hardBreak":
         return { type: "hardBreak" };
       case "wikiLink":
@@ -216,7 +226,12 @@ function blockToEditor(block: ContentBlock): JSONContent {
     }
     case "toggle": {
       // A toggle's summary holds text only, as Markdown writes it in <summary>.
-      const summary = inlinesToEditor(summaryText(block.content));
+      const summary = summaryText(block.content).map((inline) =>
+        withMarks(
+          { type: "text", text: inline.type === "text" ? inline.text : "" },
+          "marks" in inline ? inline.marks : undefined,
+        ),
+      );
       return {
         type: "details",
         attrs: idAttrs(block.id),
@@ -364,6 +379,9 @@ export function inlinesFromEditor(nodes: readonly JSONContent[] | undefined): In
         break;
       case "hardBreak":
         inline = { type: "hardBreak" };
+        break;
+      case "softBreak":
+        inline = marked({ type: "text", text: "\n" }, marks);
         break;
       case "wikiLink": {
         const target = attrs(node).target as LinkTarget | null | undefined;
