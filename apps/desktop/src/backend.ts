@@ -23,6 +23,7 @@ import {
   Previews,
   type UpdateSettings,
   Updates,
+  type Startup,
   type VaultInfo,
   Vaults,
 } from "./mygo.ts";
@@ -82,7 +83,7 @@ export interface Backend {
   /** The desktop app, or a browser showing the sample vault. */
   readonly kind: "desktop" | "preview";
   /** The vault the app was started with, as `nether ~/Notes`; null when none. */
-  startup(): Promise<VaultInfo | null>;
+  startup(): Promise<Startup | null>;
   recent(): Promise<VaultInfo[]>;
   /** Asks the user for a folder; null when they cancel. */
   choose(): Promise<VaultInfo | null>;
@@ -323,7 +324,12 @@ const preview: Backend = {
   settle() {
     // The browser's memory is its own.
   },
-  startup: () => Promise.resolve(null),
+  // `?note=Projects/Ideas.md` starts with the sample vault open at that note,
+  // as the app starts with a vault and a note its command line names.
+  startup() {
+    const note = new URLSearchParams(location.search).get("note");
+    return Promise.resolve(note === null ? null : { vault: sample, note });
+  },
   recent: () => Promise.resolve([]),
   choose: () => Promise.resolve(sample),
   open: () => Promise.resolve(sample),

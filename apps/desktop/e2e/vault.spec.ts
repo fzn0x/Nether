@@ -83,3 +83,23 @@ test("a vault opens again to the note open when it was closed", async ({ page })
   await page.getByRole("button", { name: "Open a folder" }).click();
   await expect(page.locator("#note-title")).toHaveText("Roadmap");
 });
+
+test("a vault opens first at the note its command line names, then as it was left", async ({
+  page,
+}) => {
+  const notes = await openSample(page);
+  await notes.getByRole("button", { name: /Roadmap/ }).click();
+  await expect(page.locator("#note-title")).toHaveText("Roadmap");
+  // As `nether <vault> Projects/Ideas.md` starts the app.
+  await page.goto("/?note=Projects/Ideas.md");
+  await expect(page.locator("#note-title")).toHaveText("Ideas");
+  await expect(page.getByRole("textbox", { name: "Ideas, note text" })).toBeVisible();
+  // Closed and opened again, it is the note last open that opens.
+  await page
+    .getByRole("list", { name: "Notes" })
+    .getByRole("button", { name: /Welcome/ })
+    .click();
+  await page.getByRole("button", { name: "Close vault" }).click();
+  await page.getByRole("button", { name: "Open a folder" }).click();
+  await expect(page.locator("#note-title")).toHaveText("Welcome");
+});

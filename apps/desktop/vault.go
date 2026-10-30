@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -139,23 +140,85 @@ func NewVaults(data string, dialog folderPicker, args []string) *Vaults {
 	}
 }
 
+// Startup is what the app was started with: a vault, and a note in it to
+// open first.
+type Startup struct {
+	Vault VaultInfo `json:"vault"`
+	// Note is the note's path in the vault, separated by slashes, or ""
+	// for the note open when the vault was last closed.
+	Note string `json:"note"`
+}
+
 // Startup opens the vault the app was started with, the first folder named
-// on its command line as in `nether ~/Notes`, and returns nil when there is
-// none.
-func (v *Vaults) Startup() (*VaultInfo, error) {
+// on its command line as in `nether ~/Notes`, with the first Markdown file
+// in it named too, by its path in the vault or on disk, as in
+// `nether ~/Notes Projects/Plan.md`. It returns nil when no folder is named.
+func (v *Vaults) Startup() (*Startup, error) {
+	folder := ""
+	var files []string
 	for _, arg := range v.args {
 		if strings.HasPrefix(arg, "-") {
 			continue
 		}
-		if stat, err := os.Stat(arg); err == nil && stat.IsDir() {
-			info, err := v.Open(arg)
-			if err != nil {
-				return nil, err
+		if folder == "" {
+			if stat, err := os.Stat(arg); err == nil && stat.IsDir() {
+				folder = arg
+				continue
 			}
-			return &info, nil
+		}
+		files = append(files, arg)
+	}
+	if folder == "" {
+		return nil, nil
+	}
+	info, err := v.Open(folder)
+	if err != nil {
+		return nil, err
+	}
+	start := &Startup{Vault: info}
+	for _, file := range files {
+		if note, ok := noteIn(info.Path, file); ok {
+			start.Note = note
+			break
 		}
 	}
-	return nil, nil
+	return start, nil
+}
+
+// noteIn finds a Markdown file named on the command line in the vault at
+// root, by its path in the vault, else on disk, and returns its path in the
+// vault. Hidden files, and files outside the vault, are not notes of it.
+func noteIn(root string, arg string) (string, bool) {
+	candidates := []string{arg}
+	if !filepath.IsAbs(arg) {
+		candidates = []string{filepath.Join(root, arg), arg}
+	}
+	for _, candidate := range candidates {
+		full, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+		if real, err := filepath.EvalSymlinks(full); err == nil {
+			full = real
+		}
+		stat, err := os.Stat(full)
+		if err != nil || !stat.Mode().IsRegular() || !strings.EqualFold(filepath.Ext(full), ".md") {
+			continue
+		}
+		if !inside(root, full) {
+			continue
+		}
+		rel, err := filepath.Rel(root, full)
+		if err != nil {
+			continue
+		}
+		note := filepath.ToSlash(rel)
+		if slices.ContainsFunc(strings.Split(note, "/"), hidden) {
+			continue
+		}
+		return note, true
+	}
+	return "", false
 }
 
 // Choose asks the user for a folder and opens it as a vault. It returns

@@ -130,8 +130,13 @@ function TagList(props: { readonly graph: LinkGraph; readonly onSelect: (tag: st
   );
 }
 
-export function VaultView(props: { readonly info: VaultInfo; readonly onClose: () => void }) {
-  const { info, onClose } = props;
+export function VaultView(props: {
+  readonly info: VaultInfo;
+  /** The note to open first, by its path, as the command line names one; else the last open. */
+  readonly note?: string;
+  readonly onClose: () => void;
+}) {
+  const { info, note: startNote, onClose } = props;
   const state = useVault(info);
   const vault = state.status === "open" ? state.vault : undefined;
   const graph = state.status === "open" ? state.indexer.graph : undefined;
@@ -474,12 +479,13 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
     return keys === undefined ? undefined : ariaKeys(keys);
   };
 
-  // The note open when the vault was last open opens again, found by its path.
+  // The note the app was started with opens first, or else the note open
+  // when the vault was last open, found by its path.
   useEffect(() => {
     if (vault === undefined) return;
     let restored = false;
     try {
-      const path = localStorage.getItem(lastNoteKey);
+      const path = startNote ?? localStorage.getItem(lastNoteKey);
       const note = path === null ? undefined : vault.noteAt(path);
       if (note !== undefined) {
         setSelected((current) => current ?? note.id);
@@ -489,7 +495,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       // Storage closed to the page: the vault opens to no note.
     }
     if (!restored) loadLinks();
-  }, [vault, lastNoteKey, loadLinks]);
+  }, [vault, startNote, lastNoteKey, loadLinks]);
   const selectedPath = selected === undefined ? undefined : vault?.note(selected)?.path;
   useEffect(() => {
     if (selectedPath === undefined) return;

@@ -107,11 +107,15 @@ function Welcome(props: { readonly onOpen: (vault: VaultInfo) => void }) {
 
 export function App() {
   const [vault, setVault] = useState<VaultInfo | null>(null);
+  // The note the command line named, for the vault it named.
+  const [start, setStart] = useState<{ readonly vault: string; readonly note: string }>();
 
   useEffect(() => {
     void backend.startup().then(
       (startup) => {
-        if (startup !== null) setVault(startup);
+        if (startup === null) return;
+        setVault(startup.vault);
+        if (startup.note !== "") setStart({ vault: startup.vault.id, note: startup.note });
       },
       () => undefined,
     );
@@ -123,8 +127,10 @@ export function App() {
     <VaultView
       key={vault.id}
       info={vault}
+      {...(start?.vault === vault.id ? { note: start.note } : {})}
       onClose={() => {
         setVault(null);
+        setStart(undefined);
       }}
     />
   );
