@@ -252,6 +252,40 @@ export class SqliteStore implements IndexStore {
     }));
   }
 
+  async noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexRow[]> {
+    const { rows } = await this.#database.query(
+      "SELECT note, size, modified, data FROM note_indexes WHERE note > ? ORDER BY note LIMIT ?",
+      [after, limit],
+    );
+    return rows.map(([note, size, modified, data]) => ({
+      note: text(note) as NoteId,
+      size: integer(size),
+      modified: integer(modified),
+      data: text(data),
+    }));
+  }
+
+  async noteIndexesOf(notes: readonly NoteId[]): Promise<readonly NoteIndexRow[]> {
+    const found: NoteIndexRow[] = [];
+    // In parts, under SQLite's limit on the values one statement takes.
+    for (let start = 0; start < notes.length; start += 500) {
+      const part = notes.slice(start, start + 500);
+      const { rows } = await this.#database.query(
+        `SELECT note, size, modified, data FROM note_indexes WHERE note IN (${part.map(() => "?").join(", ")})`,
+        part,
+      );
+      for (const [note, size, modified, data] of rows) {
+        found.push({
+          note: text(note) as NoteId,
+          size: integer(size),
+          modified: integer(modified),
+          data: text(data),
+        });
+      }
+    }
+    return found;
+  }
+
   async putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void> {
     const statements = rows.map((row) => ({
       sql: `INSERT INTO note_indexes (note, size, modified, data) VALUES (?, ?, ?, ?)

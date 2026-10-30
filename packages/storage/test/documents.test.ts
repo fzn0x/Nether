@@ -100,4 +100,30 @@ describe.each(stores)("%s note indexes", (_name, open) => {
     await store.deleteNoteIndexes([note]);
     expect((await store.noteIndexes()).map((row) => row.note)).toEqual([other]);
   });
+
+  it("gives rows a part at a time in the order of their notes, and the rows of some notes", async () => {
+    const store = await open();
+    const ids = Array.from(
+      { length: 5 },
+      (_, n) => `01929f4c-7b00-7a00-8000-00000000010${String(n)}` as NoteId,
+    );
+    // Put out of order, and one more after the order was read.
+    await store.putNoteIndexes(
+      [3, 0, 4, 1].map((n) => ({ note: ids[n] ?? note, size: n, modified: n, data: "{}" })),
+    );
+    const notes = async (after: string, limit: number) =>
+      (await store.noteIndexPage(after, limit)).map((row) => row.size);
+    expect(await notes("", 2)).toEqual([0, 1]);
+    await store.putNoteIndexes([{ note: ids[2] ?? note, size: 2, modified: 2, data: "{}" }]);
+    expect(await notes(ids[1] ?? "", 2)).toEqual([2, 3]);
+    expect(await notes(ids[3] ?? "", 2)).toEqual([4]);
+    expect(await notes(ids[4] ?? "", 2)).toEqual([]);
+    await store.deleteNoteIndexes([ids[2] ?? note]);
+    expect(await notes(ids[1] ?? "", 2)).toEqual([3, 4]);
+    expect(
+      (await store.noteIndexesOf([ids[4] ?? note, ids[2] ?? note, ids[0] ?? note]))
+        .map((row) => row.size)
+        .sort(),
+    ).toEqual([0, 4]);
+  });
 });

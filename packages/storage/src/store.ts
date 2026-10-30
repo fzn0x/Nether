@@ -81,6 +81,13 @@ export interface IndexStore {
   deleteDocument(note: NoteId): Promise<void>;
   /** What the link index and search keep of every note read so far. */
   noteIndexes(): Promise<readonly NoteIndexRow[]>;
+  /**
+   * The index rows of the notes after `after` in the order of their IDs, at
+   * most `limit`, so that a large vault's rows load a part at a time.
+   */
+  noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexRow[]>;
+  /** The index rows of some notes, those it has. */
+  noteIndexesOf(notes: readonly NoteId[]): Promise<readonly NoteIndexRow[]>;
   /** Keeps notes' index rows, replacing those they had. */
   putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void>;
   deleteNoteIndexes(notes: readonly NoteId[]): Promise<void>;
@@ -120,6 +127,8 @@ export class MemoryStore implements IndexStore {
   readonly #files = new Map<string, FileRecord>();
   readonly #documents = new Map<NoteId, { updates: StoredUpdate[]; fileHash?: string }>();
   readonly #indexes = new Map<NoteId, NoteIndexRow>();
+  /** The notes of #indexes in order, until they change. */
+  #indexOrder: NoteId[] | undefined;
   readonly #texts = new Map<NoteId, NoteTextRow>();
 
   #document(note: NoteId) {
@@ -181,13 +190,38 @@ export class MemoryStore implements IndexStore {
     return Promise.resolve([...this.#indexes.values()]);
   }
 
+  noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexRow[]> {
+    this.#indexOrder ??= [...this.#indexes.keys()].sort();
+    const order = this.#indexOrder;
+    // The first ID past `after`, by halving.
+    let low = 0;
+    let high = order.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if ((order[middle] ?? "") <= after) low = middle + 1;
+      else high = middle;
+    }
+    return Promise.resolve(
+      order.slice(low, low + limit).flatMap((note) => this.#indexes.get(note) ?? []),
+    );
+  }
+
+  noteIndexesOf(notes: readonly NoteId[]): Promise<readonly NoteIndexRow[]> {
+    return Promise.resolve(notes.flatMap((note) => this.#indexes.get(note) ?? []));
+  }
+
   putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void> {
-    for (const row of rows) this.#indexes.set(row.note, row);
+    for (const row of rows) {
+      if (!this.#indexes.has(row.note)) this.#indexOrder = undefined;
+      this.#indexes.set(row.note, row);
+    }
     return Promise.resolve();
   }
 
   deleteNoteIndexes(notes: readonly NoteId[]): Promise<void> {
-    for (const note of notes) this.#indexes.delete(note);
+    for (const note of notes) {
+      if (this.#indexes.delete(note)) this.#indexOrder = undefined;
+    }
     return Promise.resolve();
   }
 

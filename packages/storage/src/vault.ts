@@ -42,6 +42,8 @@ export type NoteDocuments = Pick<
 export type NoteIndexes = Pick<
   IndexStore,
   | "noteIndexes"
+  | "noteIndexPage"
+  | "noteIndexesOf"
   | "putNoteIndexes"
   | "deleteNoteIndexes"
   | "putNoteTexts"
