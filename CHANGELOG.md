@@ -118,6 +118,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   paragraph in Arabic or Hebrew starts at the right, and the interface
   lays itself out right to left in a language written so
   ([ADR 0015](docs/adr/0015-check-accessibility-and-lay-out-by-direction.md)).
+- `nether ~/Notes Projects/Plan.md` opens the vault at the note named after
+  it, by its path in the vault or on disk, before the note last open.
+- CI measures the desktop app's start, idle memory and how soon it picks up
+  another app's change, on Windows, on the reference vault.
 
 ### Changed
 
