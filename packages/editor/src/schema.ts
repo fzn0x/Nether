@@ -364,6 +364,11 @@ export interface SchemaOptions {
   readonly newId?: () => BlockId;
   /** The views of nodes that edit or render in a way of their own, such as math. */
   readonly nodeViews?: NodeViews;
+  /**
+   * Whether the editor keeps its own undo history: not when a Yjs document
+   * holds the note, whose undo manager undoes the user's own edits only.
+   */
+  readonly history?: boolean;
 }
 
 /** The TipTap extensions that make Nether's schema. */
@@ -380,6 +385,7 @@ export function netherExtensions(options: SchemaOptions = {}): AnyExtension[] {
       trailingNode: false,
       code: false,
       codeBlock: false,
+      ...(options.history === false ? { undoRedo: false as const } : {}),
     }),
     InlineCode,
     // The same node as StarterKit's, with the code highlighted.

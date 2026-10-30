@@ -29,6 +29,7 @@ export {
   isWebLink,
   markdownPath,
 } from "./files.ts";
+export { contentField, documentBlocks, isEmptyDocument, setDocumentBlocks } from "./document.ts";
 export { BlockIds, type BlockIdOptions, blockIdsKey, fixBlockIds } from "./ids.ts";
 export {
   type NodeViews,
