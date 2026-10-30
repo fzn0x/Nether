@@ -5,13 +5,20 @@
 // app makes to the file is merged into the document, block by block and
 // character by character, so neither side's edits are lost. Source mode's
 // text is written as typed, then merged into the document the same way.
-import { type ContentBlock, type NoteId, newBlockId } from "@nether/core";
-import { documentBlocks, isEmptyDocument, setDocumentBlocks } from "@nether/editor";
+import { type ContentBlock, type NoteId, type PropertyEntry, newBlockId } from "@nether/core";
+import {
+  documentBlocks,
+  documentProperties,
+  isEmptyDocument,
+  setDocumentBlocks,
+  setDocumentProperties,
+} from "@nether/editor";
 import {
   type ParsedMarkdown,
   alignBlocks,
   fingerprint,
   mergeBlocks,
+  mergeProperties,
   parseMarkdown,
   serializeMarkdown,
 } from "@nether/markdown";
@@ -37,6 +44,8 @@ export type NoteState =
       readonly document: Y.Doc;
       /** The note's Markdown, as source mode shows it. */
       readonly text: string;
+      /** Why the note's frontmatter cannot be read, when it cannot: its properties then stay as they are. */
+      readonly frontmatterError?: string;
       /** Changes whenever the note's text is read again, to start source mode anew. */
       readonly version: number;
     }
@@ -69,6 +78,10 @@ interface Open {
 /** Whether a note has edits waiting for its file: text from source mode, or the document's. */
 function waiting(note: Open): boolean {
   return note.dirty || note.text !== undefined;
+}
+
+function sameProperties(a: readonly PropertyEntry[], b: readonly PropertyEntry[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function sameBlocks(a: readonly ContentBlock[], b: readonly ContentBlock[]): boolean {
@@ -106,6 +119,9 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
       document: current.document,
       text: current.file.source.text,
       version: version.current,
+      ...(current.file.frontmatterError === undefined
+        ? {}
+        : { frontmatterError: current.file.frontmatterError }),
     });
   }, []);
 
@@ -140,11 +156,24 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
       const theirs = alignBlocks(parseMarkdown(text), current.file.content);
       const ours = documentBlocks(current.document, newBlockId);
       const merged = mergeBlocks(current.file.content, ours, theirs.content, newBlockId);
-      setDocumentBlocks(current.document, merged, fromFile);
+      // Properties merge key by key; a frontmatter that cannot be read keeps its own.
+      const properties =
+        theirs.frontmatterError === undefined
+          ? mergeProperties(
+              current.file.properties,
+              documentProperties(current.document),
+              theirs.properties,
+            )
+          : theirs.properties;
+      current.document.transact(() => {
+        setDocumentBlocks(current.document, merged, fromFile);
+        setDocumentProperties(current.document, properties, fromFile);
+      }, fromFile);
       current.file = theirs;
       current.hash = hash;
       // What the file lacks of the document is written back.
-      current.dirty = !sameBlocks(merged, theirs.content);
+      current.dirty =
+        !sameBlocks(merged, theirs.content) || !sameProperties(properties, theirs.properties);
       void vault.documents.setFileHash(id, hash);
     },
     [vault, id],
@@ -169,7 +198,14 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
         blocks === undefined
           ? bom + (typed ?? "")
           : serializeMarkdown(
-              { properties: current.file.properties, content: blocks },
+              {
+                // A frontmatter that cannot be read keeps its own properties.
+                properties:
+                  current.file.frontmatterError === undefined
+                    ? documentProperties(current.document)
+                    : current.file.properties,
+                content: blocks,
+              },
               { source: current.file.source, writeIds: current.file.writtenIds },
             ).text;
       if (text === bom + current.file.source.text) return;
@@ -279,17 +315,26 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
         });
         if (isEmptyDocument(document)) {
           // A note opened for the first time: its document starts from its file.
-          setDocumentBlocks(document, parsed.content, fromFile);
+          document.transact(() => {
+            setDocumentBlocks(document, parsed.content, fromFile);
+            setDocumentProperties(document, parsed.properties, fromFile);
+          }, fromFile);
         } else {
           const ours = documentBlocks(document, newBlockId);
           const aligned = alignBlocks(parsed, ours);
           current.file = aligned;
           if (stored.fileHash === file.hash) {
             // The file is the document's last write: edits it lacks, as after a crash, are written.
-            current.dirty = !sameBlocks(ours, aligned.content);
+            current.dirty =
+              !sameBlocks(ours, aligned.content) ||
+              (aligned.frontmatterError === undefined &&
+                !sameProperties(documentProperties(document), aligned.properties));
           } else {
             // Another app changed the file while the note was closed.
-            setDocumentBlocks(document, aligned.content, fromFile);
+            document.transact(() => {
+              setDocumentBlocks(document, aligned.content, fromFile);
+              setDocumentProperties(document, aligned.properties, fromFile);
+            }, fromFile);
           }
         }
         void vault.documents.setFileHash(id, file.hash);
