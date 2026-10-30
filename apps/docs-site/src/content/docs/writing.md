@@ -96,6 +96,15 @@ A PDF's card can open it in your system's PDF app, and any other file's
 card shows it in your file manager. On Linux, whose web view has no PDF
 viewer, PDFs show as cards.
 
+## Web links
+
+A web address alone on its line, written `<https://example.com>`, shows as
+a card. Nether reaches no server to show it: click **Show preview** to
+fetch the page's title, description and site, which the vault then keeps,
+in `.nether/previews.json`, and shows from then on. A preview has no
+image, so showing it later fetches nothing. **Open** opens the page in
+your browser.
+
 ## Markdown source
 
 Press Ctrl+/ (Cmd+/ on a Mac), or the **Markdown source** button above a

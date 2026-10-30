@@ -102,6 +102,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Links to blocks from `[[Note#^`: the note's blocks are found by their
   text, and a block chosen without an ID gets one, written after it in
   its note's file as Obsidian writes them.
+- Previews of web links: a link alone on its line shows as a card, and
+  Show preview fetches the page's title, description and site, only then,
+  keeping them in the vault; Open opens the page in the browser.
 
 ### Fixed
 
