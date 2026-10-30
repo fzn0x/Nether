@@ -25,6 +25,32 @@ aliases: [Plan, The plan]
 Then `[[Plan` suggests the note, and the link written is
 `[[Roadmap|Plan]]`: it shows Plan, and leads to Roadmap.
 
+## Links to a part of a note
+
+A link to a heading, `[[Roadmap#Next steps]]`, opens the note at that
+heading. A link to a block, `[[Roadmap#^b1]]`, opens it at the block whose
+file writes `^b1` after it, as Obsidian writes block IDs.
+
+## Embedding notes
+
+Put `!` before a link, alone on its line, to show the note it names inside
+this one, read only: `![[Roadmap]]` shows all of it, `![[Roadmap#Next
+steps]]` the heading and what follows it up to the next heading as high or
+higher, and `![[Roadmap#^b1]]` the one block. Click the embed's title to
+open the note. Embeds inside an embed show one level deeper; deeper ones
+show as their links, so notes that embed each other end.
+
+## Outline, backlinks and tags
+
+Beside each note, Nether shows its outline, the note's headings, which go
+to the heading when clicked, and the notes that link to it, each with the
+text around its links. On a narrow window they show below the note.
+
+The **Tags** list in the sidebar shows every tag in the vault, from `#tag`
+in notes and from their `tags` property, with nested tags such as
+`#area/project` under theirs and how many notes have each. Click a tag,
+there or in a note, to list the notes with it, nested tags included.
+
 ## Links typed in full
 
 A link typed in full, such as `[[Next steps]]`, becomes a link when you

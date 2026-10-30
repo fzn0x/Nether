@@ -52,7 +52,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   a link opens its note, and makes it when the vault has none by that name.
   Links find notes as Obsidian finds them. The vault's links are read in
   the background and kept, so a vault opens without reading every note
-  again.
+  again. A link to a heading or block opens the note there; `![[Note]]`
+  embeds a note, its heading's section or a block, read only.
+- Beside each note, its outline and the notes that link to it, with the
+  text around each link; a list of the vault's tags, nested ones under
+  theirs, each showing its notes.
 - Source mode: Ctrl+/ shows a note as its Markdown in a text editor, with
   find and replace and optional Vim keys, and goes back to blocks with
   nothing lost; a file's line endings stay as they are.

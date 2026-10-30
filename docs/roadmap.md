@@ -60,7 +60,7 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] The vault on disk: reading, writing and watching the folder, and the local SQLite store ([ADR 0007](adr/0007-vault-folder-and-local-index.md))
 - [x] `packages/editor`: the block editor with live Markdown shortcuts, the slash menu, block handle and rich blocks, embeds of images, PDFs, audio and video, and source mode (web link previews, and embeds of notes and blocks, come with links)
 - [x] Yjs documents per note, kept in step with the files both ways
-- [ ] Links, backlinks, aliases, tags and the outline: the link index, `[[` links and aliases (done); the backlinks panel, tags, the outline, and embeds of notes and blocks
+- [x] Links, backlinks, aliases, tags and the outline: the link index, `[[` links and aliases, heading and block links, the backlinks panel, tags, the outline, and embeds of notes and blocks (making a block link from `[[`, and updating links when a note is renamed, come with renaming in the app's interface)
 - [ ] The quick switcher and full-text search
 - [ ] Properties, templates, daily notes, the trash and export
 - [ ] The app's interface: sidebar, command palette and keyboard shortcuts
