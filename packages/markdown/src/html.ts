@@ -451,20 +451,26 @@ export function propertiesToHtml(properties: readonly PropertyEntry[]): string {
 }
 
 /**
- * A note as an HTML page: its title, as a heading unless the note starts
- * with one of its own, its properties, and its blocks.
+ * A note's page without the page around it: its title, as a heading unless
+ * the note starts with one of its own, its properties, and its blocks.
  */
-export async function noteToHtml(
-  note: HtmlNote,
-  hooks: HtmlHooks = {},
-  options: HtmlPageOptions = {},
-): Promise<string> {
+export async function noteArticle(note: HtmlNote, hooks: HtmlHooks = {}): Promise<string> {
   const [first] = note.content;
   const heading =
     first?.type === "heading" && first.attrs.level === 1
       ? ""
       : `<h1 class="title">${escapeHtml(note.title)}</h1>\n`;
   const body = await blocksToHtml(note.content, hooks, note.writtenIds);
+  return `${heading}${propertiesToHtml(note.properties)}${body}`;
+}
+
+/** A note as an HTML page, its article in a document with its title and style. */
+export async function noteToHtml(
+  note: HtmlNote,
+  hooks: HtmlHooks = {},
+  options: HtmlPageOptions = {},
+): Promise<string> {
+  const article = await noteArticle(note, hooks);
   return [
     "<!doctype html>",
     `<html lang="${escapeHtml(options.lang ?? "en")}">`,
@@ -476,7 +482,7 @@ export async function noteToHtml(
     "</head>",
     "<body>",
     "<article>",
-    `${heading}${propertiesToHtml(note.properties)}${body}`,
+    article,
     "</article>",
     "</body>",
     "</html>",

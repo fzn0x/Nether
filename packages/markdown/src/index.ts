@@ -19,6 +19,7 @@ export {
   blocksToHtml,
   escapeHtml,
   headingSlug,
+  noteArticle,
   noteToHtml,
   propertiesToHtml,
 } from "./html.ts";

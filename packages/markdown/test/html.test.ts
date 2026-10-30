@@ -4,6 +4,7 @@ import {
   blocksToHtml,
   escapeHtml,
   headingSlug,
+  noteArticle,
   noteToHtml,
   parseMarkdown,
   propertiesToHtml,
@@ -209,6 +210,13 @@ describe("noteToHtml", () => {
         "</html>",
         "",
       ].join("\n"),
+    );
+  });
+
+  it("gives the page's article alone for a page made elsewhere", async () => {
+    const parsed = parseMarkdown("Hello\n", ids());
+    expect(await noteArticle({ title: "Plan", ...parsed })).toBe(
+      '<h1 class="title">Plan</h1>\n<p>Hello</p>',
     );
   });
 
