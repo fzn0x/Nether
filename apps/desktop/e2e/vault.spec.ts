@@ -10,6 +10,17 @@ function errorsOf(page: Page): string[] {
   return errors;
 }
 
+/**
+ * Waits for the editor to see where the caret is. A click or a key such as
+ * End moves the browser's caret, and the editor reads it when the browser
+ * reports the change, a frame later: keys pressed sooner act where it was.
+ */
+async function settle(page: Page) {
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+  );
+}
+
 async function openSample(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "Open a folder" }).click();
@@ -50,13 +61,14 @@ test("what is typed in a note is saved, and Markdown shortcuts make blocks", asy
   const notes = await openSample(page);
   await notes.getByRole("button", { name: /Ideas/ }).click();
   const editor = page.getByRole("textbox", { name: "Ideas, note text" });
-  await editor.locator("p").last().click();
-  // The editor reads where a click put the caret when the browser reports
-  // it, a frame later; keys pressed sooner would act where it was before.
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  );
+  // At the paragraph's start, plain text on every platform's fonts, not on the math in it.
+  await editor
+    .locator("p")
+    .last()
+    .click({ position: { x: 2, y: 4 } });
+  await settle(page);
   await page.keyboard.press("End");
+  await settle(page);
   await page.keyboard.press("Enter");
   await page.keyboard.type("## A new heading");
   await page.keyboard.press("Enter");
