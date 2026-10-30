@@ -43,5 +43,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   by their links as Obsidian finds them; pasted and dropped files go in the
   vault's `attachments` folder, never over another file
   ([ADR 0010](docs/adr/0010-vault-files-in-notes.md)).
+- Source mode: Ctrl+/ shows a note as its Markdown in a text editor, with
+  find and replace and optional Vim keys, and goes back to blocks with
+  nothing lost; a file's line endings stay as they are.
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main

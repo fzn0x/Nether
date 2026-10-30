@@ -42,13 +42,17 @@ language's words as `words`, and English is the default.
 | `src/embeds.tsx` | Images, PDFs, audio and video in a note, and a field or file picker for blocks without one |
 | `src/words.ts` | Every word the editor shows, in English |
 | `src/NoteEditor.tsx` | The editor for one note, in React |
+| `src/SourceEditor.tsx` | Source mode: the note's Markdown in CodeMirror, with its line endings kept, and Vim keys on request |
 
 The core model keeps each list item as a block of its own; the editor keeps
 lists the ProseMirror way, items inside a list node, so that Enter, Tab and
 Backspace in lists behave as people expect. The conversion turns one into
 the other and back without loss. Inline code here combines with other
 formatting, as Markdown allows (`**`bold code`**`); TipTap's own code mark
-excludes every other mark.
+excludes every other mark. A new line inside a paragraph, Markdown's soft
+break, is a node of its own in the editor and a new line again in the
+note: text in ProseMirror cannot hold one, since ProseMirror reads the
+page's new lines as hard breaks, which Markdown writes with a backslash.
 
 ## Tests
 
