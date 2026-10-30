@@ -1304,3 +1304,92 @@ button {
   list-style: none;
   font-size: 0.9375rem;
 }
+
+/* A note's properties, above it. */
+.properties {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+}
+
+.property {
+  display: grid;
+  grid-template-columns: minmax(6rem, 10rem) 6.5rem minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.property input:not([type="checkbox"]),
+.property select {
+  min-width: 0;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+}
+
+.property input:not([type="checkbox"]):hover,
+.property input:not([type="checkbox"]):focus,
+.property select:hover,
+.property select:focus {
+  border-color: var(--rule);
+  background: var(--bg);
+}
+
+.property .property-key {
+  color: var(--muted);
+}
+
+.property-type {
+  color: var(--muted);
+}
+
+.property-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.property-list input {
+  flex: 1 1 6rem;
+}
+
+.property-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0 0.15rem 0 0.4rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.property-chip button,
+.property-remove {
+  padding: 0 0.3rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.property-add {
+  justify-self: start;
+  font-size: 0.8125rem;
+}
+
+/* Below this width a property's name goes above its value. */
+@media (max-width: 40rem) {
+  .property {
+    grid-template-columns: minmax(0, 1fr) 6.5rem auto;
+  }
+
+  .property .property-key {
+    grid-column: 1 / -1;
+  }
+}

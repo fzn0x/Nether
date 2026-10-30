@@ -10,6 +10,7 @@ import { type KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
 import type { VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
 import { noteFiles } from "./noteFiles.ts";
+import { PropertiesPanel } from "./PropertiesPanel.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
 import { useGraph } from "./useGraph.ts";
 import { useNote } from "./useNote.ts";
@@ -159,17 +160,26 @@ export default function NoteView(props: {
             />
           </Suspense>
         ) : (
-          <NoteEditor
-            // The editor shows the document as it changes; a new document starts a new editor.
-            key={state.document.guid}
-            document={state.document}
-            label={t("noteBody", { title: note.title })}
-            placeholder={t("emptyNote")}
-            files={files}
-            links={links}
-            autofocus={switched}
-            {...(focus === undefined ? {} : { focus })}
-          />
+          <>
+            {state.frontmatterError === undefined ? (
+              <PropertiesPanel key={state.document.guid} document={state.document} vault={vault} />
+            ) : (
+              <p className="notice" role="status">
+                {t("unreadableFrontmatter", { error: state.frontmatterError })}
+              </p>
+            )}
+            <NoteEditor
+              // The editor shows the document as it changes; a new document starts a new editor.
+              key={state.document.guid}
+              document={state.document}
+              label={t("noteBody", { title: note.title })}
+              placeholder={t("emptyNote")}
+              files={files}
+              links={links}
+              autofocus={switched}
+              {...(focus === undefined ? {} : { focus })}
+            />
+          </>
         )}
       </article>
       <NotePanel graph={graph} id={id} onOpenNote={onOpenNote} />
