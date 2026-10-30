@@ -311,19 +311,31 @@ const preview: Backend = {
   choose: () => Promise.resolve(sample),
   open: () => Promise.resolve(sample),
   forget: () => Promise.resolve(),
-  connect() {
-    const files = new MemoryFiles(sampleVault);
+  async connect() {
+    // `?reference=50000` opens the reference vault of that many notes, for the
+    // performance tests; it loads only then.
+    const reference = Number(new URLSearchParams(location.search).get("reference") ?? "");
+    let vault: Readonly<Record<string, string>> = sampleVault;
+    if (Number.isInteger(reference) && reference > 0) {
+      const { generateVault } = await import("@nether/vault-generator");
+      const generated: Record<string, string> = {};
+      for (const file of generateVault({ notes: reference, seed: 1 })) {
+        generated[file.path] = file.content;
+      }
+      vault = generated;
+    }
+    const files = new MemoryFiles(vault);
     const exports: PreviewExport[] = [];
     // The end-to-end tests change the sample's files as another app would, and read its exports.
     (
       globalThis as { netherPreview?: { files: MemoryFiles; exports: PreviewExport[] } }
     ).netherPreview = { files, exports };
-    return Promise.resolve({
+    return {
       files,
       store: new MemoryStore(),
       media: memoryMedia(files),
       exporter: memoryExporter(exports),
-    });
+    };
   },
 };
 

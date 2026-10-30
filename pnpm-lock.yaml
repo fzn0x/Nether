@@ -68,6 +68,9 @@ importers:
       '@nether/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@nether/vault-generator':
+        specifier: workspace:*
+        version: link:../../tools/vault-generator
       mygo-runtime:
         specifier: 0.6.2
         version: 0.6.2

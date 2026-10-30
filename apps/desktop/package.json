@@ -15,7 +15,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:go": "go test ./...",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "perf:ui": "playwright test -c playwright.perf.config.ts"
   },
   "dependencies": {
     "@mygo-plugins/sqlite": "0.6.2",
@@ -24,6 +25,7 @@
     "@nether/graph": "workspace:*",
     "@nether/markdown": "workspace:*",
     "@nether/search": "workspace:*",
+    "@nether/vault-generator": "workspace:*",
     "@nether/storage": "workspace:*",
     "mygo-runtime": "0.6.2",
     "react": "^19.3.1",
