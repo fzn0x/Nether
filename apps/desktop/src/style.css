@@ -1975,3 +1975,115 @@ kbd {
 .database-group .count {
   margin-inline-start: 0.35rem;
 }
+
+/* A board's columns side by side, scrolling across when they are many; a
+   gallery's cards in a grid; a list's rows one under another. */
+.database-board {
+  display: grid;
+  grid-auto-columns: minmax(14rem, 1fr);
+  grid-auto-flow: column;
+  gap: 0.75rem;
+  align-items: start;
+  overflow-x: auto;
+  padding-block-end: 0.5rem;
+}
+
+.database-column {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.database-column[data-over] {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.database-column h3,
+.database-section h3 {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.database-column h3 .count,
+.database-section h3 .count {
+  margin-inline-start: 0.35rem;
+}
+
+.database-column ul,
+.database-gallery,
+.database-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.database-column li,
+.database-gallery li {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.database-column li[draggable] {
+  cursor: grab;
+}
+
+.database-gallery {
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+}
+
+.database-gallery li {
+  padding-block-start: 0;
+  overflow: hidden;
+}
+
+.database-cover {
+  display: block;
+  aspect-ratio: 16 / 9;
+  inline-size: calc(100% + 1.2rem);
+  margin-inline: -0.6rem;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.database-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
+  padding-block: 0.3rem;
+  border-block-end: 1px solid var(--rule);
+}
+
+.database-section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.database-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  margin: 0;
+  color: var(--muted);
+}
+
+.database-details div {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.database-details dd {
+  margin: 0;
+  color: var(--text);
+}

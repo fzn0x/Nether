@@ -264,6 +264,7 @@ export default function NoteView(props: {
             />
             <DatabaseView
               vault={vault}
+              media={media}
               graph={graph}
               document={state.document}
               path={note.path}

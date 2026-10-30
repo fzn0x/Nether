@@ -29,7 +29,16 @@ import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
+import {
+  BoardLayout,
+  GalleryLayout,
+  ListLayout,
+  boardTypes,
+  groupLabel,
+  valueText,
+} from "./DatabaseLayouts.tsx";
 import { ListEditor } from "./PropertiesPanel.tsx";
+import type { VaultMedia } from "./backend.ts";
 import {
   createRow,
   databaseRows,
@@ -102,16 +111,6 @@ function useDocumentProperties(document: Y.Doc): readonly PropertyEntry[] {
     };
   }, [document]);
   return entries;
-}
-
-/** A value as a cell shows it when it is not being edited. */
-function valueText(value: JsonValue | undefined): string {
-  if (value === undefined || value === null) return "";
-  if (Array.isArray(value)) {
-    const items: readonly JsonValue[] = value;
-    return items.map((item) => valueText(item)).join(", ");
-  }
-  return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
 /** A cell of a row: an editor for its property's type, which writes when it is done. */
@@ -397,6 +396,7 @@ function AddProperty(props: {
 
 interface DatabaseProps {
   readonly vault: Vault;
+  readonly media: VaultMedia;
   readonly graph: LinkGraph;
   readonly document: Y.Doc;
   readonly path: string;
@@ -414,7 +414,7 @@ export function DatabaseView(props: DatabaseProps) {
 }
 
 function Database(props: DatabaseProps & { readonly entries: readonly PropertyEntry[] }) {
-  const { vault, graph, document, path, onOpenNote, entries } = props;
+  const { vault, media, graph, document, path, onOpenNote, entries } = props;
   const version = useGraph(graph);
   const notes = useNotes(vault);
   const [chosen, setChosen] = useState<string | undefined>();
@@ -532,6 +532,80 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
     );
   };
 
+  const fail = (problem: unknown) => {
+    setError(problem instanceof Error ? problem.message : String(problem));
+  };
+  const typeOf = (key: string | undefined) =>
+    schema.properties.find((property) => property.key === key)?.type;
+  /** A view in another layout, without what only its old one has, and with a board's columns. */
+  const changeLayout = (current: View, layout: View["layout"]) => {
+    let next: View = without(without(without(current, "cover"), "date"), "end");
+    next = { ...next, layout };
+    if (layout === "board" && !boardTypes.includes(typeOf(current.groupBy) ?? "text")) {
+      const columns = schema.properties.find((property) => boardTypes.includes(property.type));
+      if (columns === undefined) {
+        setError(t("boardNeedsColumns"));
+        return;
+      }
+      next = { ...next, groupBy: columns.key };
+    }
+    setError(undefined);
+    saveView(next);
+  };
+  /** Moves a card to another column: the value it is grouped by becomes the column's. */
+  const move = (row: NoteId, from: JsonValue, to: JsonValue) => {
+    const key = view?.groupBy;
+    if (key === undefined) return;
+    const current = rows
+      .find((item) => item.id === row)
+      ?.properties.find((entry) => entry.key === key)?.value;
+    let value: JsonValue = to;
+    if (typeOf(key) === "multiSelect") {
+      // Out of the column it left, into the one it went to.
+      const listed: readonly JsonValue[] = Array.isArray(current)
+        ? current
+        : current === undefined || current === null
+          ? []
+          : [current];
+      const items = listed.filter((item) => JSON.stringify(item) !== JSON.stringify(from));
+      value = to === null ? items : [...items, to];
+    }
+    write(row, key, value);
+  };
+  /** Makes a row in a board's column, with its value. */
+  const createIn = (value: JsonValue) => {
+    const key = view?.groupBy;
+    setError(undefined);
+    createRow(vault, path, t("untitled"))
+      .then((created) =>
+        key === undefined || value === null
+          ? undefined
+          : setNoteProperty(
+              vault,
+              created.id,
+              key,
+              typeOf(key) === "multiSelect" ? [value] : value,
+            ),
+      )
+      .catch(fail);
+  };
+  /** A gallery card's cover: the file or address its cover property names. */
+  const coverOf = (row: Row): string | undefined => {
+    const key = view?.cover;
+    const raw = row.properties.find((entry) => entry.key === key)?.value;
+    const values: readonly JsonValue[] = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw];
+    const first = values[0];
+    if (typeof first !== "string" || first.trim() === "") return undefined;
+    const link =
+      first
+        .trim()
+        .replace(/^!?\[\[|\]\]$/g, "")
+        .split("|")[0] ?? "";
+    if (/^https?:\/\//i.test(link)) return link;
+    const file = vault.resolveFile(link, row.path);
+    return file === undefined ? undefined : media.url(file);
+  };
+
   const result = view === undefined ? undefined : runView(rows, view, schema);
   const visible = (view?.visible ?? [])
     .map((key) => schema.properties.find((property) => property.key === key))
@@ -610,6 +684,23 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
       ) : (
         <div role="tabpanel" aria-label={view.name}>
           <div className="database-toolbar">
+            <label>
+              {t("layout")}
+              <select
+                value={
+                  view.layout === "calendar" || view.layout === "timeline" ? "table" : view.layout
+                }
+                onChange={(event) => {
+                  changeLayout(view, event.target.value as View["layout"]);
+                }}
+              >
+                {(["table", "board", "gallery", "list"] as const).map((layout) => (
+                  <option key={layout} value={layout}>
+                    {t(`layout_${layout}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               type="button"
               className="quiet"
@@ -623,7 +714,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                 : t("filterCount", { count: flatFilter(view.filter)?.conditions.length ?? 1 })}
             </button>
             <label>
-              {t("groupBy")}
+              {view.layout === "board" ? t("columns") : t("groupBy")}
               <select
                 value={view.groupBy ?? ""}
                 onChange={(event) => {
@@ -633,14 +724,42 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                   );
                 }}
               >
-                <option value="">{t("groupByNone")}</option>
-                {schema.properties.map((property) => (
-                  <option key={property.key} value={property.key}>
-                    {property.key}
-                  </option>
-                ))}
+                {/* A board always groups, and only by what can make columns. */}
+                {view.layout === "board" ? null : <option value="">{t("groupByNone")}</option>}
+                {schema.properties
+                  .filter(
+                    (property) => view.layout !== "board" || boardTypes.includes(property.type),
+                  )
+                  .map((property) => (
+                    <option key={property.key} value={property.key}>
+                      {property.key}
+                    </option>
+                  ))}
               </select>
             </label>
+            {view.layout === "gallery" ? (
+              <label>
+                {t("cover")}
+                <select
+                  value={view.cover ?? ""}
+                  onChange={(event) => {
+                    const rest = without(view, "cover");
+                    saveView(
+                      event.target.value === "" ? rest : { ...rest, cover: event.target.value },
+                    );
+                  }}
+                >
+                  <option value="">{t("coverNone")}</option>
+                  {schema.properties
+                    .filter((property) => property.type === "file")
+                    .map((property) => (
+                      <option key={property.key} value={property.key}>
+                        {property.key}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : null}
             <button
               type="button"
               className="quiet"
@@ -699,32 +818,67 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
             </div>
           ) : null}
           {error === undefined ? null : <p role="alert">{t("cellFailed", { error })}</p>}
-          <table className="database-table">
-            <caption className="visually-hidden">{view.name}</caption>
-            <thead>
-              <tr>
-                {header("$title")}
-                {visible.map((property) => header(property.key))}
-              </tr>
-            </thead>
-            {result.groups === undefined ? (
-              <tbody>{rowLines(result.rows)}</tbody>
-            ) : (
-              result.groups.map((group) => {
-                const label = group.value === null ? t("noValue") : valueText(group.value);
-                return (
-                  <tbody key={label} aria-label={label}>
-                    <tr className="database-group">
-                      <th scope="rowgroup" colSpan={visible.length + 1}>
-                        {label} <span className="count">{group.rows.length}</span>
-                      </th>
-                    </tr>
-                    {rowLines(group.rows)}
-                  </tbody>
-                );
-              })
-            )}
-          </table>
+          {view.layout === "board" ? (
+            <BoardLayout
+              {...{
+                view,
+                rows: result.rows,
+                ...(result.groups === undefined ? {} : { groups: result.groups }),
+                visible,
+                onOpen: onOpenNote,
+              }}
+              onMove={move}
+              onCreate={createIn}
+            />
+          ) : view.layout === "gallery" ? (
+            <GalleryLayout
+              {...{
+                view,
+                rows: result.rows,
+                ...(result.groups === undefined ? {} : { groups: result.groups }),
+                visible,
+                onOpen: onOpenNote,
+              }}
+              coverOf={coverOf}
+            />
+          ) : view.layout === "list" ? (
+            <ListLayout
+              {...{
+                view,
+                rows: result.rows,
+                ...(result.groups === undefined ? {} : { groups: result.groups }),
+                visible,
+                onOpen: onOpenNote,
+              }}
+            />
+          ) : (
+            <table className="database-table">
+              <caption className="visually-hidden">{view.name}</caption>
+              <thead>
+                <tr>
+                  {header("$title")}
+                  {visible.map((property) => header(property.key))}
+                </tr>
+              </thead>
+              {result.groups === undefined ? (
+                <tbody>{rowLines(result.rows)}</tbody>
+              ) : (
+                result.groups.map((group) => {
+                  const label = groupLabel(group.value);
+                  return (
+                    <tbody key={label} aria-label={label}>
+                      <tr className="database-group">
+                        <th scope="rowgroup" colSpan={visible.length + 1}>
+                          {label} <span className="count">{group.rows.length}</span>
+                        </th>
+                      </tr>
+                      {rowLines(group.rows)}
+                    </tbody>
+                  );
+                })
+              )}
+            </table>
+          )}
           <button
             type="button"
             className="quiet"

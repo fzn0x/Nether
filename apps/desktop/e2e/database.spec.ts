@@ -129,3 +129,88 @@ test("a database keeps its schema in its note and its values in its rows, and a 
   await expect(page.locator("#note-title")).toHaveText("Untitled");
   expect(errors).toEqual([]);
 });
+
+test("a view shows its rows as a board, a list or a gallery, and a card moves between columns", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("new database");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#note-title")).toHaveText("Untitled database");
+  const database = page.getByRole("region", { name: "Database" });
+  await database.getByRole("button", { name: "Properties" }).click();
+  const add = async (name: string, type: string) => {
+    await database.getByRole("textbox", { name: "Property name" }).fill(name);
+    await database.getByRole("combobox", { name: "Type of the new property" }).selectOption(type);
+    await database.getByRole("button", { name: "Add a property" }).click();
+  };
+  // A board cannot be made before there is something for its columns.
+  await database.getByRole("combobox", { name: "Layout" }).selectOption("board");
+  await expect(database.getByRole("alert")).toContainText("A board needs a select");
+  await add("Status", "Select");
+  await add("Cover", "File");
+  await database.getByRole("button", { name: "New row" }).click();
+  await database.getByRole("button", { name: "New row" }).click();
+  const table = database.getByRole("table");
+  await expect(table.getByRole("rowheader")).toHaveText(["Untitled", "Untitled 2"]);
+  for (const [row, status] of [
+    ["Untitled", "Doing"],
+    ["Untitled 2", "Done"],
+  ] as const) {
+    await database.getByLabel(`Status of ${row}`, { exact: true }).fill(status);
+    await database.getByLabel(`Status of ${row}`, { exact: true }).press("Enter");
+  }
+  await database.getByLabel("Cover of Untitled", { exact: true }).fill("[[sketch.svg]]");
+  await database.getByLabel("Cover of Untitled", { exact: true }).press("Enter");
+
+  // A board, its columns the status's options, then the rows with none.
+  await database.getByRole("combobox", { name: "Layout" }).selectOption("board");
+  await expect(database.getByRole("combobox", { name: "Columns" })).toHaveValue("Status");
+  const column = (name: string) => database.getByRole("region", { name, exact: true });
+  await expect(column("Doing").getByRole("listitem")).toHaveCount(1);
+  await expect(column("Done").getByRole("listitem")).toHaveCount(1);
+  await expect(column("No value").getByRole("listitem")).toHaveCount(0);
+  // Moved by its menu, as a keyboard moves it; its file follows.
+  await column("Doing")
+    .getByRole("combobox", { name: "Move Untitled to" })
+    .selectOption({ label: "Done" });
+  await expect(column("Done").getByRole("listitem")).toHaveCount(2);
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled.md"))
+    .toContain("Status: Done\n");
+  // A row made in a column has its value.
+  await column("Doing").getByRole("button", { name: "New in Doing" }).click();
+  await expect(column("Doing").getByRole("button", { name: "Untitled 3" })).toBeVisible();
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled 3.md"))
+    .toBe("---\nStatus: Doing\n---\n");
+  // The base shows it as Obsidian's kanban.
+  await expect
+    .poll(() => fileText(page, "Untitled database.base"))
+    .toContain("  - type: kanban\n    name: Table\n");
+
+  // A list, each row by its name.
+  await database.getByRole("combobox", { name: "Layout" }).selectOption("list");
+  await expect(database.getByRole("list").getByRole("button")).toHaveText([
+    "Untitled 3",
+    "Untitled",
+    "Untitled 2",
+  ]);
+
+  // A gallery, with the cover a file property names.
+  await database.getByRole("combobox", { name: "Group by" }).selectOption("");
+  await database.getByRole("combobox", { name: "Layout" }).selectOption("gallery");
+  await database.getByRole("combobox", { name: "Cover" }).selectOption("Cover");
+  const card = (name: string) =>
+    database.getByRole("listitem").filter({ has: page.getByRole("button", { name, exact: true }) });
+  await expect(card("Untitled").locator("img")).toHaveAttribute("src", /.+/);
+  await expect(card("Untitled 2").locator("img")).toHaveCount(0);
+
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((violation) => violation.id)).toEqual([]);
+  expect(errors).toEqual([]);
+});
