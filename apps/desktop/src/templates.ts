@@ -209,12 +209,13 @@ export function notePathFor(
   return { path };
 }
 
-/** A name for a new note nobody named: `Untitled`, then `Untitled 2` and so on. */
-export function untitledName(notes: readonly NoteEntry[], base = "Untitled"): string {
+/** A name for a new note nobody named, in a folder: `Untitled`, then `Untitled 2` and so on. */
+export function untitledName(notes: readonly NoteEntry[], folder = "", base = "Untitled"): string {
   const taken = new Set(notes.map((note) => note.path.toLowerCase()));
-  if (!taken.has(`${base.toLowerCase()}.md`)) return base;
+  const at = (name: string) => `${folder === "" ? "" : `${folder}/`}${name}.md`.toLowerCase();
+  if (!taken.has(at(base))) return base;
   let n = 2;
-  while (taken.has(`${base.toLowerCase()} ${String(n)}.md`)) n++;
+  while (taken.has(at(`${base} ${String(n)}`))) n++;
   return `${base} ${String(n)}`;
 }
 

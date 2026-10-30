@@ -8,13 +8,15 @@ import { type TemplateSettings, notePathFor, templateChoices, untitledName } fro
 
 export function NewNoteDialog(props: {
   readonly notes: readonly NoteEntry[];
+  /** The folder the note goes in, which its name starts with; the vault's top when not given. */
+  readonly folder?: string;
   readonly settings: TemplateSettings;
   /** Makes the note; a rejection shows in the dialog, which stays open. */
   readonly onCreate: (path: string, template: NoteEntry | undefined) => Promise<void>;
   readonly onClose: () => void;
 }) {
-  const { notes, settings, onCreate, onClose } = props;
-  const [name, setName] = useState("");
+  const { notes, folder = "", settings, onCreate, onClose } = props;
+  const [name, setName] = useState(folder === "" ? "" : `${folder}/`);
   const [query, setQuery] = useState("");
   const [chosen, setChosen] = useState<NoteEntry | undefined>();
   const [error, setError] = useState<string | undefined>();
@@ -23,7 +25,9 @@ export function NewNoteDialog(props: {
     () => templateChoices(notes, settings.folder, query),
     [notes, settings.folder, query],
   );
-  const untitled = useMemo(() => untitledName(notes), [notes]);
+  // What the name leaves out: the whole name, or the note's own after its folder.
+  const typedFolder = name.includes("/") ? name.slice(0, name.lastIndexOf("/")).trim() : "";
+  const untitled = useMemo(() => untitledName(notes, typedFolder), [notes, typedFolder]);
 
   // Focus goes back where it was when the dialog closes.
   useEffect(() => {
@@ -36,7 +40,9 @@ export function NewNoteDialog(props: {
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
     if (busy) return;
-    const target = notePathFor(name.trim() === "" ? untitled : name, notes);
+    const typed = name.trim();
+    const full = typed === "" ? untitled : typed.endsWith("/") ? `${typed}${untitled}` : typed;
+    const target = notePathFor(full, notes);
     if ("error" in target) {
       setError(
         target.error === "taken"

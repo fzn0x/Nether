@@ -172,4 +172,10 @@ describe("untitledName", () => {
     expect(untitledName(notes("Welcome.md"))).toBe("Untitled");
     expect(untitledName(notes("Untitled.md", "untitled 2.md"))).toBe("Untitled 3");
   });
+
+  it("numbers it past the notes in the folder it goes in", () => {
+    const vault = notes("Untitled.md", "Plan/Untitled.md");
+    expect(untitledName(vault, "Plan")).toBe("Untitled 2");
+    expect(untitledName(vault, "Other")).toBe("Untitled");
+  });
 });
