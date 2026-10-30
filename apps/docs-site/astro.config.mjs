@@ -28,6 +28,7 @@ export default defineConfig({
             "links",
             "search",
             "export",
+            "keyboard",
             "markdown",
           ],
         },

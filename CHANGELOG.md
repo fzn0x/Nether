@@ -95,5 +95,14 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   The trees open and close by click or key; dragging a note or folder
   moves it, a page with its pages, with every link rewritten; **+** makes a
   note in a folder or a page.
+- The command palette, Ctrl+P, runs any action by its name, and every
+  command can have a keyboard shortcut, changed in the Keyboard shortcuts
+  list and kept in the vault; new defaults give today's note Ctrl+Shift+D,
+  renaming F2, export Ctrl+Shift+E and the template settings Ctrl+,.
+
+### Fixed
+
+- A dialog opened just after a note no longer loses its focus to the
+  note's editor; dialogs keep focus while they are open.
 
 [Unreleased]: https://github.com/fzn0x/Nether/commits/main
