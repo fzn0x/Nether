@@ -19,6 +19,8 @@ mygo_windows_*.syso
 test-results/
 playwright-report/
 blob-report/
+perf-report.json
+perf-ui-report.json
 
 # Reference vaults written by the vault generator
 /.vaults/

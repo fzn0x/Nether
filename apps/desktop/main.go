@@ -47,8 +47,9 @@ func (d Desktop) Info() AppInfo {
 var started = time.Now()
 
 // Mark records how long after the app started the page reached a point,
-// such as its vault open, in the file NETHER_TRACE names, for performance
-// measurements; without NETHER_TRACE it records nothing.
+// such as its vault open, and the time of day in milliseconds since 1970,
+// in the file NETHER_TRACE names, for performance measurements; without
+// NETHER_TRACE it records nothing.
 func (d Desktop) Mark(name string) {
 	trace := os.Getenv("NETHER_TRACE")
 	if trace == "" {
@@ -59,7 +60,8 @@ func (d Desktop) Mark(name string) {
 		return
 	}
 	defer file.Close()
-	fmt.Fprintf(file, "%s %d\n", name, time.Since(started).Milliseconds())
+	now := time.Now()
+	fmt.Fprintf(file, "%s %d %d\n", name, now.Sub(started).Milliseconds(), now.UnixMilli())
 }
 
 // Settle hands back to the system the memory the app no longer uses, once

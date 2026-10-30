@@ -59,7 +59,10 @@ export function useVault(info: VaultInfo): VaultState {
         }
         // What has been in the trash too long goes; what cannot is tried again next time.
         vault.purgeTrash().catch(() => undefined);
-        await vault.watch(controller.signal);
+        // When another app's change is in the index, for measuring how soon.
+        await vault.watch(controller.signal, () => {
+          backend.mark("change-applied");
+        });
       } catch (error) {
         if (!aborted()) {
           setState({

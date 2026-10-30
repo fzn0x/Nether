@@ -123,21 +123,24 @@ describe("Vault notes", () => {
 });
 
 describe("Vault.watch", () => {
-  async function watched(files: MemoryFiles) {
+  async function watched(files: MemoryFiles, applied?: () => void) {
     const vault = await openVault(files);
     const controller = new AbortController();
-    const done = vault.watch(controller.signal);
+    const done = vault.watch(controller.signal, applied);
     return { vault, stop: async () => (controller.abort(), done) };
   }
 
   it("follows files that other apps create, change and delete", async () => {
     const files = new MemoryFiles({ "a.md": "A" });
-    const { vault, stop } = await watched(files);
+    let batches = 0;
+    const { vault, stop } = await watched(files, () => batches++);
     files.edit("b.md", "B");
     files.edit("a.md", "A longer");
     files.edit(".hidden.md", "H");
     await vault.settled();
     expect(paths(vault)).toEqual(["a.md", "b.md"]);
+    // Told once each batch is in the index; the hidden file's is not reported.
+    expect(batches).toBe(2);
     expect(vault.noteAt("a.md")?.size).toBe(8);
     files.edit("b.md", undefined);
     await vault.settled();

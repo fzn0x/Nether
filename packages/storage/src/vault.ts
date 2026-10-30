@@ -559,12 +559,18 @@ export class Vault {
     await this.#commit({ remove: gone.map((record) => record.path), upsert });
   }
 
-  /** Follows the folder's changes until `signal` aborts. */
-  watch(signal: AbortSignal): Promise<void> {
+  /**
+   * Follows the folder's changes until `signal` aborts, calling `applied`
+   * once each batch of them is in the index.
+   */
+  watch(signal: AbortSignal, applied?: () => void): Promise<void> {
     return this.#files.watch((events) => {
       // A batch that fails, as when a file goes away while it is read, is
       // caught up by the next reconcile; the watch goes on.
-      this.#serial(() => this.apply(events)).catch(() => undefined);
+      this.#serial(async () => {
+        await this.apply(events);
+        applied?.();
+      }).catch(() => undefined);
     }, signal);
   }
 

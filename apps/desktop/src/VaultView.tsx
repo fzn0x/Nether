@@ -146,11 +146,15 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const loadLinks = useCallback(() => {
     if (indexer === undefined || linksStarted.current === indexer) return;
     linksStarted.current = indexer;
-    void indexer.start().then(() => {
+    void (async () => {
+      await indexer.start();
       backend.mark("links-loaded");
+      // Then the notes the index has not read, all of them the first time.
+      await indexer.idle();
+      backend.mark("notes-read");
       // Opening the vault is done, and what it took to open it can go.
       backend.settle();
-    });
+    })();
   }, [indexer]);
   useEffect(() => {
     // Should the note never show.
