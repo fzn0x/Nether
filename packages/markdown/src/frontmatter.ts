@@ -2,7 +2,16 @@
 // so that writing changes only the keys whose values changed and keeps
 // comments, key order and the style of everything else.
 import { type JsonValue, type PropertyEntry, isPropertyKey } from "@nether/core";
-import { Document, type Node, type Pair, isCollection, isMap, isScalar, parseDocument } from "yaml";
+import {
+  Document,
+  type Node,
+  type Pair,
+  isCollection,
+  isMap,
+  isNode,
+  isScalar,
+  parseDocument,
+} from "yaml";
 import { sameJson } from "./source.ts";
 
 export interface FrontmatterProperties {
@@ -90,6 +99,10 @@ export function writeFrontmatter(
         if (isCollection(node) && isCollection(pair.value) && pair.value.flow === true) {
           node.flow = true;
         }
+        // A comment after the value, as `status: Done # for now`, stays with its key.
+        if (isNode(pair.value) && pair.value.comment !== undefined && pair.value.comment !== null) {
+          node.comment = pair.value.comment;
+        }
         pair.value = node;
       }
       items.push(pair);
@@ -107,5 +120,12 @@ export function writeFrontmatter(
   }
   // Follow the file's layout: lists under a key indented or not, and `[a, b]` without padding.
   const flush = yaml !== undefined && /^[^\s#][^\n]*:[ \t]*\r?\n-[ \t]/m.test(yaml);
-  return document.toString({ lineWidth: 0, flowCollectionPadding: false, indentSeq: !flush });
+  // A property with no value is written `key:`, as Obsidian writes it; one the file
+  // writes `key: null` or `key: ~` keeps that, as its node keeps its source.
+  return document.toString({
+    lineWidth: 0,
+    flowCollectionPadding: false,
+    indentSeq: !flush,
+    nullStr: "",
+  });
 }

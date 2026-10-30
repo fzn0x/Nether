@@ -78,7 +78,25 @@ describe("writeFrontmatter", () => {
           { key: "nested", value: { a: null } },
         ],
       ),
-    ).toBe("tags:\n  - a\n  - b\ndue: 2026-11-06\ncount: 2\ntext: yes\nnested:\n  a: null\n");
+    ).toBe("tags:\n  - a\n  - b\ndue: 2026-11-06\ncount: 2\ntext: yes\nnested:\n  a:\n");
+  });
+
+  it("writes a value it empties as Obsidian does, keeping how the file wrote others, and comments", () => {
+    const yaml = "a: null\nb: ~\nstatus: Doing   # for now\nowner: Ada";
+    const before = [
+      { key: "a", value: null },
+      { key: "b", value: null },
+      { key: "status", value: "Doing" },
+      { key: "owner", value: "Ada" },
+    ];
+    expect(
+      writeFrontmatter(yaml, before, [
+        { key: "a", value: null },
+        { key: "b", value: null },
+        { key: "status", value: "Done" },
+        { key: "owner", value: null },
+      ]),
+    ).toBe("a: null\nb: ~\nstatus: Done # for now\nowner:\n");
   });
 
   it("keeps a list or map the file wrote inline inline when it changes", () => {
