@@ -37,14 +37,35 @@ export interface StoredDocument {
 }
 
 /**
- * What the link index and search keep of a note, as JSON, with the size and
+ * What the link index and search keep of a note, with the size and
  * modification time of the file it was read from, to tell when it is stale.
  */
 export interface NoteIndexRow {
   readonly note: NoteId;
   readonly size: number;
   readonly modified: number;
+  /** What loads with the vault, as JSON. */
   readonly data: string;
+  /** What is read only for the notes that need it, such as the text around each link; "" for none. */
+  readonly detail: string;
+}
+
+/** An index row as the vault's rows load: its data read, and without its detail. */
+export interface NoteIndexData {
+  readonly note: NoteId;
+  readonly size: number;
+  readonly modified: number;
+  /** The row's data read from its JSON; null when that cannot be read. */
+  readonly data: unknown;
+}
+
+/** A JSON text read, or null when it cannot be. */
+export function readJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
 }
 
 /** A note's title and text, as search reads them. */
@@ -83,10 +104,11 @@ export interface IndexStore {
   noteIndexes(): Promise<readonly NoteIndexRow[]>;
   /**
    * The index rows of the notes after `after` in the order of their IDs, at
-   * most `limit`, so that a large vault's rows load a part at a time.
+   * most `limit`, so that a large vault's rows load a part at a time, each
+   * with its data read and without its detail.
    */
-  noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexRow[]>;
-  /** The index rows of some notes, those it has. */
+  noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexData[]>;
+  /** The index rows of some notes, those it has, with their detail. */
   noteIndexesOf(notes: readonly NoteId[]): Promise<readonly NoteIndexRow[]>;
   /** Keeps notes' index rows, replacing those they had. */
   putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void>;
@@ -190,7 +212,7 @@ export class MemoryStore implements IndexStore {
     return Promise.resolve([...this.#indexes.values()]);
   }
 
-  noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexRow[]> {
+  noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexData[]> {
     this.#indexOrder ??= [...this.#indexes.keys()].sort();
     const order = this.#indexOrder;
     // The first ID past `after`, by halving.
@@ -202,7 +224,12 @@ export class MemoryStore implements IndexStore {
       else high = middle;
     }
     return Promise.resolve(
-      order.slice(low, low + limit).flatMap((note) => this.#indexes.get(note) ?? []),
+      order.slice(low, low + limit).flatMap((note) => {
+        const row = this.#indexes.get(note);
+        return row === undefined
+          ? []
+          : [{ note: row.note, size: row.size, modified: row.modified, data: readJson(row.data) }];
+      }),
     );
   }
 

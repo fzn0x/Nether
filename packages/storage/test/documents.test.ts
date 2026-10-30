@@ -88,14 +88,16 @@ describe.each(stores)("%s note indexes", (_name, open) => {
     const store = await open();
     expect(await store.noteIndexes()).toEqual([]);
     await store.putNoteIndexes([
-      { note, size: 1, modified: 10, data: "{}" },
-      { note: other, size: 2, modified: 20, data: '{"tags":["a"]}' },
+      { note, size: 1, modified: 10, data: "{}", detail: "" },
+      { note: other, size: 2, modified: 20, data: '{"tags":["a"]}', detail: "" },
     ]);
-    await store.putNoteIndexes([{ note, size: 3, modified: 30, data: '{"links":[]}' }]);
+    await store.putNoteIndexes([
+      { note, size: 3, modified: 30, data: '{"links":[]}', detail: "[]" },
+    ]);
     const rows = await store.noteIndexes();
     expect([...rows].sort((a, b) => a.size - b.size)).toEqual([
-      { note: other, size: 2, modified: 20, data: '{"tags":["a"]}' },
-      { note, size: 3, modified: 30, data: '{"links":[]}' },
+      { note: other, size: 2, modified: 20, data: '{"tags":["a"]}', detail: "" },
+      { note, size: 3, modified: 30, data: '{"links":[]}', detail: "[]" },
     ]);
     await store.deleteNoteIndexes([note]);
     expect((await store.noteIndexes()).map((row) => row.note)).toEqual([other]);
@@ -109,21 +111,38 @@ describe.each(stores)("%s note indexes", (_name, open) => {
     );
     // Put out of order, and one more after the order was read.
     await store.putNoteIndexes(
-      [3, 0, 4, 1].map((n) => ({ note: ids[n] ?? note, size: n, modified: n, data: "{}" })),
+      [3, 0, 4, 1].map((n) => ({
+        note: ids[n] ?? note,
+        size: n,
+        modified: n,
+        data: "{}",
+        detail: `["${String(n)}"]`,
+      })),
     );
     const notes = async (after: string, limit: number) =>
       (await store.noteIndexPage(after, limit)).map((row) => row.size);
     expect(await notes("", 2)).toEqual([0, 1]);
-    await store.putNoteIndexes([{ note: ids[2] ?? note, size: 2, modified: 2, data: "{}" }]);
+    // A page reads each row's data and leaves its detail out.
+    expect(await store.noteIndexPage("", 1)).toEqual([
+      { note: ids[0], size: 0, modified: 0, data: {} },
+    ]);
+    await store.putNoteIndexes([
+      { note: ids[2] ?? note, size: 2, modified: 2, data: "{}", detail: "" },
+    ]);
     expect(await notes(ids[1] ?? "", 2)).toEqual([2, 3]);
     expect(await notes(ids[3] ?? "", 2)).toEqual([4]);
     expect(await notes(ids[4] ?? "", 2)).toEqual([]);
     await store.deleteNoteIndexes([ids[2] ?? note]);
     expect(await notes(ids[1] ?? "", 2)).toEqual([3, 4]);
+    // Data that is not JSON reads as nothing, and the rest of the page as it was.
+    await store.putNoteIndexes([
+      { note: ids[3] ?? note, size: 3, modified: 3, data: "{not json", detail: "" },
+    ]);
+    expect((await store.noteIndexPage(ids[1] ?? "", 2)).map((row) => row.data)).toEqual([null, {}]);
     expect(
       (await store.noteIndexesOf([ids[4] ?? note, ids[2] ?? note, ids[0] ?? note]))
-        .map((row) => row.size)
+        .map((row) => row.detail)
         .sort(),
-    ).toEqual([0, 4]);
+    ).toEqual(['["0"]', '["4"]']);
   });
 });

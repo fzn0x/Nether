@@ -2,15 +2,17 @@
 // and the mobile apps will through Capacitor's. The schema is versioned with
 // SQLite's user_version, and each version's migration runs once.
 import type { NoteId } from "@nether/core";
-import type {
-  FileRecord,
-  IndexChange,
-  IndexStore,
-  NoteIndexRow,
-  NoteTextRow,
-  StoredDocument,
-  StoredUpdate,
-  TextHit,
+import {
+  type FileRecord,
+  type IndexChange,
+  type IndexStore,
+  type NoteIndexData,
+  type NoteIndexRow,
+  type NoteTextRow,
+  type StoredDocument,
+  type StoredUpdate,
+  type TextHit,
+  readJson,
 } from "./store.ts";
 import { type SearchQuery, ftsMatch } from "@nether/search";
 
@@ -92,6 +94,11 @@ const migrations: readonly (readonly string[])[] = [
       note TEXT NOT NULL UNIQUE
     )`,
     "INSERT OR IGNORE INTO note_text_rows (id, note) SELECT rowid, note FROM note_texts",
+  ],
+  [
+    // What a row keeps that loads only when asked for. The rows already
+    // there keep it in their data until the link index splits them.
+    "ALTER TABLE note_indexes ADD COLUMN detail TEXT NOT NULL DEFAULT ''",
   ],
 ];
 
@@ -242,17 +249,18 @@ export class SqliteStore implements IndexStore {
 
   async noteIndexes(): Promise<readonly NoteIndexRow[]> {
     const { rows } = await this.#database.query(
-      "SELECT note, size, modified, data FROM note_indexes",
+      "SELECT note, size, modified, data, detail FROM note_indexes",
     );
-    return rows.map(([note, size, modified, data]) => ({
+    return rows.map(([note, size, modified, data, detail]) => ({
       note: text(note) as NoteId,
       size: integer(size),
       modified: integer(modified),
       data: text(data),
+      detail: text(detail),
     }));
   }
 
-  async noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexRow[]> {
+  async noteIndexPage(after: string, limit: number): Promise<readonly NoteIndexData[]> {
     const { rows } = await this.#database.query(
       "SELECT note, size, modified, data FROM note_indexes WHERE note > ? ORDER BY note LIMIT ?",
       [after, limit],
@@ -261,7 +269,7 @@ export class SqliteStore implements IndexStore {
       note: text(note) as NoteId,
       size: integer(size),
       modified: integer(modified),
-      data: text(data),
+      data: readJson(text(data)),
     }));
   }
 
@@ -271,15 +279,16 @@ export class SqliteStore implements IndexStore {
     for (let start = 0; start < notes.length; start += 500) {
       const part = notes.slice(start, start + 500);
       const { rows } = await this.#database.query(
-        `SELECT note, size, modified, data FROM note_indexes WHERE note IN (${part.map(() => "?").join(", ")})`,
+        `SELECT note, size, modified, data, detail FROM note_indexes WHERE note IN (${part.map(() => "?").join(", ")})`,
         part,
       );
-      for (const [note, size, modified, data] of rows) {
+      for (const [note, size, modified, data, detail] of rows) {
         found.push({
           note: text(note) as NoteId,
           size: integer(size),
           modified: integer(modified),
           data: text(data),
+          detail: text(detail),
         });
       }
     }
@@ -288,10 +297,10 @@ export class SqliteStore implements IndexStore {
 
   async putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void> {
     const statements = rows.map((row) => ({
-      sql: `INSERT INTO note_indexes (note, size, modified, data) VALUES (?, ?, ?, ?)
+      sql: `INSERT INTO note_indexes (note, size, modified, data, detail) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT (note) DO UPDATE SET size = excluded.size, modified = excluded.modified,
-        data = excluded.data`,
-      params: [row.note, row.size, row.modified, row.data],
+        data = excluded.data, detail = excluded.detail`,
+      params: [row.note, row.size, row.modified, row.data, row.detail],
     }));
     for (let start = 0; start < statements.length; start += chunk) {
       await this.#database.transaction(statements.slice(start, start + chunk));

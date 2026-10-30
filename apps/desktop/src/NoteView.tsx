@@ -4,10 +4,11 @@
 import type { NoteId } from "@nether/core";
 import { NoteEditor } from "@nether/editor";
 import "@nether/editor/math.css";
-import type { LinkGraph } from "@nether/graph";
+import type { Backlink, LinkGraph, NoteIndex } from "@nether/graph";
 import type { Vault } from "@nether/storage";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { VaultMedia } from "./backend.ts";
+import { readIndexRow } from "./indexer.ts";
 import { t } from "./messages.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
 import { linkPreviews } from "./linkPreviews.ts";
@@ -252,7 +253,7 @@ export default function NoteView(props: {
           </>
         )}
       </article>
-      <NotePanel graph={graph} id={id} onOpenNote={onOpenNote} />
+      <NotePanel vault={vault} graph={graph} id={id} onOpenNote={onOpenNote} />
     </div>
   );
 }
@@ -307,16 +308,62 @@ function NoteTitle(props: {
   );
 }
 
+/** How many linking notes' text the backlinks panel reads, the rest shown by name. */
+const contextLimit = 100;
+
+/**
+ * The text around the links from each note that links to one, read from
+ * the vault's index, which keeps it while the graph does not.
+ */
+function useBacklinkContexts(
+  vault: Vault,
+  graph: LinkGraph,
+  id: NoteId,
+  backlinks: readonly Backlink[],
+): ReadonlyMap<NoteId, readonly string[]> {
+  const [contexts, setContexts] = useState<ReadonlyMap<NoteId, readonly string[]>>(new Map());
+  useEffect(() => {
+    let current = true;
+    const sources = backlinks.slice(0, contextLimit).map((backlink) => backlink.source);
+    void vault.indexes.noteIndexesOf(sources).then((rows) => {
+      if (!current) return;
+      const found = new Map<NoteId, readonly string[]>();
+      for (const row of rows) {
+        const path = graph.note(row.note)?.path;
+        if (path === undefined) continue;
+        let index: NoteIndex;
+        try {
+          index = readIndexRow(row);
+        } catch {
+          continue;
+        }
+        const texts = index.links
+          .filter((link) => link.target !== "" && graph.resolve(link.target, path) === id)
+          .map((link) => link.context)
+          .filter((context) => context !== "");
+        found.set(row.note, [...new Set(texts)]);
+      }
+      setContexts(found);
+    });
+    return () => {
+      current = false;
+    };
+  }, [vault, graph, id, backlinks]);
+  return contexts;
+}
+
 /** Beside the note: its outline, and the notes that link to it with the text around each link. */
 function NotePanel(props: {
+  readonly vault: Vault;
   readonly graph: LinkGraph;
   readonly id: NoteId;
   readonly onOpenNote: (id: NoteId, part?: NotePart) => void;
 }) {
-  const { graph, id, onOpenNote } = props;
+  const { vault, graph, id, onOpenNote } = props;
   const version = useGraph(graph);
   const headings = useMemo(() => graph.note(id)?.index.headings ?? [], [graph, id, version]);
   const backlinks = useMemo(() => graph.backlinks(id), [graph, id, version]);
+  const contextsOf = useBacklinkContexts(vault, graph, id, backlinks);
   return (
     <aside className="note-panel" aria-label={t("aboutNote")}>
       <section aria-labelledby="outline-title">
@@ -351,9 +398,7 @@ function NotePanel(props: {
           <ul className="backlinks">
             {backlinks.map((backlink) => {
               const source = graph.note(backlink.source);
-              const contexts = [...new Set(backlink.links.map((link) => link.context))].filter(
-                (context) => context !== "",
-              );
+              const contexts = contextsOf.get(backlink.source) ?? [];
               return (
                 <li key={backlink.source}>
                   <button

@@ -19,8 +19,9 @@ describe("migrate", () => {
   it("keeps the texts of a version 4 index, found by their rows from then on", async () => {
     const database = nodeDatabase();
     await migrate(database);
-    // As version 4 left it: texts in note_texts, and no table of their rows.
+    // As version 4 left it: texts in note_texts, no table of their rows, and no detail.
     await database.execute("DROP TABLE note_text_rows");
+    await database.execute("ALTER TABLE note_indexes DROP COLUMN detail");
     await database.execute("PRAGMA user_version = 4");
     await database.execute("INSERT INTO note_texts (note, title, body) VALUES (?, ?, ?)", [
       note(1),
@@ -43,6 +44,22 @@ describe("migrate", () => {
     expect(await store.searchText(query("new"), 10)).toEqual([]);
     const rows = await database.query("SELECT count(*) FROM note_text_rows");
     expect(rows.rows[0]?.[0]).toBe(0);
+  });
+
+  it("keeps the index rows of a version 5 index, with no detail", async () => {
+    const database = nodeDatabase();
+    await migrate(database);
+    // As version 5 left it: no detail column.
+    await database.execute("ALTER TABLE note_indexes DROP COLUMN detail");
+    await database.execute("PRAGMA user_version = 5");
+    await database.execute(
+      "INSERT INTO note_indexes (note, size, modified, data) VALUES (?, ?, ?, ?)",
+      [note(1), 4, 40, '{"links":[]}'],
+    );
+    const store = await SqliteStore.open(database);
+    expect(await store.noteIndexesOf([note(1)])).toEqual([
+      { note: note(1), size: 4, modified: 40, data: '{"links":[]}', detail: "" },
+    ]);
   });
 
   it("refuses an index a newer Nether wrote", async () => {

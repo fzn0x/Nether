@@ -25,6 +25,7 @@ export {
   type IndexChange,
   type IndexStore,
   MemoryStore,
+  type NoteIndexData,
   type NoteIndexRow,
   type NoteTextRow,
   type StoredDocument,
