@@ -23,8 +23,9 @@ settle conflicts; the first ones matter most in review:
 
 You need:
 
-- [Node.js](https://nodejs.org) 24 (22.12 at least; the documentation
-  site needs 22.23.4 or newer). `.nvmrc` names the version.
+- [Node.js](https://nodejs.org) 24 (22.13 at least, for the built-in
+  `node:sqlite` the storage tests use; the documentation site needs 22.23.4
+  or newer). `.nvmrc` names the version.
 - [pnpm](https://pnpm.io) 10 (`npm install --global pnpm@10`). In this
   repository it switches itself to the version that `packageManager` in
   `package.json` pins.
