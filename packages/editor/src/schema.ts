@@ -3,13 +3,23 @@
 // the block's stable ID (ADR 0002). Blocks without editing of their own yet,
 // such as embeds and raw Markdown, show as cards until their views arrive.
 import { type BlockId, newBlockId } from "@nether/core";
-import { type AnyExtension, Mark, Node, mergeAttributes } from "@tiptap/core";
+import {
+  type AnyExtension,
+  type Editor,
+  Mark,
+  Node,
+  type NodeViewRenderer,
+  mergeAttributes,
+} from "@tiptap/core";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
 import Code from "@tiptap/extension-code";
 import Highlight from "@tiptap/extension-highlight";
+import { NodeSelection } from "@tiptap/pm/state";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Table, TableCell, TableHeader, TableRow } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
+import { common, createLowlight } from "lowlight";
 import { BlockIds } from "./ids.ts";
 
 /** Block nodes that are blocks of the core model, and so carry an ID. */
@@ -156,12 +166,30 @@ export const Column = Node.create({
   ],
 });
 
+/**
+ * Enter on a selected node whose view has a button, such as rendered math,
+ * presses the button, as a click would, so the keyboard reaches what the
+ * pointer does.
+ */
+function pressSelected(editor: Editor, name: string): boolean {
+  const { selection } = editor.state;
+  if (!(selection instanceof NodeSelection) || selection.node.type.name !== name) return false;
+  const dom = editor.view.nodeDOM(selection.from);
+  const button = dom instanceof HTMLElement ? dom.querySelector("button") : null;
+  if (button === null) return false;
+  button.click();
+  return true;
+}
+
 /** Display math: its LaTeX, which the math view renders. */
 export const MathBlock = Node.create({
   name: "mathBlock",
   group: "block",
   atom: true,
   addAttributes: () => ({ latex: dataAttribute("latex", "") }),
+  addKeyboardShortcuts() {
+    return { Enter: () => pressSelected(this.editor, this.name) };
+  },
   parseHTML: () => [{ tag: 'div[data-type="mathBlock"]' }],
   renderHTML: ({ HTMLAttributes, node }) => [
     "div",
@@ -249,7 +277,11 @@ export const Tag = chipNode(
 );
 export const MathInline = chipNode("mathInline", { latex: dataAttribute("latex", "") }, (attrs) =>
   asText(attrs.latex),
-);
+).extend({
+  addKeyboardShortcuts() {
+    return { Enter: () => pressSelected(this.editor, this.name) };
+  },
+});
 export const RawInline = chipNode(
   "rawInline",
   { markdown: dataAttribute("markdown", "") },
@@ -283,13 +315,45 @@ export const NetherTable = Table.extend({
   },
 });
 
+const lowlight = createLowlight(common);
+
+/** The language of a code fence's info string, such as `ts` in `ts title="a.ts"`. */
+export function codeLanguage(info: string): string {
+  return info.trim().split(/\s/)[0] ?? "";
+}
+
+/**
+ * Highlights code in the languages lowlight knows. Code without a language,
+ * or in one it does not know such as Mermaid, stays plain: guessing would
+ * run every grammar over every such block on each change, and guess wrong.
+ */
+const highlighter = {
+  ...lowlight,
+  registered: (info: string) => lowlight.registered(codeLanguage(info)),
+  highlight: (info: string, value: string) => lowlight.highlight(codeLanguage(info), value),
+  highlightAuto: (value: string) => ({
+    type: "root",
+    children: [{ type: "text", value }],
+    data: { language: undefined, relevance: 0 },
+  }),
+};
+
+/** How nodes show in a page, by node name; nodes without one render their HTML. */
+export type NodeViews = Readonly<Partial<Record<string, NodeViewRenderer>>>;
+
 export interface SchemaOptions {
   /** Makes a new block's ID; by default eight random letters and digits. */
   readonly newId?: () => BlockId;
+  /** The views of nodes that edit or render in a way of their own, such as math. */
+  readonly nodeViews?: NodeViews;
 }
 
 /** The TipTap extensions that make Nether's schema. */
 export function netherExtensions(options: SchemaOptions = {}): AnyExtension[] {
+  const withView = (node: Node): Node => {
+    const view = options.nodeViews?.[node.name];
+    return view === undefined ? node : node.extend({ addNodeView: () => view });
+  };
   return [
     StarterKit.configure({
       // Links open on Ctrl or Cmd and click, as in other editors.
@@ -297,8 +361,11 @@ export function netherExtensions(options: SchemaOptions = {}): AnyExtension[] {
       // Nether writes no empty paragraph at the end of a note.
       trailingNode: false,
       code: false,
+      codeBlock: false,
     }),
     InlineCode,
+    // The same node as StarterKit's, with the code highlighted.
+    withView(CodeBlockLowlight.configure({ lowlight: highlighter })),
     TaskList,
     TaskItem.configure({ nested: true }),
     NetherTable.configure({ resizable: false }),
@@ -314,7 +381,7 @@ export function netherExtensions(options: SchemaOptions = {}): AnyExtension[] {
     CalloutTitle,
     Columns,
     Column,
-    MathBlock,
+    withView(MathBlock),
     Image,
     File,
     Bookmark,
@@ -324,7 +391,7 @@ export function netherExtensions(options: SchemaOptions = {}): AnyExtension[] {
     PluginBlock,
     WikiLink,
     Tag,
-    MathInline,
+    withView(MathInline),
     RawInline,
     BlockIds.configure({
       types: [...blockNodes],
