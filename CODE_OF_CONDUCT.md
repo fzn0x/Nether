@@ -60,7 +60,7 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement through GitHub's
-[private reporting form](https://github.com/fzn0x/nether/security/advisories/new),
+[private reporting form](https://github.com/fzn0x/Nether/security/advisories/new),
 the same private channel [SECURITY.md](SECURITY.md) uses. Mark the report as a
 conduct problem, not a vulnerability.
 All complaints will be reviewed and investigated promptly and fairly.

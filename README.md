@@ -4,8 +4,8 @@
 
 # Nether: Notion and Obsidian in one open-source workspace
 
-[![CI](https://github.com/fzn0x/nether/actions/workflows/ci.yml/badge.svg)](https://github.com/fzn0x/nether/actions/workflows/ci.yml)
-[![Docs](https://github.com/fzn0x/nether/actions/workflows/pages.yml/badge.svg)](https://fzn0x.github.io/nether/)
+[![CI](https://github.com/fzn0x/Nether/actions/workflows/ci.yml/badge.svg)](https://github.com/fzn0x/Nether/actions/workflows/ci.yml)
+[![Docs](https://github.com/fzn0x/Nether/actions/workflows/pages.yml/badge.svg)](https://fzn0x.github.io/Nether/)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](#license)
 
 Nether is an open-source, self-hostable workspace that joins **Obsidian's
@@ -22,7 +22,7 @@ shared projects, synced through **a server you control**, or through none.
 > are in, and the [roadmap](docs/roadmap.md#phase-1-local-first-notes) ticks
 > off the rest as it lands. Watch the repository to follow along.
 
-[Documentation](https://fzn0x.github.io/nether/) ·
+[Documentation](https://fzn0x.github.io/Nether/) ·
 [Roadmap](docs/roadmap.md) · [Requirements](docs/requirements.md) ·
 [Architecture](docs/architecture.md) · [Decisions](docs/adr/)
 

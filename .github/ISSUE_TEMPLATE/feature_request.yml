@@ -7,7 +7,7 @@ body:
       value: |
         Nether keeps notes as plain Markdown files you own, works offline
         with no account, and keeps every feature free. The
-        [requirements](https://github.com/fzn0x/nether/blob/main/docs/requirements.md)
+        [requirements](https://github.com/fzn0x/Nether/blob/main/docs/requirements.md)
         list what is planned and in which phase; a large change is easier
         to agree on here before anyone writes it.
   - type: textarea

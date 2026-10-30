@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for reporting it. Please do not report security problems here;
-        see [SECURITY.md](https://github.com/fzn0x/nether/blob/main/SECURITY.md).
+        see [SECURITY.md](https://github.com/fzn0x/Nether/blob/main/SECURITY.md).
   - type: textarea
     id: what
     attributes:

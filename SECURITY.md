@@ -4,7 +4,7 @@
 
 Please do not open a public issue for a security problem. Report it
 privately through GitHub's
-[private vulnerability reporting](https://github.com/fzn0x/nether/security/advisories/new)
+[private vulnerability reporting](https://github.com/fzn0x/Nether/security/advisories/new)
 instead.
 
 Include what an attacker can do, the steps to reproduce it, the part of

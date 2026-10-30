@@ -34,7 +34,7 @@ When two of these conflict, the higher one wins.
 ## Everything is free
 
 Nether is licensed under the
-[AGPL-3.0-or-later](https://github.com/fzn0x/nether/blob/main/LICENSE). The
+[AGPL-3.0-or-later](https://github.com/fzn0x/Nether/blob/main/LICENSE). The
 desktop app, the self-hosted server and every feature, enterprise features
 such as single sign-on and audit logs included, are free. There are no paid
 editions, no license keys and no seat limits, and nothing phones home.
@@ -47,4 +47,4 @@ the vault and the editor; the [roadmap](../roadmap/) lists what each
 phase delivers.
 
 The full requirements, the architecture and the decision records live in
-the [repository](https://github.com/fzn0x/nether/tree/main/docs).
+the [repository](https://github.com/fzn0x/Nether/tree/main/docs).

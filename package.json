@@ -5,12 +5,12 @@
   "description": "Open-source workspace that joins Obsidian's local-first Markdown notes with Notion's databases and collaboration, on a server you control.",
   "license": "AGPL-3.0-or-later",
   "author": "fzn0x",
-  "homepage": "https://fzn0x.github.io/nether/",
+  "homepage": "https://fzn0x.github.io/Nether/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fzn0x/nether.git"
+    "url": "git+https://github.com/fzn0x/Nether.git"
   },
-  "bugs": "https://github.com/fzn0x/nether/issues",
+  "bugs": "https://github.com/fzn0x/Nether/issues",
   "type": "module",
   "packageManager": "pnpm@10.29.3",
   "engines": {

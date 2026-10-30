@@ -18,5 +18,5 @@ that must pass before the next phase starts. Phases have no fixed dates.
 Phase 3 is the first public release: sync and self-hosting are what set
 Nether apart from both Notion and Obsidian.
 
-The [roadmap in the repository](https://github.com/fzn0x/nether/blob/main/docs/roadmap.md)
+The [roadmap in the repository](https://github.com/fzn0x/Nether/blob/main/docs/roadmap.md)
 tracks the current phase task by task.

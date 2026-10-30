@@ -109,7 +109,7 @@ and the sign-off.
 
 ## Reporting bugs and security problems
 
-Open a [bug report](https://github.com/fzn0x/nether/issues/new/choose) with
+Open a [bug report](https://github.com/fzn0x/Nether/issues/new/choose) with
 the steps to reproduce it. Report security problems privately, as
 [SECURITY.md](SECURITY.md) describes.
 

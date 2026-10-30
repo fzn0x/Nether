@@ -3,7 +3,7 @@
 - Date: 2026-10-30
 - Gate: CI is green on `main`, including a run of the server with every
   enterprise feature switched off. Passed on 6b06ff8
-  ([run](https://github.com/fzn0x/nether/actions/runs/40964445455)).
+  ([run](https://github.com/fzn0x/Nether/actions/runs/40964445455)).
 
 Phase 0 is done: the decisions, the repository, CI, the data model and the
 reference vault are in place, and every task on the
@@ -26,7 +26,7 @@ once the maintainer sets the dates of the phases.
 | Reference vault | [tools/vault-generator](../../tools/vault-generator/) | 50,000 notes, 62.2 MB, 246,135 links, in about 13 s; the same bytes on every platform |
 | Server | [apps/server](../../apps/server/) | `GET /health`, environment configuration, the enterprise extension point |
 | Desktop app | [apps/desktop](../../apps/desktop/) | A window that shows the page and asks Go for the version; 9.6 MB on Windows |
-| Documentation site | [apps/docs-site](../../apps/docs-site/) | Live at https://fzn0x.github.io/nether/ |
+| Documentation site | [apps/docs-site](../../apps/docs-site/) | Live at https://fzn0x.github.io/Nether/ |
 
 ## Measured
 
