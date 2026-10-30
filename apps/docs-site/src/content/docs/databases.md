@@ -83,6 +83,22 @@ which any Markdown tool reads. Notes in the folders below a row are the
 row's own pages, not rows of the database. A view is named by its name, so
 two views of one database have different names.
 
+## In Obsidian
+
+Beside each database Nether keeps an
+[Obsidian base](https://obsidian.md/help/bases), `Projects.base`, so Obsidian
+shows the same rows and views: a table as a table, a board as a kanban, a
+gallery as cards, a list as a list, and a calendar or a timeline as a table
+of its dates. Nether writes it from the database whenever the database
+changes, and moves it when you rename the database.
+
+Change a view in Obsidian, show or hide a column, group it by another
+property, change its filter, add a view or remove one, and Nether takes the
+change the next time it shows the database. What only Obsidian has stays
+in the base as you set it there: a sort, a cover image, a limit, a formula
+or a map view. A filter that uses Obsidian's own functions, such as
+`file.hasTag()`, stays in the base, and the view keeps its own filter in
+Nether.
+
 The [decision record](https://github.com/fzn0x/Nether/blob/main/docs/adr/0018-a-database-is-a-note-with-an-obsidian-base-beside-it.md)
-has the details. Soon Nether also writes an Obsidian base beside each
-database, so Obsidian shows its views too.
+has the details.

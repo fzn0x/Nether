@@ -131,6 +131,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and shown or hidden, rows added and opened, and values edited in their
   cells, each written to its row's frontmatter. Each view sorts by a
   column, filters by conditions, all or any, and groups by a property.
+- An Obsidian base beside each database, `Projects.base`, so Obsidian shows
+  its rows and views: written from the database when it changes, and
+  moved with it. A view's columns, grouping and filter changed in
+  Obsidian, and views added or removed there, come back to the database;
+  what only Obsidian has, as a sort, a limit or a map, stays in the base.
 
 ### Changed
 
