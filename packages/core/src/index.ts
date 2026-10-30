@@ -88,6 +88,7 @@ export {
   optionColors,
   propertyTypes,
 } from "./properties.ts";
+export { type TemplateValues, fillTemplate } from "./templates.ts";
 export {
   type EncryptionMode,
   type Workspace,
