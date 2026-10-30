@@ -37,7 +37,10 @@ export interface FileEvent {
 
 /** A vault's files, as the platform reads and writes them. */
 export interface VaultFiles {
-  /** Lists every file, or those in one folder, leaving out hidden ones; calls `each` per batch. */
+  /**
+   * Lists every file, or those in one folder, leaving out hidden ones below
+   * it, such as `.nether`; `.trash` lists the trash. Calls `each` per batch.
+   */
   list(folder: string, each: (files: readonly FileInfo[]) => void): Promise<void>;
   /** The size and modification time of each file that is there, in order. */
   stat(paths: readonly string[]): Promise<readonly FileInfo[]>;
@@ -61,6 +64,8 @@ export interface VaultFiles {
   attach(path: string, data: Uint8Array): Promise<FileInfo>;
   /** Moves a file to the vault's trash and returns where it went. */
   remove(path: string): Promise<string>;
+  /** Deletes a file in the vault's trash for good; it deletes nothing outside it. */
+  erase(path: string): Promise<void>;
   /** Calls `each` with batches of changes until `signal` aborts. */
   watch(each: (events: readonly FileEvent[]) => void, signal: AbortSignal): Promise<void>;
 }

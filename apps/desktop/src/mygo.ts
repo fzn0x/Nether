@@ -101,6 +101,13 @@ export const Vaults = {
   choose(): Promise<VaultInfo | null> {
     return call("Vaults.Choose");
   },
+  /**
+   * Erase deletes a file in the vault's .trash folder for good. It deletes
+   * nothing outside the trash, no folder and no link.
+   */
+  erase(id: string, rel: string): Promise<void> {
+    return call("Vaults.Erase", id, rel);
+  },
   /** Forget removes a vault from the recent list; its folder stays as it is. */
   forget(id: string): Promise<void> {
     return call("Vaults.Forget", id);

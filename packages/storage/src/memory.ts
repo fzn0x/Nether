@@ -72,7 +72,12 @@ export class MemoryFiles implements VaultFiles {
 
   list(folder: string, each: (files: readonly FileInfo[]) => void): Promise<void> {
     const files = [...this.#entries]
-      .filter(([path]) => !hiddenPath(path) && isInside(path, folder) && path !== folder)
+      .filter(
+        ([path]) =>
+          isInside(path, folder) &&
+          path !== folder &&
+          !hiddenPath(folder === "" ? path : path.slice(folder.length + 1)),
+      )
       .map(([path, entry]) => this.#info(path, entry));
     if (files.length > 0) each(files);
     return Promise.resolve();
@@ -163,6 +168,14 @@ export class MemoryFiles implements VaultFiles {
     this.#entries.set(target, entry);
     this.#emit([{ op: "remove", path, isDir: false }]);
     return Promise.resolve(target);
+  }
+
+  erase(path: string): Promise<void> {
+    checkPath(path);
+    if (!path.startsWith(".trash/"))
+      return Promise.reject(new Error(`${path} is not in the trash.`));
+    if (!this.#entries.delete(path)) return Promise.reject(new Error(`${path} is not there.`));
+    return Promise.resolve();
   }
 
   watch(each: (events: readonly FileEvent[]) => void, signal: AbortSignal): Promise<void> {

@@ -463,6 +463,30 @@ func (v *Vaults) Remove(id string, rel string) (string, error) {
 	return trashFolder + "/" + filepath.Base(target), nil
 }
 
+// Erase deletes a file in the vault's .trash folder for good. It deletes
+// nothing outside the trash, no folder and no link.
+func (v *Vaults) Erase(id string, rel string) error {
+	root, err := v.root(id)
+	if err != nil {
+		return err
+	}
+	if !strings.HasPrefix(rel, trashFolder+"/") {
+		return fmt.Errorf("%q is not in the trash", rel)
+	}
+	full, err := resolve(root, rel)
+	if err != nil {
+		return err
+	}
+	info, err := os.Lstat(full)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("%q is not a file", rel)
+	}
+	return os.Remove(full)
+}
+
 // Watch sends the changes to the vault's files until the page stops it.
 // Where the system cannot follow every file, it sends FileRescan events
 // that name the folders to list again.

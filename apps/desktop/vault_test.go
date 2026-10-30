@@ -344,6 +344,35 @@ func TestRemoveMovesFilesToTheTrash(t *testing.T) {
 	}
 }
 
+func TestEraseDeletesOnlyFilesInTheTrash(t *testing.T) {
+	vaults, info := newVault(t, map[string]string{"a.md": "A", "b.md": "B", ".trash/old.md": "old"})
+	if err := os.Mkdir(filepath.Join(info.Path, trashFolder, "folder"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"b.md", ".trash", ".trash/folder", ".trash/../b.md", ".trash/missing.md"} {
+		if err := vaults.Erase(info.ID, rel); err == nil {
+			t.Fatalf("erased %s", rel)
+		}
+	}
+	if err := vaults.Erase(info.ID, ".trash/old.md"); err != nil {
+		t.Fatal(err)
+	}
+	where, err := vaults.Remove(info.ID, "a.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := vaults.Erase(info.ID, where); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Join(info.Path, trashFolder))
+	if err != nil || len(entries) != 1 || entries[0].Name() != "folder" {
+		t.Fatalf("the trash holds %v, %v", entries, err)
+	}
+	if text, _ := vaults.ReadFile(info.ID, "b.md"); text.Text != "B" {
+		t.Fatalf("b.md holds %q", text.Text)
+	}
+}
+
 func TestWatchReportsChangesUntilStopped(t *testing.T) {
 	vaults, info := newVault(t, map[string]string{"a.md": "A"})
 	ctx, cancel := context.WithCancel(context.Background())

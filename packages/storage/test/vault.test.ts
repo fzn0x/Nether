@@ -278,6 +278,18 @@ describe("MemoryFiles", () => {
     }).toThrow(/not there/);
   });
 
+  it("lists the trash, hidden only below it, and erases only from it", async () => {
+    const files = new MemoryFiles({ "a.md": "A", ".trash/b.md": "B", ".trash/.c/d.md": "D" });
+    const listed: string[] = [];
+    await files.list(".trash", (batch) => listed.push(...batch.map((item) => item.path)));
+    expect(listed).toEqual([".trash/b.md"]);
+    await expect(files.erase("a.md")).rejects.toThrow(/not in the trash/);
+    await expect(files.erase(".trash/gone.md")).rejects.toThrow(/not there/);
+    await files.erase(".trash/b.md");
+    expect(await files.read(".trash/b.md")).toMatchObject({ missing: true });
+    expect(await files.read("a.md")).toMatchObject({ text: "A" });
+  });
+
   it("stops a watch that is aborted before it starts", async () => {
     const controller = new AbortController();
     controller.abort();

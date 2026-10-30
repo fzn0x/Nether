@@ -110,6 +110,10 @@ class DesktopFiles implements VaultFiles {
     return Vaults.remove(this.#id, path);
   }
 
+  erase(path: string) {
+    return Vaults.erase(this.#id, path);
+  }
+
   async watch(each: (events: readonly FileEvent[]) => void, signal: AbortSignal): Promise<void> {
     if (signal.aborted) return;
     const channel = new Channel<FileEvent[]>(each);
