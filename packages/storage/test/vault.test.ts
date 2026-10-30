@@ -247,6 +247,26 @@ describe("matchMoves", () => {
   });
 });
 
+describe("Vault.notes", () => {
+  it("keeps the order of notes when a change moves none, and gives their new sizes", async () => {
+    const files = new MemoryFiles({ "b.md": "B", "a.md": "A", "c.md": "C" });
+    const vault = await openVault(files);
+    const before = vault.notes();
+    const b = vault.noteAt("b.md");
+    if (b === undefined) throw new Error("No note at b.md.");
+    const read = await vault.read(b.id);
+    await vault.write(b.id, "B, longer", read.hash);
+    const after = vault.notes();
+    expect(after).not.toBe(before);
+    expect(after.map((note) => note.path)).toEqual(["a.md", "b.md", "c.md"]);
+    expect(after[1]).toMatchObject({ id: b.id, size: 9 });
+    // The notes that did not change are the same objects.
+    expect(after[0]).toBe(before[0]);
+    await vault.create("0.md", "zero");
+    expect(vault.notes().map((note) => note.path)).toEqual(["0.md", "a.md", "b.md", "c.md"]);
+  });
+});
+
 describe("Vault.moveFile", () => {
   it("moves a file of any kind, a note keeping its ID", async () => {
     const files = new MemoryFiles({ "a/x.png": "png", "a/n.md": "N", "b.md": "B" });

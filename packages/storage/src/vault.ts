@@ -692,9 +692,29 @@ export class Vault {
         this.#paths.delete(record.note);
       }
     }
+    const before = this.#notes;
     for (const record of change.upsert ?? []) this.#remember(record);
-    this.#notes = undefined;
+    // A change that moves nothing, as a save, changes the notes in place,
+    // which keeps their order: sorting 50,000 notes again took 80 ms.
+    this.#notes = moves || before === undefined ? undefined : this.#updated(before, change);
     for (const listener of this.#listeners) listener();
+  }
+
+  /** The list of notes with the notes a change updated, each where it was. */
+  #updated(notes: readonly NoteEntry[], change: IndexChange): NoteEntry[] | undefined {
+    const changed = new Map<NoteId, FileRecord>();
+    for (const record of change.upsert ?? []) {
+      if (record.note !== undefined) changed.set(record.note, record);
+    }
+    let found = 0;
+    const next = notes.map((note) => {
+      const record = changed.get(note.id);
+      if (record === undefined) return note;
+      found++;
+      return { ...note, size: record.size, modified: record.modified };
+    });
+    // A note new to the list, as a file that becomes a note, takes the list made anew.
+    return found === changed.size ? next : undefined;
   }
 }
 
