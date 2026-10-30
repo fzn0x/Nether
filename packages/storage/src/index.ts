@@ -28,4 +28,10 @@ export {
   type StoredDocument,
   type StoredUpdate,
 } from "./store.ts";
-export { type NoteEntry, Vault, type VaultOptions, matchMoves } from "./vault.ts";
+export {
+  type NoteDocuments,
+  type NoteEntry,
+  Vault,
+  type VaultOptions,
+  matchMoves,
+} from "./vault.ts";

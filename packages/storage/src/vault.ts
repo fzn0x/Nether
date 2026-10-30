@@ -24,6 +24,12 @@ export interface NoteEntry {
   readonly modified: number;
 }
 
+/** Where a vault keeps its notes' Yjs documents: the part of its index that holds them. */
+export type NoteDocuments = Pick<
+  IndexStore,
+  "document" | "appendUpdates" | "compact" | "setFileHash"
+>;
+
 export interface VaultOptions {
   /** Makes the ID of a note seen for the first time; a UUID version 7 by default. */
   readonly newId?: () => NoteId;
@@ -71,6 +77,11 @@ export class Vault {
     this.#files = files;
     this.#store = store;
     this.#newId = options.newId ?? newNoteId;
+  }
+
+  /** Where the vault keeps its notes' documents. */
+  get documents(): NoteDocuments {
+    return this.#store;
   }
 
   /** Loads the index, then brings it up to date with the folder. */
