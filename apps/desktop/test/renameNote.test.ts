@@ -4,7 +4,7 @@ import { parseMarkdown } from "@nether/markdown";
 import { MemoryFiles, Vault } from "@nether/storage";
 import { MemoryStore } from "@nether/storage";
 import { describe, expect, it } from "vitest";
-import { renameNote, renamedPath } from "../src/renameNote.ts";
+import { folderMoves, moveFiles, pageMoves, renameNote, renamedPath } from "../src/renameNote.ts";
 
 async function setUp(files: Record<string, string>) {
   const memory = new MemoryFiles(files);
@@ -89,6 +89,59 @@ describe("renameNote", () => {
     expect(await renameNote(vault, graph, id("Plan.md"), "Plan.md")).toMatchObject({
       path: "Plan.md",
     });
+  });
+});
+
+describe("moveFiles", () => {
+  it("moves a page with the folder of its pages, and every link follows", async () => {
+    const { vault, graph, id, text } = await setUp({
+      "Projects.md": "# Projects\n\n[[Projects/Plan]] and [[Ideas]]\n",
+      "Projects/Plan.md":
+        "![[sketch.png]] ![s](sketch.png) [up](../Projects.md) [home](../Home.md)\n",
+      "Projects/Ideas.md": "[[Plan]]\n",
+      "Projects/sketch.png": "png",
+      "Home.md": "[[Projects]], [[Plan]], [p](Projects/Plan.md)\n",
+    });
+    const plan = id("Projects/Plan.md");
+    await moveFiles(vault, graph, pageMoves(vault, "Projects.md", "Archive/Projects.md"));
+    expect(vault.files()).toEqual([
+      "Archive/Projects.md",
+      "Archive/Projects/Ideas.md",
+      "Archive/Projects/Plan.md",
+      "Archive/Projects/sketch.png",
+      "Home.md",
+    ]);
+    expect(vault.noteAt("Archive/Projects/Plan.md")?.id).toBe(plan);
+    expect(await text("Archive/Projects.md")).toBe(
+      "# Projects\n\n[[Archive/Projects/Plan]] and [[Ideas]]\n",
+    );
+    // Links between the moved files hold; those leading out are led from the new folder.
+    expect(await text("Archive/Projects/Plan.md")).toBe(
+      "![[sketch.png]] ![s](sketch.png) [up](../Projects.md) [home](../../Home.md)\n",
+    );
+    expect(await text("Archive/Projects/Ideas.md")).toBe("[[Plan]]\n");
+    expect(await text("Home.md")).toBe("[[Projects]], [[Plan]], [p](Archive/Projects/Plan.md)\n");
+  });
+
+  it("moves a folder, writing a path for a file whose name another has", async () => {
+    const { vault, graph, text } = await setUp({
+      "a/x.png": "png",
+      "b/x.png": "png",
+      "a/Note.md": "![[a/x.png]]\n",
+      "Index.md": "[[Note]] ![[a/x.png]]\n",
+    });
+    await moveFiles(vault, graph, folderMoves(vault, "a", "c/a"));
+    expect(vault.files()).toEqual(["b/x.png", "c/a/Note.md", "c/a/x.png", "Index.md"]);
+    expect(await text("c/a/Note.md")).toBe("![[c/a/x.png]]\n");
+    expect(await text("Index.md")).toBe("[[Note]] ![[c/a/x.png]]\n");
+  });
+
+  it("refuses a move onto a file that stays, and moves nothing", async () => {
+    const { vault, graph } = await setUp({ "a/n.md": "N", "b/n.md": "B" });
+    await expect(moveFiles(vault, graph, folderMoves(vault, "a", "b"))).rejects.toThrow(
+      /already at b\/n\.md/,
+    );
+    expect(vault.files()).toEqual(["a/n.md", "b/n.md"]);
   });
 });
 
