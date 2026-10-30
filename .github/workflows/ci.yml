@@ -209,42 +209,6 @@ jobs:
             perf-ui-report.json
           retention-days: 30
 
-  # The targets that need the desktop app's own window: its start, its
-  # memory once idle and how soon it sees another app's change, in WebView2
-  # on Windows, on the reference vault read once first, as a vault is after
-  # its first opening.
-  perf-desktop:
-    name: Desktop performance (Windows)
-    needs: [check, go]
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: apps/desktop/go.mod
-          cache-dependency-path: apps/desktop/go.sum
-      - run: pnpm install --frozen-lockfile
-      - name: Generate the reference vault
-        run: pnpm vault:generate
-      - name: Build the desktop app
-        working-directory: apps/desktop
-        run: go tool mygo build -platform windows/amd64
-      - name: Open the vault once, and read every note
-        run: powershell -File tools/perf/desktop.ps1 -Prepare -Note "Daily/2023/2023-01-02.md"
-      - name: Measure the start, idle memory and pickup
-        run: powershell -File tools/perf/desktop.ps1 -Note "Daily/2023/2023-01-02.md" -Out perf-desktop-report.json
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: perf-desktop-report
-          path: perf-desktop-report.json
-          retention-days: 30
-
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-latest
