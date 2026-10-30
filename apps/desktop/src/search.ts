@@ -4,7 +4,7 @@
 import type { LinkGraph } from "@nether/graph";
 import { type Filter, type SearchQuery, foldText } from "@nether/search";
 import { type NoteEntry, type Vault, matchEnd, matchStart } from "@nether/storage";
-import { matchScore } from "./noteLinks.ts";
+import { lowerMatchScore } from "./noteLinks.ts";
 
 /** How many notes a search lists at most, and how many the index gives it to filter. */
 const resultLimit = 100;
@@ -80,34 +80,73 @@ export interface SwitcherMatch {
  * The notes whose title, alias or path best match what was typed, at most
  * `limit`; with nothing typed, the notes edited last.
  */
+/** A note's title and path in lower case, as the switcher matches them. */
+interface SwitcherEntry {
+  readonly note: NoteEntry;
+  readonly title: string;
+  readonly path: string;
+}
+
+// Kept for each version of the vault's list of notes, which changes when a note does.
+const switcherEntries = new WeakMap<readonly NoteEntry[], readonly SwitcherEntry[]>();
+
+function entriesOf(notes: readonly NoteEntry[]): readonly SwitcherEntry[] {
+  let entries = switcherEntries.get(notes);
+  if (entries === undefined) {
+    entries = notes.map((note) => ({
+      note,
+      title: note.title.toLowerCase(),
+      path: note.path.replace(/\.md$/i, "").toLowerCase(),
+    }));
+    switcherEntries.set(notes, entries);
+  }
+  return entries;
+}
+
+/** Whether one match goes before another: a better score, then the note edited last. */
+function before(a: { score: number; match: SwitcherMatch }, b: typeof a): boolean {
+  return (
+    a.score > b.score || (a.score === b.score && a.match.note.modified > b.match.note.modified)
+  );
+}
+
 export function switcherMatches(
   vault: Vault,
   graph: LinkGraph,
   query: string,
   limit = 20,
 ): readonly SwitcherMatch[] {
-  const scored: { match: SwitcherMatch; score: number }[] = [];
-  const byPath = query.includes("/");
-  for (const note of vault.notes()) {
-    let best: { match: SwitcherMatch; score: number } = {
-      match: { note },
+  const typed = query.trim().toLowerCase();
+  const byPath = typed.includes("/");
+  // The best matches so far, best first: no more than `limit` are ever kept.
+  const best: { match: SwitcherMatch; score: number }[] = [];
+  for (const entry of entriesOf(vault.notes())) {
+    let found = {
+      match: { note: entry.note } as SwitcherMatch,
       score: Math.max(
-        matchScore(query, note.title),
-        byPath ? matchScore(query, note.path.replace(/\.md$/i, "")) - 1 : 0,
+        lowerMatchScore(typed, entry.title),
+        byPath ? lowerMatchScore(typed, entry.path) - 1 : 0,
       ),
     };
-    if (query.trim() !== "") {
-      for (const alias of graph.note(note.id)?.index.aliases ?? []) {
-        const score = matchScore(query, alias);
-        if (score > best.score) best = { match: { note, alias }, score };
+    if (typed !== "") {
+      for (const alias of graph.note(entry.note.id)?.index.aliases ?? []) {
+        const score = lowerMatchScore(typed, alias.toLowerCase());
+        if (score > found.score) found = { match: { note: entry.note, alias }, score };
       }
     }
-    if (best.score > 0) scored.push(best);
+    if (found.score <= 0) continue;
+    const last = best[best.length - 1];
+    if (best.length === limit && last !== undefined && !before(found, last)) continue;
+    let at = best.length;
+    while (at > 0) {
+      const above = best[at - 1];
+      if (above === undefined || !before(found, above)) break;
+      at--;
+    }
+    best.splice(at, 0, found);
+    if (best.length > limit) best.pop();
   }
-  return scored
-    .sort((a, b) => b.score - a.score || b.match.note.modified - a.match.note.modified)
-    .slice(0, limit)
-    .map(({ match }) => match);
+  return best.map(({ match }) => match);
 }
 
 /** Splits a snippet into text and its marked matches, for the page to show. */

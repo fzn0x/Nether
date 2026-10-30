@@ -98,14 +98,24 @@ function withId<T extends Block>(blocks: readonly T[], from: BlockId, to: BlockI
  * at a word's start, anywhere, or as letters in order; 0 for not at all.
  */
 export function matchScore(query: string, text: string): number {
-  const typed = query.trim().toLowerCase();
-  const target = text.toLowerCase();
+  return lowerMatchScore(query.trim().toLowerCase(), text.toLowerCase());
+}
+
+/** Where a word starts: after a space, a slash, an underscore or a dash. */
+const wordBreak = /[\s/_-]/;
+
+/** As `matchScore`, for what was typed trimmed and lower case, and text lower case, as a search over every note keeps them. */
+export function lowerMatchScore(typed: string, target: string): number {
   if (typed === "") return 1;
-  if (target === typed) return 100;
-  if (target.startsWith(typed)) return 80;
-  if (target.split(/[\s/_-]+/).some((word) => word.startsWith(typed))) return 60;
-  if (target.includes(typed)) return 40;
-  let at = 0;
+  let at = target.indexOf(typed);
+  if (at !== -1) {
+    if (at === 0) return target.length === typed.length ? 100 : 80;
+    for (; at !== -1; at = target.indexOf(typed, at + 1)) {
+      if (wordBreak.test(target.charAt(at - 1))) return 60;
+    }
+    return 40;
+  }
+  at = 0;
   for (const char of typed) {
     at = target.indexOf(char, at);
     if (at === -1) return 0;
