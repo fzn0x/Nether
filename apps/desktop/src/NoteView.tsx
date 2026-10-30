@@ -6,9 +6,10 @@ import { NoteEditor } from "@nether/editor";
 import "@nether/editor/math.css";
 import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
-import { type KeyboardEvent, Suspense, lazy, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
+import { ariaKeys, formatKeys } from "./shortcuts.ts";
 import { noteFiles } from "./noteFiles.ts";
 import { PropertiesPanel } from "./PropertiesPanel.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
@@ -60,6 +61,12 @@ export default function NoteView(props: {
   readonly onExport: () => void;
   /** Renames the note in its folder, and the links to it; rejects with why it could not. */
   readonly onRename: (name: string) => Promise<void>;
+  /** Changes when the user asks to switch between blocks and source. */
+  readonly sourceRequest: number;
+  /** Changes when the user asks to rename the note: its name takes focus. */
+  readonly renameRequest: number;
+  /** The shortcut that switches modes, for its button's hint. */
+  readonly sourceKeys: string | undefined;
 }) {
   const {
     vault,
@@ -74,6 +81,9 @@ export default function NoteView(props: {
     onTrash,
     onExport,
     onRename,
+    sourceRequest,
+    renameRequest,
+    sourceKeys,
   } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
@@ -110,21 +120,33 @@ export default function NoteView(props: {
     onMode(mode === "blocks" ? "source" : "blocks");
   };
 
-  const onKeyDownCapture = (event: KeyboardEvent) => {
-    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key === "/") {
-      // Before the editors, which have their own uses for the keys.
-      event.preventDefault();
-      event.stopPropagation();
-      void toggle();
-    }
-  };
+  // The app's commands ask for a switch, or a rename; a request made before this view does nothing.
+  const handledSource = useRef(sourceRequest);
+  useEffect(() => {
+    if (sourceRequest === handledSource.current) return;
+    handledSource.current = sourceRequest;
+    void toggle();
+  }, [sourceRequest]);
+  const handledRename = useRef(renameRequest);
+  useEffect(() => {
+    if (renameRequest === handledRename.current) return;
+    handledRename.current = renameRequest;
+    const title = document.getElementById("note-title");
+    if (title === null) return;
+    title.focus();
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  }, [renameRequest]);
 
   if (note === undefined || state.status === "missing") {
     return <p className="placeholder">{t("missingNote")}</p>;
   }
   return (
     <div className="note-layout">
-      <article className="note" aria-labelledby="note-title" onKeyDownCapture={onKeyDownCapture}>
+      <article className="note" aria-labelledby="note-title">
         <header className="note-header">
           <NoteTitle
             title={note.title}
@@ -152,8 +174,12 @@ export default function NoteView(props: {
                 type="button"
                 className="quiet"
                 aria-pressed={mode === "source"}
-                aria-keyshortcuts="Control+/ Meta+/"
-                title={t("sourceModeHint")}
+                aria-keyshortcuts={sourceKeys === undefined ? undefined : ariaKeys(sourceKeys)}
+                title={
+                  sourceKeys === undefined
+                    ? t("sourceModeHint")
+                    : `${t("sourceModeHint")} (${formatKeys(sourceKeys)})`
+                }
                 onClick={() => void toggle()}
               >
                 {t("sourceMode")}

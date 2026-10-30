@@ -64,6 +64,18 @@ export function ariaKeys(keys: string, mac = isMac()): string {
     .join("+");
 }
 
+/**
+ * Whether keys can be a shortcut: with Ctrl, Cmd or Alt, or a function key,
+ * so that typing, Shift included, never runs a command.
+ */
+export function canBeShortcut(keys: string): boolean {
+  const parts = keys.split("+");
+  const key = parts[parts.length - 1] ?? "";
+  return (
+    parts.some((part) => ["Mod", "Ctrl", "Meta", "Alt"].includes(part)) || /^F\d{1,2}$/.test(key)
+  );
+}
+
 /** Each command's shortcuts: the defaults, with the vault's own choices over them. */
 export type Hotkeys = Readonly<Record<string, readonly string[]>>;
 

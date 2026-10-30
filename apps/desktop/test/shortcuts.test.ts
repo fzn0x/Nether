@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ariaKeys,
+  canBeShortcut,
   commandFor,
   eventKeys,
   formatKeys,
@@ -74,5 +75,16 @@ describe("hotkeys", () => {
     });
     expect(commandFor(hotkeys, "Mod+k")).toBe("search");
     expect(commandFor(hotkeys, "Mod+Shift+F")).toBeUndefined();
+  });
+});
+
+describe("canBeShortcut", () => {
+  it("takes keys with Ctrl, Cmd or Alt, or a function key, and not what typing makes", () => {
+    for (const keys of ["Mod+K", "Alt+K", "Ctrl+K", "Meta+K", "F2", "Shift+F12"]) {
+      expect(canBeShortcut(keys)).toBe(true);
+    }
+    for (const keys of ["K", "Shift+K", "Enter", "Shift+/", "F"]) {
+      expect(canBeShortcut(keys)).toBe(false);
+    }
   });
 });

@@ -1734,3 +1734,58 @@ button {
 .tree-add:hover {
   color: var(--text);
 }
+
+/* Text only assistive technology reads. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Shortcuts, in the command palette and the shortcuts list. */
+kbd {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font:
+    0.8125rem ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Consolas,
+    monospace;
+  white-space: nowrap;
+}
+
+.palette-keys {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.shortcuts th,
+.shortcuts td {
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+
+.shortcuts thead th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.shortcuts tbody th {
+  font-weight: 400;
+}
+
+.shortcut-actions {
+  white-space: nowrap;
+}

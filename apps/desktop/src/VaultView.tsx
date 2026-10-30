@@ -18,18 +18,23 @@ import {
 import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
+import { CommandPalette } from "./CommandPalette.tsx";
+import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { NewNoteDialog } from "./NewNoteDialog.tsx";
 import { NoteList } from "./NoteList.tsx";
 import { type Dragged, NoteTree } from "./NoteTree.tsx";
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
 import { SearchPanel } from "./SearchPanel.tsx";
+import { ShortcutsDialog } from "./ShortcutsDialog.tsx";
+import { ariaKeys, commandFor, eventKeys } from "./shortcuts.ts";
 import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
 import { TrashPanel } from "./TrashPanel.tsx";
 import type { NotePart } from "./noteLinks.ts";
 import type { NoteMode } from "./NoteView.tsx";
 import { findTemplate, nameOf, periodicNote, periods, templateChoices } from "./templates.ts";
 import { useGraph } from "./useGraph.ts";
+import { useHotkeys } from "./useHotkeys.ts";
 import { useTemplateSettings } from "./useTemplateSettings.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
@@ -129,7 +134,18 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const [switcher, setSwitcher] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
-  const [dialog, setDialog] = useState<"newNote" | "settings" | "export" | undefined>();
+  const [dialog, setDialog] = useState<
+    "newNote" | "settings" | "export" | "palette" | "shortcuts" | undefined
+  >();
+  // Asks the open note to switch modes, or to take a new name.
+  const [sourceRequest, setSourceRequest] = useState(0);
+  const [renameRequest, setRenameRequest] = useState(0);
+  const { hotkeys, chosen: chosenHotkeys, save: saveHotkeys } = useHotkeys(vault);
+  // While the shortcuts dialog listens for keys, they run no command.
+  const listening = useRef(false);
+  const setListening = useCallback((value: boolean) => {
+    listening.current = value;
+  }, []);
   // The folder a new note goes in, when made from the tree.
   const [newIn, setNewIn] = useState("");
   const [notesView, setNotesView] = useState<NotesView>(storedView);
@@ -143,31 +159,6 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   useEffect(() => {
     // Start loading the editor as the vault opens, before a note is picked.
     void loadNoteView();
-  }, []);
-
-  // Ctrl or Cmd and O opens the quick switcher; with Shift and F, search.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-      const key = event.key.toLowerCase();
-      if (key === "o" && !event.shiftKey) {
-        event.preventDefault();
-        setSwitcher(true);
-      } else if (key === "n" && !event.shiftKey) {
-        event.preventDefault();
-        setNewIn("");
-        setDialog("newNote");
-      } else if (key === "f" && event.shiftKey) {
-        event.preventDefault();
-        setPanel("search");
-        // Once the panel shows.
-        requestAnimationFrame(() => searchInput.current?.focus());
-      }
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown, true);
-    };
   }, []);
 
   const openNote = useCallback((id: NoteId, part?: NotePart) => {
@@ -319,6 +310,119 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
     [vault, openNote],
   );
 
+  /** What each command does, and whether it can now: those about a note need one open. */
+  const run = useMemo((): Readonly<Record<CommandId, (() => void) | undefined>> => {
+    const open = state.status === "open";
+    const note = open && selected !== undefined ? selected : undefined;
+    const show = (name: "notes" | "tags" | "search" | "trash") => () => {
+      setTag(undefined);
+      setPanel(name);
+    };
+    return {
+      palette: () => {
+        setDialog("palette");
+      },
+      switcher: open
+        ? () => {
+            setSwitcher(true);
+          }
+        : undefined,
+      search: open
+        ? () => {
+            setPanel("search");
+            // Once the panel shows.
+            requestAnimationFrame(() => searchInput.current?.focus());
+          }
+        : undefined,
+      newNote: open
+        ? () => {
+            setNewIn("");
+            setDialog("newNote");
+          }
+        : undefined,
+      dayNote: open
+        ? () => {
+            openPeriodic("day");
+          }
+        : undefined,
+      weekNote: open
+        ? () => {
+            openPeriodic("week");
+          }
+        : undefined,
+      monthNote: open
+        ? () => {
+            openPeriodic("month");
+          }
+        : undefined,
+      toggleSource:
+        note === undefined
+          ? undefined
+          : () => {
+              setSourceRequest((count) => count + 1);
+            },
+      rename:
+        note === undefined
+          ? undefined
+          : () => {
+              setRenameRequest((count) => count + 1);
+            },
+      export:
+        note === undefined
+          ? undefined
+          : () => {
+              setDialog("export");
+            },
+      trashNote:
+        note === undefined
+          ? undefined
+          : () => {
+              trashNote(note);
+            },
+      showNotes: open ? show("notes") : undefined,
+      showTags: open ? show("tags") : undefined,
+      showTrash: open ? show("trash") : undefined,
+      templateSettings: open
+        ? () => {
+            setDialog("settings");
+          }
+        : undefined,
+      shortcuts: open
+        ? () => {
+            setDialog("shortcuts");
+          }
+        : undefined,
+      closeVault: onClose,
+    };
+  }, [state.status, selected, openPeriodic, trashNote, onClose]);
+
+  // Shortcuts run their commands, before the editors, which have their own uses for keys.
+  const latest = useRef({ run, hotkeys });
+  latest.current = { run, hotkeys };
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (listening.current) return;
+      const keys = eventKeys(event);
+      if (keys === undefined) return;
+      const id = commandFor(latest.current.hotkeys, keys) as CommandId | undefined;
+      const command = id === undefined ? undefined : latest.current.run[id];
+      if (command === undefined) return;
+      event.preventDefault();
+      event.stopPropagation();
+      command();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, []);
+
+  const keysOf = (id: CommandId) => hotkeys[id]?.[0];
+  const ariaOf = (id: CommandId) => {
+    const keys = keysOf(id);
+    return keys === undefined ? undefined : ariaKeys(keys);
+  };
+
   const shown = useMemo(() => {
     if (tag === undefined || graph === undefined) return notes;
     const tagged = new Set(graph.notesWithTag(tag));
@@ -360,7 +464,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               <button
                 type="button"
                 aria-haspopup="dialog"
-                aria-keyshortcuts="Control+N Meta+N"
+                aria-keyshortcuts={ariaOf("newNote")}
                 title={t("newNoteHint")}
                 onClick={() => {
                   setNewIn("");
@@ -428,7 +532,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               <button
                 type="button"
                 aria-pressed={panel === "search"}
-                aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
+                aria-keyshortcuts={ariaOf("search")}
                 onClick={() => {
                   setPanel("search");
                 }}
@@ -573,6 +677,33 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
             );
           })()
         : null}
+      {dialog === "palette" ? (
+        <CommandPalette
+          commands={commandIds.flatMap((id) =>
+            run[id] === undefined
+              ? []
+              : [{ id, name: t(`command_${id}`), keys: hotkeys[id] ?? [] }],
+          )}
+          onRun={(id) => {
+            run[id as CommandId]?.();
+          }}
+          onClose={() => {
+            setDialog(undefined);
+          }}
+        />
+      ) : null}
+      {dialog === "shortcuts" ? (
+        <ShortcutsDialog
+          commands={commandIds.map((id) => ({ id, name: t(`command_${id}`) }))}
+          defaults={defaultHotkeys}
+          chosen={chosenHotkeys}
+          onListening={setListening}
+          onSave={saveHotkeys}
+          onClose={() => {
+            setDialog(undefined);
+          }}
+        />
+      ) : null}
       <main className="pane">
         {state.status === "open" && selected !== undefined ? (
           <Suspense fallback={null}>
@@ -593,6 +724,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
                 setDialog("export");
               }}
               onRename={(name) => renameCurrent(selected, name)}
+              sourceRequest={sourceRequest}
+              renameRequest={renameRequest}
+              sourceKeys={keysOf("toggleSource")}
             />
           </Suspense>
         ) : (
