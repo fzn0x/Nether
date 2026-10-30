@@ -40,31 +40,43 @@ function shared(a: string, b: string): number {
   return count;
 }
 
+/**
+ * Paths under a key: the path alone while it is the only one, as it is for
+ * almost every key, since a list for each took megabytes in a large vault.
+ */
+type Paths = string | string[];
+
+function addPath(map: Map<string, Paths>, key: string, path: string): void {
+  const paths = map.get(key);
+  if (paths === undefined) map.set(key, path);
+  else if (typeof paths === "string") map.set(key, [paths, path]);
+  else paths.push(path);
+}
+
+function pathList(paths: Paths | undefined): readonly string[] {
+  return paths === undefined ? [] : typeof paths === "string" ? [paths] : paths;
+}
+
 /** The vault's files, indexed to find the one a link names. */
 export class LinkIndex {
-  readonly #paths = new Set<string>();
   /** Lowercase path to the paths that match it. */
-  readonly #folded = new Map<string, string[]>();
+  readonly #folded = new Map<string, Paths>();
   /** Lowercase file name to the paths of files with that name. */
-  readonly #names = new Map<string, string[]>();
+  readonly #names = new Map<string, Paths>();
 
   constructor(paths: Iterable<string>) {
     for (const path of paths) {
-      this.#paths.add(path);
       const folded = path.toLowerCase();
-      const same = this.#folded.get(folded);
-      if (same === undefined) this.#folded.set(folded, [path]);
-      else same.push(path);
-      const name = baseName(folded);
-      const named = this.#names.get(name);
-      if (named === undefined) this.#names.set(name, [path]);
-      else named.push(path);
+      addPath(this.#folded, folded, path);
+      addPath(this.#names, baseName(folded), path);
     }
   }
 
+  /** The file at a path, as written or else case aside. */
   #exact(path: string): string | undefined {
-    if (this.#paths.has(path)) return path;
-    return this.#folded.get(path.toLowerCase())?.[0];
+    const paths = this.#folded.get(path.toLowerCase());
+    if (paths === undefined || typeof paths === "string") return paths;
+    return paths.includes(path) ? path : paths[0];
   }
 
   /**
@@ -88,7 +100,7 @@ export class LinkIndex {
     if (direct !== undefined || target === undefined) return direct;
 
     const ending = `/${target.toLowerCase()}`;
-    const matches = (this.#names.get(baseName(target).toLowerCase()) ?? []).filter((path) =>
+    const matches = pathList(this.#names.get(baseName(target).toLowerCase())).filter((path) =>
       `/${path.toLowerCase()}`.endsWith(ending),
     );
     matches.sort(
@@ -99,6 +111,14 @@ export class LinkIndex {
         (a < b ? -1 : 1),
     );
     return matches[0];
+  }
+
+  /**
+   * How many files have a name, case aside. A link that is a name alone
+   * finds the same file from every note when one file has it, or none.
+   */
+  named(name: string): number {
+    return pathList(this.#names.get(name.toLowerCase())).length;
   }
 
   /**

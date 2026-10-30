@@ -176,6 +176,44 @@ describe("indexNote, the less common parts", () => {
   });
 });
 
+describe("LinkGraph, notes of the same name", () => {
+  it("finds a name two files have from each note's folder", () => {
+    const graph = new LinkGraph();
+    graph.setMany([
+      { id: id("a-note"), path: "A/Note.md", index: index("A\n") },
+      { id: id("b-note"), path: "B/Note.md", index: index("B\n") },
+      { id: id("a-x"), path: "A/x.md", index: index("[[Note]] and [[Only]]\n") },
+      { id: id("b-y"), path: "B/y.md", index: index("[[Note]] and [[Only]]\n") },
+      { id: id("only"), path: "C/Only.md", index: index("C\n") },
+    ]);
+    expect(graph.backlinks(id("a-note")).map((backlink) => backlink.source)).toEqual(["a-x"]);
+    expect(graph.backlinks(id("b-note")).map((backlink) => backlink.source)).toEqual(["b-y"]);
+    expect(graph.backlinks(id("only")).map((backlink) => backlink.source)).toEqual(["a-x", "b-y"]);
+  });
+});
+
+describe("LinkGraph, many notes at once", () => {
+  it("takes several notes as one change, and nothing as none", () => {
+    const graph = new LinkGraph();
+    let changes = 0;
+    graph.subscribe(() => changes++);
+    graph.setMany([
+      { id: id("a"), path: "A.md", index: index("---\naliases: [Alpha]\n---\n[[B]]\n") },
+      { id: id("b"), path: "B.md", index: index("#tag\n") },
+    ]);
+    graph.setMany([]);
+    expect(changes).toBe(1);
+    expect(graph.resolve("alpha", "B.md")).toBe("a");
+    expect(graph.backlinks(id("b")).map((backlink) => backlink.source)).toEqual(["a"]);
+    expect(graph.tags()).toEqual([{ tag: "tag", count: 1 }]);
+    // A move among them is seen as one would be on its own.
+    graph.setMany([{ id: id("b"), path: "Archive/B.md", index: index("#tag\n") }]);
+    expect(graph.resolve("B", "A.md")).toBe("b");
+    expect(graph.note(id("b"))?.title).toBe("B");
+    expect(changes).toBe(2);
+  });
+});
+
 describe("LinkGraph, unchanged parts", () => {
   it("keeps what it worked out when a note changes but its path and aliases do not", () => {
     const graph = new LinkGraph();

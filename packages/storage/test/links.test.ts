@@ -63,6 +63,19 @@ describe("LinkIndex.resolve", () => {
     expect(index.resolve("ld.png", "Welcome.md")).toBeUndefined();
   });
 
+  it("counts the files with a name, case aside", () => {
+    expect(index.named("PHOTO.png")).toBe(2);
+    expect(index.named("roadmap.md")).toBe(1);
+    expect(index.named("missing.md")).toBe(0);
+    expect(new LinkIndex(["a/x.md", "b/x.md", "c/X.md"]).named("x.md")).toBe(3);
+  });
+
+  it("finds a path as written before one that differs only in case", () => {
+    const cased = new LinkIndex(["Notes/plan.md", "notes/Plan.md"]);
+    expect(cased.resolve("notes/Plan.md", "Welcome.md")).toBe("notes/Plan.md");
+    expect(cased.resolve("NOTES/PLAN.md", "Welcome.md")).toBe("Notes/plan.md");
+  });
+
   it("writes the shortest link that finds a file again", () => {
     expect(index.linkTo("attachments/Diagram 1.svg", "Welcome.md")).toBe("Diagram 1.svg");
     // Another photo.png is nearer the note, so the link needs the path.
