@@ -62,9 +62,11 @@ test("switching notes and typing stay within their targets", async ({ page }) =>
   await page.evaluate(() => {
     const durations = new Map<number, number>();
     (globalThis as unknown as { keyDurations: Map<number, number> }).keyDurations = durations;
+    // The click and Ctrl+End before typing can report after this, with the first keys.
+    const since = performance.now();
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries() as PerformanceEventTiming[]) {
-        if (entry.interactionId === 0) continue;
+        if (entry.interactionId === 0 || entry.startTime < since) continue;
         durations.set(
           entry.interactionId,
           Math.max(durations.get(entry.interactionId) ?? 0, entry.duration),
