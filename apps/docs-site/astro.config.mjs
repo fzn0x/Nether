@@ -15,7 +15,10 @@ export default defineConfig({
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/fzn0x/nether" }],
       editLink: { baseUrl: "https://github.com/fzn0x/nether/edit/main/apps/docs-site/" },
       customCss: ["./src/styles/theme.css"],
-      sidebar: [{ label: "Start here", items: ["introduction", "roadmap"] }],
+      sidebar: [
+        { label: "Start here", items: ["introduction", "roadmap"] },
+        { label: "Notes", items: ["markdown"] },
+      ],
     }),
   ],
 });
