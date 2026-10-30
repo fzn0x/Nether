@@ -12,20 +12,24 @@ processes, as Task Manager counts memory. Then it writes a note into the
 vault, as another app would, and waits for the app to have it in its
 index, and removes it. It exits with 1 when a target is missed.
 
-Measure a vault the app has opened before, closed with a note open, as it
-usually starts: its index kept and a note to open. -Prepare opens the vault
-once and waits until every note is read, which takes minutes on 50,000
-notes; open a note in it then, and close the app.
+Measure a vault the app has opened before, as it usually starts: its index
+kept and a note to open. -Prepare opens the vault once and waits until
+every note is read, which takes minutes on 50,000 notes. -Note names the
+note the app opens to, by its path in the vault, as its command line does;
+without it the app opens to the note last open, so open one in the vault
+and close the app first. -Out writes what was measured as JSON.
 
 .EXAMPLE
 pnpm vault:generate
 pnpm --filter @nether/desktop build:app
 powershell -File tools/perf/desktop.ps1 -Prepare
-powershell -File tools/perf/desktop.ps1
+powershell -File tools/perf/desktop.ps1 -Note "Projects/Plan.md" -Out perf-desktop-report.json
 #>
 param(
   [string]$Exe = (Join-Path $PSScriptRoot "..\..\apps\desktop\build\windows-amd64\Nether.exe"),
   [string]$Vault = (Join-Path $PSScriptRoot "..\..\.vaults\reference"),
+  [string]$Note = "",
+  [string]$Out = "",
   [int]$Runs = 3,
   [int]$IdleSeconds = 60,
   [switch]$Prepare
@@ -39,6 +43,7 @@ function Start-Nether([string]$Trace) {
   $start = New-Object System.Diagnostics.ProcessStartInfo
   $start.FileName = (Resolve-Path $Exe).Path
   $start.Arguments = '"' + (Resolve-Path $Vault).Path + '"'
+  if ($Note -ne "") { $start.Arguments += ' "' + $Note + '"' }
   $start.WorkingDirectory = Split-Path $start.FileName
   $start.UseShellExecute = $false
   $start.EnvironmentVariables["NETHER_TRACE"] = $Trace
@@ -125,7 +130,7 @@ if ($Prepare) {
   $app = Start-Nether $trace
   try {
     if (-not (Wait-Mark $trace "notes-read" 1800)) { Write-Error "The vault's notes were not all read in 30 minutes."; exit 1 }
-    "Every note is read and kept. Open a note in the vault, close the app, then measure."
+    "Every note is read and kept. Measure with -Note, or open a note in the vault, close the app, then measure."
   } finally {
     Stop-Nether $app $trace
   }
@@ -139,7 +144,7 @@ $results = foreach ($run in 1..$Runs) {
     if (-not (Wait-Mark $trace "links-loaded" 60)) { Write-Error "The vault did not open in 60 seconds."; exit 1 }
     $marks = Get-Marks $trace
     if (-not $marks.ContainsKey("note-shown")) {
-      Write-Error "The vault opened to no note: open a note in it, close the app, and run this again."
+      Write-Error "The vault opened to no note: name one with -Note, or open a note in it, close the app, and run this again."
       exit 1
     }
     Start-Sleep -Seconds $IdleSeconds
@@ -165,9 +170,19 @@ function Write-Target([string]$Name, $Value, $Limit, [string]$Unit) {
   $met
 }
 
-$met = @(
-  (Write-Target "Opening to the last note" (Get-Median ($results | ForEach-Object Note)) $startupLimit "ms"),
-  (Write-Target "Idle memory" (Get-Median ($results | ForEach-Object Memory)) $memoryLimit "MB"),
-  (Write-Target "Picking up a note another app wrote" (Get-Median ($results | ForEach-Object Pickup)) $pickupLimit "ms")
+$targets = @(
+  [pscustomobject]@{ Name = "Opening to the last note"; Median = (Get-Median ($results | ForEach-Object Note)); Limit = $startupLimit; Unit = "ms" },
+  [pscustomobject]@{ Name = "Idle memory"; Median = (Get-Median ($results | ForEach-Object Memory)); Limit = $memoryLimit; Unit = "MB" },
+  [pscustomobject]@{ Name = "Picking up a note another app wrote"; Median = (Get-Median ($results | ForEach-Object Pickup)); Limit = $pickupLimit; Unit = "ms" }
 )
+$met = @($targets | ForEach-Object { Write-Target $_.Name $_.Median $_.Limit $_.Unit })
+if ($Out -ne "") {
+  $report = [pscustomobject]@{
+    runs = @($results | ForEach-Object { [pscustomobject]@{ startupMs = $_.Note; idleMB = $_.Memory; pickupMs = $_.Pickup } })
+    targets = @($targets | ForEach-Object { [pscustomobject]@{ name = $_.Name; median = $_.Median; limit = $_.Limit; unit = $_.Unit; met = $_.Median -lt $_.Limit } })
+  }
+  # Without the byte order mark Set-Content writes.
+  $path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out)
+  [IO.File]::WriteAllText($path, ($report | ConvertTo-Json -Depth 4))
+}
 if ($met -contains $false) { exit 1 }
