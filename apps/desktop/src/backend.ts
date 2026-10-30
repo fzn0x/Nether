@@ -176,6 +176,8 @@ const preview: Backend = {
   forget: () => Promise.resolve(),
   connect() {
     const files = new MemoryFiles(sampleVault);
+    // The end-to-end tests change the sample's files as another app would.
+    (globalThis as { netherPreview?: { files: MemoryFiles } }).netherPreview = { files };
     return Promise.resolve({ files, store: new MemoryStore(), media: memoryMedia(files) });
   },
 };
