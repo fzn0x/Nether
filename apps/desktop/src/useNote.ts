@@ -1,8 +1,9 @@
 // One open note: its Markdown read and parsed, the editor's changes written
-// back after a pause in typing, and changes other apps make picked up. A
-// save writes only over the file it read; when the file changed meanwhile,
-// the edits are kept in a conflict copy beside it, so nothing is lost,
-// until the merge that sync brings (ADR 0003).
+// back after a pause in typing, and changes other apps make picked up. The
+// changes are blocks from the block editor, or the whole text from source
+// mode. A save writes only over the file it read; when the file changed
+// meanwhile, the edits are kept in a conflict copy beside it, so nothing is
+// lost, until the merge that sync brings (ADR 0003).
 import type { ContentBlock, NoteId } from "@nether/core";
 import {
   type ParsedMarkdown,
@@ -19,17 +20,29 @@ const longest = 2000;
 
 export type NoteState =
   | { readonly status: "loading" }
-  | { readonly status: "ready"; readonly blocks: readonly ContentBlock[]; readonly version: number }
+  | {
+      readonly status: "ready";
+      readonly blocks: readonly ContentBlock[];
+      /** The note's Markdown, as source mode shows it. */
+      readonly text: string;
+      /** Changes whenever the note is read again, to start its editor anew. */
+      readonly version: number;
+    }
   | { readonly status: "binary" }
   | { readonly status: "missing" }
   | { readonly status: "failed"; readonly error: Error };
 
+/** An edit waiting to be saved: the block editor's blocks, or source mode's text. */
+type Edit = { readonly blocks: ContentBlock[] } | { readonly text: string };
+
 interface Open {
   parsed: ParsedMarkdown;
+  /** The blocks as last saved or read. */
+  blocks: readonly ContentBlock[];
   source: Source;
   /** The hash of the file as last read or written. */
   hash: string;
-  pending: ContentBlock[] | undefined;
+  pending: Edit | undefined;
   firstPending: number | undefined;
   timer: ReturnType<typeof setTimeout> | undefined;
   saving: Promise<void> | undefined;
@@ -47,6 +60,13 @@ export interface NoteDocument {
   readonly saveError: string | undefined;
   /** Takes the editor's blocks after a change and saves them after a pause. */
   readonly edit: (blocks: ContentBlock[]) => void;
+  /** Takes source mode's text after a change and saves it after a pause. */
+  readonly editText: (text: string) => void;
+  /**
+   * Saves what is waiting, then gives the note as saved to a new editor:
+   * the other mode's, when the user switches between blocks and source.
+   */
+  readonly refresh: () => Promise<void>;
 }
 
 export function useNote(vault: Vault, id: NoteId): NoteDocument {
@@ -70,6 +90,7 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
       const parsed = parseMarkdown(file.text);
       open.current = {
         parsed,
+        blocks: parsed.content,
         source: parsed.source,
         hash: file.hash,
         pending: undefined,
@@ -78,7 +99,12 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
         saving: undefined,
       };
       version.current += 1;
-      setState({ status: "ready", blocks: parsed.content, version: version.current });
+      setState({
+        status: "ready",
+        blocks: parsed.content,
+        text: parsed.source.text,
+        version: version.current,
+      });
     } catch (error) {
       setState({
         status: "failed",
@@ -94,18 +120,31 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
       await current.saving;
       return flush();
     }
-    const blocks = current.pending;
+    const pending = current.pending;
     current.pending = undefined;
     current.firstPending = undefined;
-    const written = serializeMarkdown(
-      { properties: current.parsed.properties, content: blocks },
-      { source: current.source, writeIds: current.parsed.writtenIds },
-    );
-    if (written.text === (current.source.bom ? "﻿" : "") + current.source.text) return;
+    const bom = current.source.bom ? "\uFEFF" : "";
+    const written =
+      "blocks" in pending
+        ? serializeMarkdown(
+            { properties: current.parsed.properties, content: pending.blocks },
+            { source: current.source, writeIds: current.parsed.writtenIds },
+          )
+        : undefined;
+    const text = written?.text ?? bom + ("text" in pending ? pending.text : "");
+    if (text === bom + current.source.text) return;
     current.saving = (async () => {
       try {
-        const file = await vault.write(id, written.text, current.hash);
-        current.source = written.source;
+        const file = await vault.write(id, text, current.hash);
+        if (written !== undefined && "blocks" in pending) {
+          current.blocks = pending.blocks;
+          current.source = written.source;
+        } else {
+          // Text from source mode: read it as the next save from blocks will.
+          current.parsed = parseMarkdown(text);
+          current.blocks = current.parsed.content;
+          current.source = current.parsed.source;
+        }
         current.hash = file.hash;
         setSaveError(undefined);
       } catch (error) {
@@ -115,11 +154,11 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
           const note = vault.note(id);
           const folder = note === undefined ? "" : folderOf(note.path);
           const name = `${note?.title ?? "Note"} (conflict ${stamp(new Date())}).md`;
-          const copy = await vault.create(folder === "" ? name : `${folder}/${name}`, written.text);
+          const copy = await vault.create(folder === "" ? name : `${folder}/${name}`, text);
           setConflict(copy.path);
           await load();
         } else {
-          current.pending ??= blocks;
+          current.pending ??= pending;
           setSaveError(error instanceof Error ? error.message : String(error));
         }
       } finally {
@@ -129,11 +168,11 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
     await current.saving;
   }, [vault, id, load]);
 
-  const edit = useCallback(
-    (blocks: ContentBlock[]) => {
+  const change = useCallback(
+    (pending: Edit) => {
       const current = open.current;
       if (current === undefined) return;
-      current.pending = blocks;
+      current.pending = pending;
       const now = Date.now();
       current.firstPending ??= now;
       clearTimeout(current.timer);
@@ -142,6 +181,33 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
     },
     [flush],
   );
+  const edit = useCallback(
+    (blocks: ContentBlock[]) => {
+      change({ blocks });
+    },
+    [change],
+  );
+  const editText = useCallback(
+    (text: string) => {
+      change({ text });
+    },
+    [change],
+  );
+
+  const refresh = useCallback(async () => {
+    const current = open.current;
+    if (current === undefined) return;
+    clearTimeout(current.timer);
+    await flush();
+    if (open.current !== current) return;
+    version.current += 1;
+    setState({
+      status: "ready",
+      blocks: current.blocks,
+      text: current.source.text,
+      version: version.current,
+    });
+  }, [flush]);
 
   useEffect(() => {
     void load();
@@ -180,5 +246,5 @@ export function useNote(vault: Vault, id: NoteId): NoteDocument {
     });
   }, [vault, id, load]);
 
-  return { state, conflict, saveError, edit };
+  return { state, conflict, saveError, edit, editText, refresh };
 }
