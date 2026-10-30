@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The tests run the SQLite store on Node's built-in node:sqlite.
+    "types": ["node"]
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}

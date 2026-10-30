@@ -1,0 +1,23 @@
+export {
+  ChangedOnDisk,
+  type FileEvent,
+  type FileInfo,
+  type FileOp,
+  type FileText,
+  type VaultFiles,
+  folderOf,
+  isInside,
+  isNotePath,
+  noteTitle,
+} from "./files.ts";
+export { MemoryFiles, sha256 } from "./memory.ts";
+export {
+  type Database,
+  type SqlValue,
+  type Statement,
+  SqliteStore,
+  migrate,
+  schemaVersion,
+} from "./sqlite.ts";
+export { type FileRecord, type IndexChange, type IndexStore, MemoryStore } from "./store.ts";
+export { type NoteEntry, Vault, type VaultOptions, matchMoves } from "./vault.ts";

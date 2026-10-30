@@ -1,0 +1,90 @@
+import type { NoteId } from "@nether/core";
+import { describe, expect, it } from "vitest";
+import { SqliteStore, migrate, schemaVersion } from "../src/index.ts";
+import { nodeDatabase } from "./node-database.ts";
+
+const note = (n: number) => `01929f4c-7b00-7a00-8000-00000000000${String(n)}` as NoteId;
+
+describe("migrate", () => {
+  it("creates the schema once and records its version", async () => {
+    const database = nodeDatabase();
+    await migrate(database);
+    await migrate(database);
+    const { rows } = await database.query("PRAGMA user_version");
+    expect(rows[0]?.[0]).toBe(schemaVersion);
+    const tables = await database.query("SELECT name FROM sqlite_master WHERE type = 'table'");
+    expect(tables.rows.flat()).toContain("files");
+  });
+
+  it("refuses an index a newer Nether wrote", async () => {
+    const database = nodeDatabase();
+    await database.execute(`PRAGMA user_version = ${String(schemaVersion + 1)}`);
+    await expect(migrate(database)).rejects.toThrow(/newer version of Nether/);
+  });
+});
+
+describe("SqliteStore", () => {
+  it("keeps records across opens of the same database", async () => {
+    const database = nodeDatabase();
+    const store = await SqliteStore.open(database);
+    await store.apply({
+      upsert: [
+        { path: "a.md", note: note(1), size: 3, modified: 100, hash: "abc" },
+        { path: "img.png", size: 10, modified: 200 },
+      ],
+    });
+    const again = await SqliteStore.open(database);
+    expect(await again.files()).toEqual(
+      expect.arrayContaining([
+        { path: "a.md", note: note(1), size: 3, modified: 100, hash: "abc" },
+        { path: "img.png", size: 10, modified: 200 },
+      ]),
+    );
+  });
+
+  it("updates a record in place and removes before it inserts, so a note can move", async () => {
+    const store = await SqliteStore.open(nodeDatabase());
+    await store.apply({ upsert: [{ path: "a.md", note: note(1), size: 1, modified: 1 }] });
+    await store.apply({ upsert: [{ path: "a.md", note: note(1), size: 2, modified: 2 }] });
+    await store.apply({
+      remove: ["a.md"],
+      upsert: [{ path: "moved/a.md", note: note(1), size: 2, modified: 2 }],
+    });
+    expect(await store.files()).toEqual([
+      { path: "moved/a.md", note: note(1), size: 2, modified: 2 },
+    ]);
+  });
+
+  it("applies large changes in parts", async () => {
+    const store = await SqliteStore.open(nodeDatabase());
+    const upsert = Array.from({ length: 4500 }, (_, index) => ({
+      path: `n/${String(index)}.md`,
+      size: index,
+      modified: index,
+    }));
+    await store.apply({ upsert });
+    expect(await store.files()).toHaveLength(4500);
+  });
+
+  it("leaves the index as it was when a change fails", async () => {
+    const store = await SqliteStore.open(nodeDatabase());
+    await store.apply({ upsert: [{ path: "a.md", note: note(1), size: 1, modified: 1 }] });
+    // Two files cannot hold one note.
+    await expect(
+      store.apply({
+        upsert: [
+          { path: "b.md", size: 1, modified: 1 },
+          { path: "c.md", note: note(1), size: 1, modified: 1 },
+        ],
+      }),
+    ).rejects.toThrow();
+    expect(await store.files()).toEqual([{ path: "a.md", note: note(1), size: 1, modified: 1 }]);
+  });
+
+  it("closes its database", async () => {
+    const database = nodeDatabase();
+    const store = await SqliteStore.open(database);
+    await store.close();
+    expect(() => database.raw.prepare("SELECT 1")).toThrow();
+  });
+});

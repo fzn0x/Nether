@@ -1,0 +1,24 @@
+{
+  "name": "@nether/storage",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A vault's files and its local index: reconciling the folder with the index, following changes, and the SQLite store each client keeps.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@nether/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@vitest/coverage-v8": "^5.0.5",
+    "vitest": "^5.0.5"
+  }
+}
