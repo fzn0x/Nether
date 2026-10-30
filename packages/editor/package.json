@@ -5,9 +5,12 @@
   "description": "The block and Markdown editor: Nether's schema on TipTap, every block with a stable ID, and Markdown shortcuts as you type.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./math.css": "./src/math.css"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
@@ -17,14 +20,26 @@
     "@nether/core": "workspace:*",
     "@tiptap/core": "^3.32.0",
     "@tiptap/extension-code": "^3.32.0",
+    "@tiptap/extension-code-block-lowlight": "^3.32.0",
+    "@tiptap/extension-collaboration": "^3.32.0",
     "@tiptap/extension-details": "^3.32.0",
+    "@tiptap/extension-drag-handle": "^3.32.0",
+    "@tiptap/extension-drag-handle-react": "^3.32.0",
     "@tiptap/extension-highlight": "^3.32.0",
     "@tiptap/extension-list": "^3.32.0",
+    "@tiptap/extension-node-range": "^3.32.0",
     "@tiptap/extension-table": "^3.32.0",
     "@tiptap/extensions": "^3.32.0",
     "@tiptap/pm": "^3.32.0",
     "@tiptap/react": "^3.32.0",
-    "@tiptap/starter-kit": "^3.32.0"
+    "@tiptap/starter-kit": "^3.32.0",
+    "@tiptap/suggestion": "^3.32.0",
+    "@tiptap/y-tiptap": "^3.0.10",
+    "katex": "^0.18.10",
+    "lowlight": "^3.3.0",
+    "mermaid": "^12.2.0",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

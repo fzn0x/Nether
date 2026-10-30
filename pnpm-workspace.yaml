@@ -9,3 +9,8 @@ minimumReleaseAge: 10080
 
 onlyBuiltDependencies:
   - lefthook
+
+overrides:
+  # Mermaid's ELK layout is under the EPL-2.0, which the AGPL does not allow:
+  # a stand-in takes its place (ADR 0009).
+  elkjs: link:./tools/stubs/elkjs

@@ -1,0 +1,12 @@
+{
+  "name": "elkjs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stands in for elkjs, which Mermaid loads for diagrams that ask for the ELK layout. elkjs is under the EPL-2.0, which the AGPL does not allow (ADR 0009).",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": "./lib/elk.bundled.js",
+    "./lib/elk.bundled.js": "./lib/elk.bundled.js"
+  }
+}

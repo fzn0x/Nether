@@ -35,7 +35,9 @@ export const allowedExceptions = new Set(["LLVM-exception"]);
 
 // Packages whose license field is missing or not SPDX, checked by hand:
 // "name": "the license found, and where".
-export const reviewed = {};
+export const reviewed = {
+  khroma: "MIT, in its license file; package.json has no license field",
+};
 
 /** Whether an SPDX expression such as "(MIT OR Apache-2.0)" is allowed. */
 export function permits(expression) {
