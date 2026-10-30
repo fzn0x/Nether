@@ -1,11 +1,11 @@
 // A note's links in the desktop app: how `[[` ranks notes, the path a new
 // note gets from a link, and what a link opens.
-import type { NoteId } from "@nether/core";
+import type { LinkTarget, NoteId } from "@nether/core";
 import { LinkGraph, indexNote } from "@nether/graph";
 import { parseMarkdown } from "@nether/markdown";
 import { MemoryFiles, MemoryStore, Vault } from "@nether/storage";
 import { describe, expect, it, vi } from "vitest";
-import { matchScore, newNotePath, noteLinks } from "../src/noteLinks.ts";
+import { blockQuery, blockText, matchScore, newNotePath, noteLinks } from "../src/noteLinks.ts";
 
 describe("matchScore", () => {
   it("ranks a whole match, then a start, a word's start, a part, and letters in order", () => {
@@ -132,5 +132,102 @@ describe("noteLinks", () => {
       "Welcome.md",
       "Fresh idea.md",
     ]);
+  });
+});
+
+describe("blockQuery", () => {
+  it("reads a note and text to find a block by, after #^ or ^", () => {
+    expect(blockQuery("Plan#^goal")).toEqual({ title: "Plan", text: "goal" });
+    expect(blockQuery("Plan^goal")).toEqual({ title: "Plan", text: "goal" });
+    expect(blockQuery("^")).toEqual({ title: "", text: "" });
+    expect(blockQuery("#^tea time")).toEqual({ title: "", text: "tea time" });
+    expect(blockQuery("Plan")).toBeUndefined();
+    expect(blockQuery("Plan#Next")).toBeUndefined();
+  });
+});
+
+describe("blockText", () => {
+  it("gives what a block says, links and tags as written", () => {
+    const parsed = parseMarkdown(
+      "A [[Plan|plan]] and #tag $x$\n\n```\ncode\n```\n\n| a | b |\n| - | - |\n| c | d |\n",
+    );
+    expect(parsed.content.map(blockText)).toEqual(["A plan and #tag x", "code", "a b c d"]);
+  });
+});
+
+/** The block a suggestion's link names; it throws when it names none. */
+function blockOf(target: LinkTarget | undefined): { readonly block: string } {
+  const block = target !== undefined && "block" in target ? target.block : undefined;
+  if (block === undefined) throw new Error("No block was suggested.");
+  return { block };
+}
+
+describe("noteLinks.suggestBlocks", () => {
+  async function setUp(text: string) {
+    const files: Record<string, string> = { "Welcome.md": "Here. ^here", "Plan.md": text };
+    const memory = new MemoryFiles(files);
+    const vault = new Vault(memory, new MemoryStore());
+    await vault.open();
+    const graph = new LinkGraph();
+    for (const note of vault.notes()) {
+      const parsed = parseMarkdown(files[note.path] ?? "");
+      graph.set(note.id, note.path, indexNote(parsed, parsed.writtenIds));
+    }
+    const welcome = vault.noteAt("Welcome.md")?.id;
+    if (welcome === undefined) throw new Error("The note is not in the vault.");
+    const errors: unknown[] = [];
+    const links = noteLinks(
+      vault,
+      graph,
+      welcome,
+      () => undefined,
+      (error) => errors.push(error),
+    );
+    return { memory, vault, links, errors };
+  }
+
+  it("is nothing for text that names no block", async () => {
+    const { links } = await setUp("Goals");
+    expect(links.suggestBlocks?.("Plan")).toBeUndefined();
+  });
+
+  it("finds a note's blocks by their text, and writes the ID of the one chosen", async () => {
+    const { memory, vault, links, errors } = await setUp(
+      "# Plan\n\nShip the goals.\nSoon.\n\n- Write the goals\n- Rest\n",
+    );
+    const found = (await links.suggestBlocks?.("Plan#^goal")) ?? [];
+    expect(found.map((choice) => choice.title)).toEqual([
+      "Ship the goals. Soon.",
+      "Write the goals",
+    ]);
+    const [first] = found;
+    expect(first?.detail).toBe("Plan");
+    const target = blockOf(first?.target);
+    expect(first?.target).toEqual({ title: "Plan", block: target.block });
+    first?.onChoose?.();
+    await vault.settled();
+    await expect
+      .poll(async () => (await memory.read("Plan.md")).text)
+      .toBe(`# Plan\n\nShip the goals.\nSoon. ^${target.block}\n\n- Write the goals\n- Rest\n`);
+    expect(errors).toEqual([]);
+  });
+
+  it("names this note's blocks by their ID alone, and writes no ID a block already has", async () => {
+    const { links } = await setUp("x");
+    const [here] = (await links.suggestBlocks?.("^here")) ?? [];
+    expect(here?.target).toEqual({ block: "here" });
+    expect(here?.onChoose).toBeUndefined();
+  });
+
+  it("gives the ID to the block with the same text when the note changed meanwhile", async () => {
+    const { memory, links, errors } = await setUp("First.\n\nSecond.\n");
+    const [second] = (await links.suggestBlocks?.("Plan^second")) ?? [];
+    const target = blockOf(second?.target);
+    memory.edit("Plan.md", "New first.\n\nFirst.\n\nSecond.\n");
+    second?.onChoose?.();
+    await expect
+      .poll(async () => (await memory.read("Plan.md")).text)
+      .toBe(`New first.\n\nFirst.\n\nSecond. ^${target.block}\n`);
+    expect(errors).toEqual([]);
   });
 });
