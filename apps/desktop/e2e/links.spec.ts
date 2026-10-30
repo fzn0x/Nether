@@ -59,3 +59,42 @@ test("a link typed in full to a note not yet written makes the note when opened"
   await expect(page.locator("#note-title")).toHaveText("Next steps");
   await expect(page.getByText("7 notes")).toBeVisible();
 });
+
+test("[[Note#^ finds a block by its text, and links to it by an ID written after it", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  const notes = await openSample(page);
+  await notes.getByRole("button", { name: /Welcome/ }).click();
+  const editor = page.getByRole("textbox", { name: "Welcome, note text" });
+  await endOfFirstParagraph(page, editor);
+  await page.keyboard.type(" See [[Ideas#^highlight");
+  const menu = page.getByRole("listbox", { name: "Notes" });
+  await expect(menu.getByRole("option").first()).toHaveText(
+    /^A highlight, some e\^\{i\\pi\} and a hidden comment\.Ideas$/,
+  );
+  await page.keyboard.press("Enter");
+  await expect(menu).toBeHidden();
+
+  const read = (path: string) =>
+    page.evaluate(
+      async (file) =>
+        (
+          await (
+            globalThis as unknown as {
+              netherPreview: { files: { read(path: string): Promise<{ text: string }> } };
+            }
+          ).netherPreview.files.read(file)
+        ).text,
+      path,
+    );
+  // The block's note writes its ID after it, as Obsidian does.
+  await expect.poll(() => read("Projects/Ideas.md")).toMatch(/hidden comment%%\. \^[a-z0-9]+\n/);
+  const id = /%%\. \^([a-z0-9]+)\n/.exec(await read("Projects/Ideas.md"))?.[1] ?? "";
+  await expect.poll(() => read("Welcome.md")).toContain(`[[Ideas#^${id}]]`);
+
+  // The link opens the note there.
+  await editor.locator(".chip-wikiLink", { hasText: "Ideas" }).click();
+  await expect(page.locator("#note-title")).toHaveText("Ideas");
+  expect(errors).toEqual([]);
+});
