@@ -240,7 +240,6 @@ export class Indexer {
           this.#known.set(note, known);
           return [{ note, size: known.size, modified: known.modified, ...indexRow(index) }];
         });
-        this.graph.setMany(read);
         const texts = response.results.flatMap(({ id, text }) => {
           const known = seen.get(id);
           const title = known?.path.slice(known.path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
@@ -249,6 +248,8 @@ export class Indexer {
         // The text first: a note whose index row is kept is not read again.
         await this.#vault.indexes.putNoteTexts(texts);
         await this.#vault.indexes.putNoteIndexes(rows);
+        // Then the graph, whose backlinks read the text around their links from the rows.
+        this.graph.setMany(read);
         done += ids.length;
       }
     } finally {
