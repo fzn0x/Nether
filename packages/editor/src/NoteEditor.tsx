@@ -32,7 +32,7 @@ export interface NoteEditorProps {
    */
   readonly document?: Y.Doc;
   /** Called with the note's blocks after each change the user makes. */
-  readonly onChange: (blocks: ContentBlock[]) => void;
+  readonly onChange?: (blocks: ContentBlock[]) => void;
   /** What an empty note shows. */
   readonly placeholder?: string;
   /** The accessible name of the editing area. */
@@ -96,7 +96,7 @@ export function NoteEditor(props: NoteEditorProps) {
       ) {
         return;
       }
-      changed.current(fromEditor(current.getJSON(), () => newBlockId()));
+      changed.current?.(fromEditor(current.getJSON(), () => newBlockId()));
     },
   });
 
