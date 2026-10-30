@@ -58,8 +58,8 @@ The Obsidian core, one feature per pull request, in this order:
 
 - [x] `packages/markdown`: Markdown to and from Nether's notes, with Obsidian's syntax and a round trip that keeps unchanged blocks byte for byte ([ADR 0006](adr/0006-markdown-file-format.md))
 - [x] The vault on disk: reading, writing and watching the folder, and the local SQLite store ([ADR 0007](adr/0007-vault-folder-and-local-index.md))
-- [ ] `packages/editor`: the block editor with live Markdown shortcuts (done), the slash menu, block handle and rich blocks (done), embeds of images, PDFs, audio and video (done), and source mode (done)
-- [ ] Yjs documents per note, kept in step with the files both ways
+- [x] `packages/editor`: the block editor with live Markdown shortcuts, the slash menu, block handle and rich blocks, embeds of images, PDFs, audio and video, and source mode (web link previews, and embeds of notes and blocks, come with links)
+- [x] Yjs documents per note, kept in step with the files both ways
 - [ ] Links, backlinks, aliases, tags and the outline
 - [ ] The quick switcher and full-text search
 - [ ] Properties, templates, daily notes, the trash and export

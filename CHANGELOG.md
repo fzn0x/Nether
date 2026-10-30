@@ -31,8 +31,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   date by size and modification time and keeps a note's ID when it moves.
 - The note editor: notes open in a block editor that turns Markdown typed at
   the start of a line into blocks, and save back to their Markdown files as
-  you type, rewriting only the blocks you changed. An edit that meets a
-  change another app made is kept in a conflict copy beside the note.
+  you type, rewriting only the blocks you changed.
 - Rich blocks in the editor: a slash menu inserts any block; a handle beside
   each block drags it, or opens a menu that turns it into another type,
   moves, duplicates or deletes it, with a shortcut for each; math renders
@@ -43,6 +42,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   by their links as Obsidian finds them; pasted and dropped files go in the
   vault's `attachments` folder, never over another file
   ([ADR 0010](docs/adr/0010-vault-files-in-notes.md)).
+- Each note is a Yjs document, kept in the vault's index as you type
+  before it is written to the file, as ADR 0003 decided. Another app's
+  change to a note's file, made while Nether is open or closed, is merged
+  into the note with what was typed meanwhile, character by character;
+  nothing either side wrote is lost.
 - Source mode: Ctrl+/ shows a note as its Markdown in a text editor, with
   find and replace and optional Vim keys, and goes back to blocks with
   nothing lost; a file's line endings stay as they are.
