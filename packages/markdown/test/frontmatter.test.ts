@@ -81,6 +81,25 @@ describe("writeFrontmatter", () => {
     ).toBe("tags:\n  - a\n  - b\ndue: 2026-11-06\ncount: 2\ntext: yes\nnested:\n  a: null\n");
   });
 
+  it("keeps a list or map the file wrote inline inline when it changes", () => {
+    const yaml = "tags: [start]\nsize: { w: 1 }\nlist:\n  - a";
+    expect(
+      writeFrontmatter(
+        yaml,
+        [
+          { key: "tags", value: ["start"] },
+          { key: "size", value: { w: 1 } },
+          { key: "list", value: ["a"] },
+        ],
+        [
+          { key: "tags", value: ["start", "intro"] },
+          { key: "size", value: { w: 2 } },
+          { key: "list", value: ["a", "b"] },
+        ],
+      ),
+    ).toBe("tags: [start, intro]\nsize: {w: 2}\nlist:\n  - a\n  - b\n");
+  });
+
   it("keeps lists flush with their key when the file wrote them so", () => {
     const yaml = "aliases:\n- One\ntitle: A";
     expect(

@@ -2,7 +2,7 @@
 // so that writing changes only the keys whose values changed and keeps
 // comments, key order and the style of everything else.
 import { type JsonValue, type PropertyEntry, isPropertyKey } from "@nether/core";
-import { Document, type Node, type Pair, isMap, isScalar, parseDocument } from "yaml";
+import { Document, type Node, type Pair, isCollection, isMap, isScalar, parseDocument } from "yaml";
 import { sameJson } from "./source.ts";
 
 export interface FrontmatterProperties {
@@ -84,7 +84,14 @@ export function writeFrontmatter(
     if (pair === undefined) {
       items.push(document.createPair(key, value));
     } else {
-      if (!sameJson(old.get(key), value)) pair.value = document.createNode(value);
+      if (!sameJson(old.get(key), value)) {
+        const node = document.createNode(value);
+        // A list or map written inline, as `tags: [a, b]`, stays inline.
+        if (isCollection(node) && isCollection(pair.value) && pair.value.flow === true) {
+          node.flow = true;
+        }
+        pair.value = node;
+      }
       items.push(pair);
     }
   }
