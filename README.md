@@ -18,7 +18,7 @@ shared projects, synced through **a server you control**, or through none.
 > Nether is in early development, and nothing is ready to install yet.
 > [Phase 0](docs/reports/phase-0.md) of six is done, and Phase 1, the
 > local-first notes, is under way: the vault on disk, the block editor,
-> links, backlinks, tags, search and properties are in, and the
+> links, backlinks, tags, search, properties and templates are in, and the
 > [roadmap](docs/roadmap.md#phase-1-local-first-notes) ticks off the rest as
 > it lands. Watch the repository to follow along.
 
