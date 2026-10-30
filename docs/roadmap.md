@@ -57,7 +57,7 @@ what was deferred and the plan for Phase 1.
 The Obsidian core, one feature per pull request, in this order:
 
 - [x] `packages/markdown`: Markdown to and from Nether's notes, with Obsidian's syntax and a round trip that keeps unchanged blocks byte for byte ([ADR 0006](adr/0006-markdown-file-format.md))
-- [ ] The vault on disk: reading, writing and watching the folder, and the local SQLite store
+- [x] The vault on disk: reading, writing and watching the folder, and the local SQLite store ([ADR 0007](adr/0007-vault-folder-and-local-index.md))
 - [ ] `packages/editor`: the block editor with live Markdown shortcuts, the slash menu and source mode
 - [ ] Yjs documents per note, kept in step with the files both ways
 - [ ] Links, backlinks, aliases, tags and the outline
