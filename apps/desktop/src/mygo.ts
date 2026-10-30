@@ -86,6 +86,15 @@ export const Desktop = {
  */
 export const Vaults = {
   /**
+   * Attach adds a file, such as an image pasted into a note, at rel in the
+   * vault, making the folders it needs. It never replaces a file: when rel
+   * is taken, it uses the first free name of "name 1.png", "name 2.png" and
+   * so on, and returns the path it wrote.
+   */
+  attach(id: string, rel: string, data: string): Promise<FileInfo> {
+    return call("Vaults.Attach", id, rel, data);
+  },
+  /**
    * Choose asks the user for a folder and opens it as a vault. It returns
    * nil when the user cancels.
    */
@@ -104,9 +113,24 @@ export const Vaults = {
   list(id: string, folder: string, files: Channel<FileInfo[]>): Promise<void> {
     return call("Vaults.List", id, folder, files);
   },
+  /**
+   * MediaURL returns the URL the page loads a vault's media from: a file's
+   * path in the vault, each segment escaped, follows it.
+   */
+  mediaURL(id: string): Promise<string> {
+    return call("Vaults.MediaURL", id);
+  },
   /** Open opens a folder as a vault, giving it an ID the first time. */
   open(folder: string): Promise<VaultInfo> {
     return call("Vaults.Open", folder);
+  },
+  /**
+   * OpenFile opens a media file of the vault, such as a PDF, in the
+   * system's app for it. Other files, which might be programs, it does not
+   * open: ShowFile shows them in the file manager instead.
+   */
+  openFile(id: string, rel: string): Promise<void> {
+    return call("Vaults.OpenFile", id, rel);
   },
   /**
    * Read sends the text of each file, in order. A file that is gone is sent
@@ -133,6 +157,10 @@ export const Vaults = {
   /** Rename moves a file within the vault, making the folders it needs. */
   rename(id: string, from: string, to: string): Promise<FileInfo> {
     return call("Vaults.Rename", id, from, to);
+  },
+  /** ShowFile shows a file of the vault in the system's file manager. */
+  showFile(id: string, rel: string): Promise<void> {
+    return call("Vaults.ShowFile", id, rel);
   },
   /**
    * Startup opens the vault the app was started with, the first folder named

@@ -104,6 +104,12 @@ type folderPicker interface {
 	Open(opts mygo.OpenDialogOptions) ([]string, error)
 }
 
+// fileShell opens files in the system's apps: mygo.Shell, or a stand-in in tests.
+type fileShell interface {
+	OpenPath(path string) error
+	ShowItemInFolder(path string)
+}
+
 // Vaults opens the folders the user chooses as vaults, and reads, writes
 // and watches their files for the page. Every path it takes is relative to
 // a vault, and it refuses any that would leave it.
@@ -116,6 +122,9 @@ type Vaults struct {
 	// args are the app's command-line arguments: a folder among them is the
 	// vault to open at startup.
 	args []string
+	// media serves the vaults' images, PDFs, audio and video to the page.
+	media mediaServer
+	shell fileShell
 }
 
 // NewVaults keeps its list of recent vaults in the directory data, and opens
@@ -126,6 +135,7 @@ func NewVaults(data string, dialog folderPicker, args []string) *Vaults {
 		dialog: dialog,
 		recent: filepath.Join(data, "vaults.json"),
 		args:   args,
+		shell:  mygo.Shell,
 	}
 }
 
