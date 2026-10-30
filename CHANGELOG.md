@@ -109,6 +109,23 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and self-updating archive. Builds signed with an update key check for
   updates in the background, which the command palette turns off.
 
+- The performance harness on the reference vault of 50,000 notes:
+  `pnpm perf:bench` times search and parsing in Node.js, and
+  `pnpm --filter @nether/desktop perf:ui` switching notes and typing in
+  Chromium, both in CI; `tools/perf/desktop.ps1` times the desktop app's
+  start, its memory and how soon it picks up a note another app writes,
+  on Windows.
+
+### Changed
+
+- On a vault of 50,000 notes the desktop app opens to the last note in
+  about 1.2 s, down from 3.5 s, and settles at about 290 MB, down from
+  0.5 to 1.2 GB. The vault shows as soon as its notes are listed, and its
+  links load after the note it opens to, without the text around each
+  link, which the backlinks panel reads for the notes it shows
+  ([ADR 0014](docs/adr/0014-load-a-vaults-links-lean-and-after-its-note.md)).
+  The vault's index moves to schema version 6.
+
 ### Fixed
 
 - A dialog opened just after a note no longer loses its focus to the

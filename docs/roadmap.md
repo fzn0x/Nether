@@ -72,4 +72,4 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] Block links made from `[[`, writing the block's `^id` into its note
 - [x] Previews of web links, fetched only when asked
 - [x] The desktop packages: AppImage, deb and Flatpak on Linux, and updates that can be turned off (they start once a maintainer adds the update key)
-- [ ] The performance harness on the reference vault, which the gate runs
+- [x] The performance harness on the reference vault, which the gate runs ([tools/perf](../tools/perf/), [ADR 0014](adr/0014-load-a-vaults-links-lean-and-after-its-note.md))
