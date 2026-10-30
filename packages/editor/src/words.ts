@@ -64,6 +64,10 @@ export interface EditorWords {
   readonly revealFile: string;
   /** What an embedded note says, before its link, until notes can be embedded. */
   readonly embeddedNote: string;
+  /** The `[[` menu's name. */
+  readonly linkMenu: string;
+  /** What the `[[` menu says when no note matches. */
+  readonly noNotes: string;
 }
 
 export const englishWords: EditorWords = {
@@ -107,4 +111,6 @@ export const englishWords: EditorWords = {
   openFile: "Open",
   revealFile: "Show in folder",
   embeddedNote: "Embedded note",
+  linkMenu: "Notes",
+  noNotes: "No note by that name: type ]] to link to a new one",
 };

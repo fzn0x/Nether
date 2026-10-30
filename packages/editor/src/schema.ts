@@ -2,7 +2,7 @@
 // node, so a note opens without losing anything, and every block node holds
 // the block's stable ID (ADR 0002). Blocks without editing of their own yet,
 // such as embeds and raw Markdown, show as cards until their views arrive.
-import { type BlockId, newBlockId } from "@nether/core";
+import { type BlockId, type LinkTarget, newBlockId } from "@nether/core";
 import {
   type AnyExtension,
   type Editor,
@@ -10,6 +10,7 @@ import {
   Node,
   type NodeViewRenderer,
   mergeAttributes,
+  InputRule,
 } from "@tiptap/core";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
@@ -283,11 +284,63 @@ function targetText(target: unknown): string {
   return text;
 }
 
+/**
+ * A wiki link's target and alias from the text between its brackets, as
+ * Obsidian writes them: `Note`, `Note#Heading`, `Note#^block`, `Note^block`,
+ * `#Heading` within the note, and `|Alias` after any of them.
+ */
+export function parseLinkText(text: string): { target: LinkTarget; alias?: string } | undefined {
+  const bar = text.indexOf("|");
+  const main = (bar === -1 ? text : text.slice(0, bar)).trim();
+  const alias = bar === -1 ? "" : text.slice(bar + 1).trim();
+  const hash = main.indexOf("#");
+  let title = (hash === -1 ? main : main.slice(0, hash)).trim();
+  let rest = hash === -1 ? "" : main.slice(hash + 1).trim();
+  const caret = hash === -1 ? /^(.*?)\^([A-Za-z0-9-]+)$/.exec(title) : null;
+  if (caret !== null) {
+    title = (caret[1] ?? "").trim();
+    rest = `^${caret[2] ?? ""}`;
+  }
+  const block = rest.startsWith("^") ? (rest.slice(1) as BlockId) : undefined;
+  const heading = block === undefined && rest !== "" ? rest : undefined;
+  let target: LinkTarget;
+  if (title !== "") {
+    target = {
+      title,
+      ...(heading === undefined ? {} : { heading }),
+      ...(block === undefined ? {} : { block }),
+    };
+  } else if (block !== undefined) target = { block };
+  else if (heading !== undefined) target = { heading };
+  else return undefined;
+  return alias === "" ? { target } : { target, alias };
+}
+
 export const WikiLink = chipNode(
   "wikiLink",
   { target: jsonAttribute("target"), alias: dataAttribute("alias") },
   (attrs) => (typeof attrs.alias === "string" ? attrs.alias : targetText(attrs.target)),
-);
+).extend({
+  // `[[Note]]` typed in full becomes a link as its last bracket is typed.
+  addInputRules() {
+    return [
+      // The whole of `[[...]]`: TipTap's node rule would replace only the text inside.
+      new InputRule({
+        find: /\[\[([^[\]\n]+)\]\]$/,
+        handler: ({ state, range, match }) => {
+          const link = parseLinkText(match[1] ?? "");
+          if (link === undefined) return null;
+          state.tr.replaceWith(
+            range.from,
+            range.to,
+            this.type.create({ target: link.target, alias: link.alias ?? null }),
+          );
+          return undefined;
+        },
+      }),
+    ];
+  },
+});
 export const Tag = chipNode(
   "tag",
   { name: dataAttribute("name", "") },

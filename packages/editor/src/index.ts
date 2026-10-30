@@ -37,9 +37,17 @@ export {
   blockNodes,
   codeLanguage,
   netherExtensions,
+  parseLinkText,
 } from "./schema.ts";
 export { NoteEditor, type NoteEditorProps } from "./NoteEditor.tsx";
 export { SlashMenu, type SlashMenuOptions, slashMenuKey } from "./SlashMenu.tsx";
+export {
+  LinkMenu,
+  type LinkMenuOptions,
+  type LinkSuggestion,
+  type NoteLinks,
+  linkMenuKey,
+} from "./LinkMenu.tsx";
 export { netherNodeViews } from "./views.tsx";
 export {
   type BuiltInBlock,
