@@ -16,6 +16,7 @@ import {
 } from "@nether/core";
 import {
   type Row,
+  basePath,
   databaseKey,
   databaseOf,
   rowTitle,
@@ -26,10 +27,17 @@ import {
 import { documentProperties, setDocumentProperties } from "@nether/editor";
 import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
-import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { ListEditor } from "./PropertiesPanel.tsx";
-import { createRow, databaseRows, linkToNote, resolveLink, setNoteProperty } from "./databases.ts";
+import {
+  createRow,
+  databaseRows,
+  linkToNote,
+  resolveLink,
+  setNoteProperty,
+  syncBase,
+} from "./databases.ts";
 import { type MessageKey, t } from "./messages.ts";
 import { editableTypes, isListType, newPropertyKey } from "./properties.ts";
 import { useGraph } from "./useGraph.ts";
@@ -421,6 +429,30 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
     }
   }, [entries, graph, path, version]);
   const rows = useMemo(() => databaseRows(notes, graph, path), [notes, graph, path, version]);
+
+  // The Obsidian base beside the database, kept in step when its schema
+  // or the base itself changes, one sync after another.
+  const base = vault.fileInfo(basePath(path));
+  const schemaText =
+    "schema" in read && read.schema !== undefined ? JSON.stringify(read.schema) : undefined;
+  const syncing = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    if (!("schema" in read) || read.schema === undefined) return;
+    const current = read.schema;
+    const save = (next: DatabaseSchema) => {
+      const value = writeDatabase(next, linkToNote(graph));
+      setDocumentProperties(
+        document,
+        entries.map((entry) => (entry.key === databaseKey ? { key: databaseKey, value } : entry)),
+      );
+    };
+    syncing.current = syncing.current
+      .then(() => syncBase(vault, path, current, save))
+      .catch((problem: unknown) => {
+        setError(problem instanceof Error ? problem.message : String(problem));
+      });
+    // Again when the schema's text or the base's file changes, not on every render.
+  }, [schemaText, base?.modified, base?.size, path]);
 
   if ("problem" in read)
     return <p role="alert">{t("unreadableDatabase", { error: read.problem })}</p>;

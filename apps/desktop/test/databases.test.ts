@@ -1,5 +1,6 @@
 // The app's side of databases: rows from the vault and the link index, a
 // row's value written to its file, and new databases and rows.
+import type { DatabaseSchema } from "@nether/core";
 import { readDatabase } from "@nether/database";
 import { LinkGraph, indexNote } from "@nether/graph";
 import { parseMarkdown } from "@nether/markdown";
@@ -13,7 +14,9 @@ import {
   linkToNote,
   resolveLink,
   setNoteProperty,
+  syncBase,
 } from "../src/databases.ts";
+import { pageMoves } from "../src/renameNote.ts";
 
 async function setUp(files: Record<string, string>) {
   const memory = new MemoryFiles(files);
@@ -104,5 +107,84 @@ describe("databases in the vault", () => {
     expect(resolveLink(graph, "Index.md")("[[Acme]]")).toBe(acme);
     expect(resolveLink(graph, "Index.md")("[[Clients/Acme|the client]]")).toBe(acme);
     expect(resolveLink(graph, "Index.md")("[[Nobody]]")).toBeUndefined();
+  });
+});
+
+describe("the Obsidian base beside a database", () => {
+  const schemaOf = (views: unknown[]) =>
+    readDatabase(
+      {
+        properties: [
+          { key: "status", type: "select", options: [] },
+          { key: "due", type: "date" },
+        ],
+        views,
+      },
+      () => undefined,
+    );
+  const table = { name: "All", layout: "table", visible: ["status", "due"] };
+
+  it("writes the base, then writes nothing while nothing changes", async () => {
+    const { memory, vault, text } = await setUp({ "Projects.md": "" });
+    const saved: DatabaseSchema[] = [];
+    const schema = schemaOf([table]);
+    await syncBase(vault, "Projects.md", schema, (next) => saved.push(next));
+    expect(await text("Projects.base")).toContain("  - type: table\n    name: All\n");
+    const hash = (await memory.read("Projects.base")).hash;
+    expect(await vault.readData("bases")).toEqual({ "Projects.md": hash });
+    const modified = vault.fileInfo("Projects.base")?.modified;
+    await syncBase(vault, "Projects.md", schema, (next) => saved.push(next));
+    expect(vault.fileInfo("Projects.base")?.modified).toBe(modified);
+    expect(saved).toEqual([]);
+  });
+
+  it("brings back what Obsidian changed, keeping what is Obsidian's", async () => {
+    const { memory, vault, text } = await setUp({ "Projects.md": "" });
+    const schema = schemaOf([table]);
+    await syncBase(vault, "Projects.md", schema, () => undefined);
+    const edited = `${(await text("Projects.base")).replace("      - status\n", "")}  - type: map\n    name: Places\n`;
+    memory.edit(
+      "Projects.base",
+      edited.replace("    name: All\n", "    name: All\n    limit: 5\n"),
+    );
+    const saved: DatabaseSchema[] = [];
+    await syncBase(vault, "Projects.md", schema, (next) => saved.push(next));
+    expect(saved.map((next) => next.views.map((view) => view.visible))).toEqual([[["due"]]]);
+    const base = await text("Projects.base");
+    expect(base).toContain("    limit: 5\n");
+    expect(base).toContain("  - type: map\n    name: Places\n");
+    // Written again from the schema, so Nether knows it as its own.
+    expect(await vault.readData("bases")).toEqual({
+      "Projects.md": (await memory.read("Projects.base")).hash,
+    });
+  });
+
+  it("writes the base again when the schema changes in Nether, without reading it back", async () => {
+    const { vault, text } = await setUp({ "Projects.md": "" });
+    await syncBase(vault, "Projects.md", schemaOf([table]), () => undefined);
+    const saved: DatabaseSchema[] = [];
+    await syncBase(
+      vault,
+      "Projects.md",
+      schemaOf([table, { name: "Board", layout: "board", groupBy: "status", visible: [] }]),
+      (next) => saved.push(next),
+    );
+    expect(saved).toEqual([]);
+    expect(await text("Projects.base")).toContain("  - type: kanban\n    name: Board\n");
+  });
+
+  it("moves a database's base with it", async () => {
+    const { vault } = await setUp({
+      "Projects.md": "",
+      "Projects.base": "views: []\n",
+      "Plain.md": "",
+    });
+    expect(pageMoves(vault, "Projects.md", "Work.md")).toEqual([
+      { from: "Projects.md", to: "Work.md" },
+      { from: "Projects.base", to: "Work.base" },
+    ]);
+    expect(pageMoves(vault, "Plain.md", "Other.md")).toEqual([
+      { from: "Plain.md", to: "Other.md" },
+    ]);
   });
 });

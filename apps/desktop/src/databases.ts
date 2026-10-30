@@ -1,8 +1,16 @@
 // The app's side of databases (ADR 0018): a database's rows, from the
 // vault's notes and what the link index read of them; a row's value
 // written to its file; and new databases and rows.
-import type { JsonValue, NoteId } from "@nether/core";
-import { type Row, databaseKey, rowFolder, rowsOf } from "@nether/database";
+import type { DatabaseSchema, JsonValue, NoteId } from "@nether/core";
+import {
+  type Row,
+  basePath,
+  databaseKey,
+  readBase,
+  rowFolder,
+  rowsOf,
+  writeBase,
+} from "@nether/database";
 import type { LinkGraph } from "@nether/graph";
 import { parseMarkdown, serializeMarkdown } from "@nether/markdown";
 import { ChangedOnDisk, type NoteEntry, type Vault } from "@nether/storage";
@@ -88,4 +96,43 @@ export async function setNoteProperty(
       if (!(error instanceof ChangedOnDisk) || attempt >= 2) throw error;
     }
   }
+}
+
+/** The hash of each base Nether last wrote, by its database's path, kept in `.nether/bases.json`. */
+async function writtenBases(vault: Vault): Promise<Record<string, string>> {
+  const data = await vault.readData("bases");
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return {};
+  return Object.fromEntries(
+    Object.entries(data).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+}
+
+/**
+ * Keeps the Obsidian base beside a database in step with its schema (ADR
+ * 0018). What Obsidian changed in the base since Nether last wrote it,
+ * or in a base Nether did not write, comes back to the schema through
+ * `save`; then the base is written from the schema, when that changes it.
+ */
+export async function syncBase(
+  vault: Vault,
+  path: string,
+  schema: DatabaseSchema,
+  save: (next: DatabaseSchema) => void,
+): Promise<void> {
+  const where = basePath(path);
+  const written = await writtenBases(vault);
+  const file = await vault.readFile(where);
+  if (file.binary === true) return;
+  const exists = file.missing !== true;
+  let next = schema;
+  if (exists && written[path] !== file.hash) {
+    next = readBase(file.text, schema);
+    if (JSON.stringify(next) !== JSON.stringify(schema)) save(next);
+  }
+  const text = writeBase(next, path, exists ? file.text : undefined);
+  const hash =
+    exists && text === file.text
+      ? file.hash
+      : (await vault.writeFile(where, text, exists ? file.hash : "")).hash;
+  if (written[path] !== hash) await vault.writeData("bases", { ...written, [path]: hash });
 }

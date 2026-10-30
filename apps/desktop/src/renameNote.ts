@@ -8,6 +8,7 @@
 // note that moves to another folder has its own Markdown links led from
 // there.
 import type { NoteId } from "@nether/core";
+import { basePath } from "@nether/database";
 import type { LinkGraph } from "@nether/graph";
 import { type WrittenLink, findLinks, relinkMarkdown } from "@nether/markdown";
 import { ChangedOnDisk, type NoteEntry, type Vault, isNotePath } from "@nether/storage";
@@ -103,7 +104,12 @@ export function folderMoves(vault: Vault, folder: string, to: string): Move[] {
 
 /** The moves that put a note at `to` with its pages, those in the folder beside it, following it. */
 export function pageMoves(vault: Vault, from: string, to: string): Move[] {
-  return [{ from, to }, ...folderMoves(vault, pagesFolder(from), pagesFolder(to))];
+  // A database's Obsidian base goes with it (ADR 0018).
+  const base =
+    vault.fileInfo(basePath(from)) === undefined
+      ? []
+      : [{ from: basePath(from), to: basePath(to) }];
+  return [{ from, to }, ...base, ...folderMoves(vault, pagesFolder(from), pagesFolder(to))];
 }
 
 /** What a note's links say before the move: for each link that must change, by its start, the file it names. */

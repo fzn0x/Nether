@@ -19,6 +19,21 @@ async function fileText(page: Page, path: string): Promise<string | undefined> {
   }, path);
 }
 
+/** Changes a file of the sample vault as another app, such as Obsidian, would. */
+async function editFile(page: Page, path: string, text: string): Promise<void> {
+  await page.evaluate(
+    ([file, next]) => {
+      const preview = (
+        globalThis as unknown as {
+          netherPreview: { files: { edit(path: string, text: string): void } };
+        }
+      ).netherPreview;
+      preview.files.edit(file ?? "", next ?? "");
+    },
+    [path, text],
+  );
+}
+
 test("a database keeps its schema in its note and its values in its rows, and a view sorts, groups and filters them", async ({
   page,
 }) => {
@@ -89,6 +104,19 @@ test("a database keeps its schema in its note and its values in its rows, and a 
     .getByRole("combobox", { name: "Comparison of condition 1" })
     .selectOption("greaterThan");
   await database.getByRole("spinbutton", { name: "Value of condition 1" }).fill("5");
+  await expect(table.getByRole("rowheader")).toHaveText(["Untitled"]);
+
+  // The Obsidian base beside it, written from the schema.
+  await expect
+    .poll(() => fileText(page, "Untitled database.base"))
+    .toContain("    order:\n      - file.name\n      - Status\n      - Points\n");
+  await expect
+    .poll(() => fileText(page, "Untitled database.base"))
+    .toContain("    filters:\n      and:\n        - Points > 5\n");
+  // A column hidden in Obsidian is hidden here, the filter and sort kept.
+  const base = (await fileText(page, "Untitled database.base")) ?? "";
+  await editFile(page, "Untitled database.base", base.replace("      - Status\n", ""));
+  await expect(table.getByRole("columnheader")).toHaveText(["Name", "Points ↓"]);
   await expect(table.getByRole("rowheader")).toHaveText(["Untitled"]);
 
   const results = await new AxeBuilder({ page })
