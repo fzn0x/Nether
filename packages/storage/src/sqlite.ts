@@ -2,7 +2,7 @@
 // and the mobile apps will through Capacitor's. The schema is versioned with
 // SQLite's user_version, and each version's migration runs once.
 import type { NoteId } from "@nether/core";
-import type { FileRecord, IndexChange, IndexStore } from "./store.ts";
+import type { FileRecord, IndexChange, IndexStore, StoredDocument, StoredUpdate } from "./store.ts";
 
 export type SqlValue = string | number | bigint | Uint8Array | null;
 
@@ -37,6 +37,19 @@ const migrations: readonly (readonly string[])[] = [
       hash TEXT
     ) WITHOUT ROWID`,
   ],
+  [
+    // Each note's Yjs document: its updates in order, and the file it matches.
+    `CREATE TABLE document_updates (
+      note TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      data BLOB NOT NULL,
+      PRIMARY KEY (note, seq)
+    ) WITHOUT ROWID`,
+    `CREATE TABLE documents (
+      note TEXT PRIMARY KEY NOT NULL,
+      file_hash TEXT
+    ) WITHOUT ROWID`,
+  ],
 ];
 
 /** The schema version this code writes. */
@@ -47,6 +60,11 @@ const chunk = 2000;
 
 function text(value: SqlValue | undefined): string {
   if (typeof value !== "string") throw new Error("The index holds a value of the wrong type.");
+  return value;
+}
+
+function bytes(value: SqlValue | undefined): Uint8Array {
+  if (!(value instanceof Uint8Array)) throw new Error("The index holds a value of the wrong type.");
   return value;
 }
 
@@ -124,6 +142,52 @@ export class SqliteStore implements IndexStore {
     for (let start = 0; start < statements.length; start += chunk) {
       await this.#database.transaction(statements.slice(start, start + chunk));
     }
+  }
+
+  async document(note: NoteId): Promise<StoredDocument> {
+    const { rows } = await this.#database.query(
+      "SELECT seq, data FROM document_updates WHERE note = ? ORDER BY seq",
+      [note],
+    );
+    const updates: StoredUpdate[] = rows.map(([seq, data]) => ({
+      seq: integer(seq),
+      data: bytes(data),
+    }));
+    const hash = await this.#database.query("SELECT file_hash FROM documents WHERE note = ?", [
+      note,
+    ]);
+    const fileHash = hash.rows[0]?.[0];
+    return typeof fileHash === "string" ? { updates, fileHash } : { updates };
+  }
+
+  async appendUpdates(note: NoteId, updates: readonly Uint8Array[]): Promise<void> {
+    if (updates.length === 0) return;
+    // Each numbered after the note's last, in one transaction.
+    await this.#database.transaction(
+      updates.map((data) => ({
+        sql: `INSERT INTO document_updates (note, seq, data)
+          SELECT ?, COALESCE(MAX(seq), 0) + 1, ? FROM document_updates WHERE note = ?`,
+        params: [note, data, note],
+      })),
+    );
+  }
+
+  async compact(note: NoteId, snapshot: Uint8Array, through: number): Promise<void> {
+    await this.#database.transaction([
+      { sql: "DELETE FROM document_updates WHERE note = ? AND seq <= ?", params: [note, through] },
+      {
+        sql: "INSERT INTO document_updates (note, seq, data) VALUES (?, ?, ?)",
+        params: [note, through, snapshot],
+      },
+    ]);
+  }
+
+  async setFileHash(note: NoteId, hash: string): Promise<void> {
+    await this.#database.execute(
+      `INSERT INTO documents (note, file_hash) VALUES (?, ?)
+        ON CONFLICT (note) DO UPDATE SET file_hash = excluded.file_hash`,
+      [note, hash],
+    );
   }
 
   close(): Promise<void> {
