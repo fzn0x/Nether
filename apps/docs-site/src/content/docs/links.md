@@ -62,8 +62,8 @@ gives, as in `[[Projects/Next steps]]`.
 
 Click a note's name above it, change it, and press Enter; Escape keeps the
 old name. Every link to the note follows: Nether rewrites the links that
-named it, in every note and in its own frontmatter, so they find it under
-its new name.
+named it, in the text and the properties of every note, so they find it
+under its new name.
 
 - A wiki link names the note by its new name, or by its path when another
   note has that name or the link was written with a path, and keeps its
