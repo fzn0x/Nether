@@ -21,6 +21,16 @@ export interface Connection {
   readonly store: IndexStore;
 }
 
+/** Bytes as base64, which is how the Go services take them. */
+function base64(data: Uint8Array): string {
+  let binary = "";
+  // In pieces: String.fromCharCode takes only so many arguments.
+  for (let start = 0; start < data.length; start += 0x8000) {
+    binary += String.fromCharCode(...data.subarray(start, start + 0x8000));
+  }
+  return btoa(binary);
+}
+
 export interface Backend {
   /** The desktop app, or a browser showing the sample vault. */
   readonly kind: "desktop" | "preview";
@@ -68,6 +78,10 @@ class DesktopFiles implements VaultFiles {
 
   rename(from: string, to: string) {
     return Vaults.rename(this.#id, from, to);
+  }
+
+  attach(path: string, data: Uint8Array) {
+    return Vaults.attach(this.#id, path, base64(data));
   }
 
   remove(path: string) {

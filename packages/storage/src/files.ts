@@ -50,6 +50,13 @@ export interface VaultFiles {
   write(path: string, text: string, base: string): Promise<FileText>;
   /** Moves a file, making the folders it needs; it throws if a file is there. */
   rename(from: string, to: string): Promise<FileInfo>;
+  /**
+   * Adds a file of bytes, such as an image pasted into a note, making the
+   * folders it needs. It never replaces a file: when the path is taken it
+   * uses the first free name of `name 1.png`, `name 2.png` and so on, and
+   * returns where the file went.
+   */
+  attach(path: string, data: Uint8Array): Promise<FileInfo>;
   /** Moves a file to the vault's trash and returns where it went. */
   remove(path: string): Promise<string>;
   /** Calls `each` with batches of changes until `signal` aborts. */

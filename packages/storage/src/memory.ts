@@ -13,6 +13,8 @@ import {
 
 interface Entry {
   text: string;
+  /** The bytes of a file that is not text, such as an image. */
+  bytes?: Uint8Array;
   modified: number;
 }
 
@@ -60,7 +62,8 @@ export class MemoryFiles implements VaultFiles {
   }
 
   #info(path: string, entry: Entry): FileInfo {
-    return { path, size: encoder.encode(entry.text).length, modified: entry.modified };
+    const size = entry.bytes?.length ?? encoder.encode(entry.text).length;
+    return { path, size, modified: entry.modified };
   }
 
   #emit(events: readonly FileEvent[]): void {
@@ -90,6 +93,9 @@ export class MemoryFiles implements VaultFiles {
     const entry = this.#entries.get(path);
     if (entry === undefined)
       return { path, size: 0, modified: 0, text: "", hash: "", missing: true };
+    if (entry.bytes !== undefined) {
+      return { ...this.#info(path, entry), text: "", hash: "", binary: true };
+    }
     return { ...this.#info(path, entry), text: entry.text, hash: await sha256(entry.text) };
   }
 
@@ -118,6 +124,26 @@ export class MemoryFiles implements VaultFiles {
     this.#entries.set(to, entry);
     this.#emit([{ op: "rename", path: to, oldPath: from, isDir: false }]);
     return Promise.resolve(this.#info(to, entry));
+  }
+
+  attach(path: string, data: Uint8Array): Promise<FileInfo> {
+    checkPath(path);
+    const slash = path.lastIndexOf("/");
+    const dot = path.lastIndexOf(".");
+    const [stem, ext] = dot > slash + 1 ? [path.slice(0, dot), path.slice(dot)] : [path, ""];
+    let target = path;
+    for (let n = 1; this.#entries.has(target); n++) target = `${stem} ${String(n)}${ext}`;
+    const entry = { text: "", bytes: data.slice(), modified: this.#tick() };
+    this.#entries.set(target, entry);
+    this.#emit([{ op: "create", path: target, isDir: false }]);
+    return Promise.resolve(this.#info(target, entry));
+  }
+
+  /** A file's bytes, text or not, as the page loads them: the browser preview shows images so. */
+  bytes(path: string): Uint8Array<ArrayBuffer> | undefined {
+    const entry = this.#entries.get(path);
+    if (entry === undefined) return undefined;
+    return entry.bytes?.slice() ?? encoder.encode(entry.text);
   }
 
   remove(path: string): Promise<string> {

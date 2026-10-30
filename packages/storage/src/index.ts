@@ -10,6 +10,7 @@ export {
   isNotePath,
   noteTitle,
 } from "./files.ts";
+export { LinkIndex, normalizeLink } from "./links.ts";
 export { MemoryFiles, sha256 } from "./memory.ts";
 export {
   type Database,

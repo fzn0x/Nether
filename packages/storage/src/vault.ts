@@ -12,6 +12,7 @@ import {
   isNotePath,
   noteTitle,
 } from "./files.ts";
+import { LinkIndex } from "./links.ts";
 import type { FileRecord, IndexChange, IndexStore } from "./store.ts";
 
 /** A note in the vault. */
@@ -63,6 +64,7 @@ export class Vault {
   readonly #paths = new Map<NoteId, string>();
   readonly #listeners = new Set<() => void>();
   #notes: NoteEntry[] | undefined;
+  #links: LinkIndex | undefined;
   #queue: Promise<void> = Promise.resolve();
 
   constructor(files: VaultFiles, store: IndexStore, options: VaultOptions = {}) {
@@ -115,6 +117,24 @@ export class Vault {
   noteAt(path: string): NoteEntry | undefined {
     const note = this.#records.get(path)?.note;
     return note === undefined ? undefined : this.note(note);
+  }
+
+  /**
+   * The path of the file a link names from the note at `from`, as Obsidian
+   * finds it: an embed's `![[photo.png]]` or an image's `![](photo.png)`.
+   */
+  resolveFile(link: string, from: string): string | undefined {
+    return this.#linkIndex().resolve(link, from);
+  }
+
+  /** The shortest link to the file at `path` from the note at `from`. */
+  linkTo(path: string, from: string): string {
+    return this.#linkIndex().linkTo(path, from);
+  }
+
+  #linkIndex(): LinkIndex {
+    this.#links ??= new LinkIndex(this.#records.keys());
+    return this.#links;
   }
 
   /** Calls `listener` after every change to the vault's notes; returns a function that stops it. */
@@ -189,6 +209,21 @@ export class Vault {
       ],
     });
     return this.note(id) ?? this.#fail(path);
+  }
+
+  /**
+   * Adds a file that is not a note, such as an image pasted into one, at
+   * `path` or the first free name like it, and returns where it went.
+   */
+  attach(path: string, data: Uint8Array): Promise<string> {
+    return this.#serial(async () => {
+      if (isNotePath(path)) throw new Error(`${path} is a Markdown file, not an attachment.`);
+      const added = await this.#files.attach(path, data);
+      await this.#commit({
+        upsert: [{ path: added.path, size: added.size, modified: added.modified }],
+      });
+      return added.path;
+    });
   }
 
   /** Moves a note to a new path; it keeps its ID. */
@@ -376,6 +411,11 @@ export class Vault {
   async #commit(change: IndexChange): Promise<void> {
     if ((change.remove?.length ?? 0) === 0 && (change.upsert?.length ?? 0) === 0) return;
     await this.#store.apply(change);
+    // Links find files by path: an edit that keeps every path keeps the index.
+    const moves =
+      (change.remove?.length ?? 0) > 0 ||
+      (change.upsert ?? []).some((record) => !this.#records.has(record.path));
+    if (moves) this.#links = undefined;
     for (const path of change.remove ?? []) {
       const record = this.#records.get(path);
       this.#records.delete(path);
