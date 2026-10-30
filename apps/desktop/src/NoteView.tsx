@@ -56,8 +56,11 @@ export default function NoteView(props: {
   readonly onMode: (mode: NoteMode) => void;
   /** Moves the note to the vault's trash. */
   readonly onTrash: () => void;
+  /** Exports the note, its folder or the vault. */
+  readonly onExport: () => void;
 }) {
-  const { vault, media, graph, id, focus, mode, onMode, onOpenNote, onOpenTag, onTrash } = props;
+  const { vault, media, graph, id, focus, mode, onMode, onOpenNote, onOpenTag, onTrash, onExport } =
+    props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
   const [fileError, setFileError] = useState<string | undefined>();
@@ -134,6 +137,15 @@ export default function NoteView(props: {
                 onClick={() => void toggle()}
               >
                 {t("sourceMode")}
+              </button>
+              <button
+                type="button"
+                className="quiet"
+                aria-haspopup="dialog"
+                title={t("exportHint")}
+                onClick={onExport}
+              >
+                {t("export")}
               </button>
               <button
                 type="button"

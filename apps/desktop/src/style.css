@@ -1531,6 +1531,11 @@ button {
   cursor: default;
 }
 
+/* The print view a PDF export is printed from, out of sight. */
+#print-root {
+  display: none;
+}
+
 /* The vault's trash, in the sidebar. */
 .trash-panel {
   display: flex;

@@ -18,6 +18,7 @@ import {
 import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
+import { ExportDialog } from "./ExportDialog.tsx";
 import { NewNoteDialog } from "./NewNoteDialog.tsx";
 import { NoteList } from "./NoteList.tsx";
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
@@ -103,7 +104,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const [switcher, setSwitcher] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
-  const [dialog, setDialog] = useState<"newNote" | "settings" | undefined>();
+  const [dialog, setDialog] = useState<"newNote" | "settings" | "export" | undefined>();
   // What happened to a note: a template the vault no longer has, or the note moved to the trash.
   const [notice, setNotice] = useState<
     { readonly text: string; readonly restore?: string } | undefined
@@ -437,6 +438,25 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
           }}
         />
       ) : null}
+      {dialog === "export" && state.status === "open" && selected !== undefined
+        ? (() => {
+            const note = state.vault.note(selected);
+            return note === undefined ? null : (
+              <ExportDialog
+                vault={state.vault}
+                vaultName={info.name}
+                graph={state.indexer.graph}
+                media={state.media}
+                exporter={state.exporter}
+                note={note}
+                notes={notes}
+                onClose={() => {
+                  setDialog(undefined);
+                }}
+              />
+            );
+          })()
+        : null}
       <main className="pane">
         {state.status === "open" && selected !== undefined ? (
           <Suspense fallback={null}>
@@ -452,6 +472,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               onMode={setMode}
               onTrash={() => {
                 trashNote(selected);
+              }}
+              onExport={() => {
+                setDialog("export");
               }}
             />
           </Suspense>
