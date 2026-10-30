@@ -45,6 +45,8 @@ test("a line break written in source stays a new line when its paragraph is edit
   const notes = await openSample(page);
   await notes.getByRole("button", { name: /Roadmap/ }).click();
   await page.getByRole("button", { name: "Markdown source" }).click();
+  // The source editor loads the first time, then takes focus.
+  await expect(sourceOf(page, "Roadmap")).toBeFocused();
   await page.keyboard.press("ControlOrMeta+End");
   await page.keyboard.type("\nfirst line\nsecond line\n");
   await settle(page);

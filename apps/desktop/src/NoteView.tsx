@@ -2,16 +2,21 @@
 // It shows as blocks, or as its Markdown source, which Ctrl or Cmd and /
 // switches between.
 import type { NoteId } from "@nether/core";
-import { NoteEditor, SourceEditor } from "@nether/editor";
+import { NoteEditor } from "@nether/editor";
 import "@nether/editor/math.css";
 import type { Vault } from "@nether/storage";
-import { type KeyboardEvent, useMemo, useState } from "react";
+import { type KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
 import type { VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
 import { noteFiles } from "./noteFiles.ts";
 import { useNote } from "./useNote.ts";
 
 export type NoteMode = "blocks" | "source";
+
+// CodeMirror loads the first time a note shows its source.
+const SourceEditor = lazy(() =>
+  import("@nether/editor/source").then(({ SourceEditor: editor }) => ({ default: editor })),
+);
 
 const vimKey = "nether.vim";
 
@@ -117,16 +122,18 @@ export default function NoteView(props: {
       ) : state.status === "binary" ? (
         <p className="placeholder">{t("binaryNote")}</p>
       ) : state.status === "loading" ? null : mode === "source" ? (
-        <SourceEditor
-          // A note read again, or the other editor's changes, start a new editor.
-          key={state.version}
-          text={state.text}
-          onChange={editText}
-          label={t("noteSource", { title: note.title })}
-          placeholder={t("emptySource")}
-          vim={vim}
-          autofocus={switched}
-        />
+        <Suspense fallback={null}>
+          <SourceEditor
+            // A note read again, or the other editor's changes, start a new editor.
+            key={state.version}
+            text={state.text}
+            onChange={editText}
+            label={t("noteSource", { title: note.title })}
+            placeholder={t("emptySource")}
+            vim={vim}
+            autofocus={switched}
+          />
+        </Suspense>
       ) : (
         <NoteEditor
           key={state.version}

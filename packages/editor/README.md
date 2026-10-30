@@ -42,7 +42,7 @@ language's words as `words`, and English is the default.
 | `src/embeds.tsx` | Images, PDFs, audio and video in a note, and a field or file picker for blocks without one |
 | `src/words.ts` | Every word the editor shows, in English |
 | `src/NoteEditor.tsx` | The editor for one note, in React |
-| `src/SourceEditor.tsx` | Source mode: the note's Markdown in CodeMirror, with its line endings kept, and Vim keys on request |
+| `src/SourceEditor.tsx` | Source mode, imported from `@nether/editor/source` so CodeMirror loads only for it: the note's Markdown, with its line endings kept, and Vim keys on request |
 
 The core model keeps each list item as a block of its own; the editor keeps
 lists the ProseMirror way, items inside a list node, so that Enter, Tab and
