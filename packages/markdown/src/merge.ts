@@ -4,7 +4,13 @@
 // blocks new IDs: matching them by content keeps the IDs that the note's
 // document, links and comments know. The merge then applies, block by
 // block, what changed in the file since Nether last wrote or read it.
-import { type Block, type BlockId, type ContentBlock, newBlockId } from "@nether/core";
+import {
+  type Block,
+  type BlockId,
+  type ContentBlock,
+  type PropertyEntry,
+  newBlockId,
+} from "@nether/core";
 import type { ParsedMarkdown } from "./parse.ts";
 import { fingerprint } from "./source.ts";
 
@@ -238,4 +244,38 @@ export function mergeBlocks(
     offset++;
   }
   return result;
+}
+
+/**
+ * Merges another app's edit to a note's properties, key by key, as the
+ * blocks merge: `base` as Nether last wrote or read them, `ours` now, and
+ * `theirs` in the file now. A key one side changed, added or removed takes
+ * that change; one both changed keeps ours, as ADR 0003 has every device
+ * keep the same one of the two values. The file's order comes first, then
+ * keys only ours has.
+ */
+export function mergeProperties(
+  base: readonly PropertyEntry[],
+  ours: readonly PropertyEntry[],
+  theirs: readonly PropertyEntry[],
+): PropertyEntry[] {
+  const json = (entry: PropertyEntry | undefined) =>
+    entry === undefined ? undefined : JSON.stringify(entry.value);
+  const baseByKey = new Map(base.map((entry) => [entry.key, entry]));
+  const oursByKey = new Map(ours.map((entry) => [entry.key, entry]));
+  const theirsByKey = new Map(theirs.map((entry) => [entry.key, entry]));
+  const keys = [...theirs.map((entry) => entry.key), ...ours.map((entry) => entry.key)].filter(
+    (key, index, all) => all.indexOf(key) === index,
+  );
+  const merged: PropertyEntry[] = [];
+  for (const key of keys) {
+    const was = json(baseByKey.get(key));
+    const our = oursByKey.get(key);
+    const their = theirsByKey.get(key);
+    const ourChanged = json(our) !== was;
+    const theirChanged = json(their) !== was;
+    const chosen = ourChanged || !theirChanged ? our : their;
+    if (chosen !== undefined) merged.push(chosen);
+  }
+  return merged;
 }

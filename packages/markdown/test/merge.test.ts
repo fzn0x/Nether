@@ -1,10 +1,16 @@
 // A note read again from its file keeps the IDs Nether knows, and another
 // app's edit merges into the note with nothing either side wrote lost:
 // examples, and random edits on both sides at once.
-import type { BlockId, ContentBlock, Inline } from "@nether/core";
+import type { BlockId, ContentBlock, Inline, PropertyEntry } from "@nether/core";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { alignBlocks, mergeBlocks, parseMarkdown, serializeMarkdown } from "../src/index.ts";
+import {
+  alignBlocks,
+  mergeBlocks,
+  mergeProperties,
+  parseMarkdown,
+  serializeMarkdown,
+} from "../src/index.ts";
 
 const runs = Number(process.env.PROPERTY_RUNS ?? 300);
 
@@ -187,5 +193,42 @@ describe("mergeBlocks", () => {
       ),
       { numRuns: runs },
     );
+  });
+});
+
+describe("mergeProperties", () => {
+  const entry = (key: string, value: unknown) => ({ key, value }) as PropertyEntry;
+  const base = [entry("status", "draft"), entry("tags", ["a"]), entry("due", "2026-11-01")];
+
+  it("takes each side's change to a key, theirs where both left it", () => {
+    const ours = [entry("status", "done"), entry("tags", ["a"]), entry("due", "2026-11-01")];
+    const theirs = [entry("status", "draft"), entry("tags", ["a", "b"]), entry("owner", "me")];
+    expect(mergeProperties(base, ours, theirs)).toEqual([
+      entry("status", "done"),
+      entry("tags", ["a", "b"]),
+      entry("owner", "me"),
+    ]);
+  });
+
+  it("keeps ours where both changed a key, and keys only ours added, after the file's", () => {
+    const ours = [
+      entry("status", "ours"),
+      entry("tags", ["a"]),
+      entry("due", "2026-11-01"),
+      entry("new", 1),
+    ];
+    const theirs = [entry("due", "2026-11-01"), entry("status", "theirs"), entry("tags", ["a"])];
+    expect(mergeProperties(base, ours, theirs)).toEqual([
+      entry("due", "2026-11-01"),
+      entry("status", "ours"),
+      entry("tags", ["a"]),
+      entry("new", 1),
+    ]);
+  });
+
+  it("removes a key one side removed and the other left", () => {
+    const ours = [entry("status", "draft"), entry("tags", ["a"])];
+    const theirs = [entry("status", "draft"), entry("due", "2026-11-01")];
+    expect(mergeProperties(base, ours, theirs)).toEqual([entry("status", "draft")]);
   });
 });
