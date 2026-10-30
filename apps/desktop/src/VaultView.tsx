@@ -1,7 +1,10 @@
 // An open vault: its notes, or its tags, on the left, and the selected note
-// in the editor on the right. A tag shows the notes with it.
-import type { NoteId } from "@nether/core";
+// in the editor on the right. A tag shows the notes with it. New notes are
+// made blank or from a template, and today's, this week's and this month's
+// notes open, made the first time from theirs.
+import type { NoteId, Period } from "@nether/core";
 import type { LinkGraph } from "@nether/graph";
+import type { NoteEntry } from "@nether/storage";
 import {
   Suspense,
   lazy,
@@ -15,18 +18,24 @@ import {
 import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
+import { NewNoteDialog } from "./NewNoteDialog.tsx";
 import { NoteList } from "./NoteList.tsx";
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
 import { SearchPanel } from "./SearchPanel.tsx";
+import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
 import type { NotePart } from "./noteLinks.ts";
 import type { NoteMode } from "./NoteView.tsx";
+import { findTemplate, nameOf, periodicNote, periods, templateChoices } from "./templates.ts";
 import { useGraph } from "./useGraph.ts";
+import { useTemplateSettings } from "./useTemplateSettings.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
 // show while they do.
 const loadNoteView = () => import("./NoteView.tsx");
 const NoteView = lazy(loadNoteView);
+// Making a note from a template takes the editor's document and the parser.
+const loadCreateNote = () => import("./createNote.ts");
 
 const numbers = new Intl.NumberFormat();
 
@@ -93,6 +102,10 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const [switcher, setSwitcher] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
+  const [dialog, setDialog] = useState<"newNote" | "settings" | undefined>();
+  // What happened when a note was made, such as a template the vault no longer has.
+  const [notice, setNotice] = useState<string | undefined>();
+  const { settings, save } = useTemplateSettings(vault);
   const version = useGraph(graph);
 
   useEffect(() => {
@@ -108,6 +121,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       if (key === "o" && !event.shiftKey) {
         event.preventDefault();
         setSwitcher(true);
+      } else if (key === "n" && !event.shiftKey) {
+        event.preventDefault();
+        setDialog("newNote");
       } else if (key === "f" && event.shiftKey) {
         event.preventDefault();
         setPanel("search");
@@ -135,6 +151,58 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
     setPanel("notes");
   }, []);
 
+  /** Makes a note at `path`, blank or from a template, and opens it with the cursor where the template puts it. */
+  const makeNote = useCallback(
+    async (path: string, template: NoteEntry | undefined, date: Date) => {
+      if (vault === undefined) return;
+      const [{ createNote }, file] = await Promise.all([
+        loadCreateNote(),
+        template === undefined ? undefined : vault.read(template.id),
+      ]);
+      const text =
+        file === undefined || file.missing === true || file.binary === true ? undefined : file.text;
+      const values = {
+        title: nameOf(path),
+        date,
+        now: new Date(),
+        dateFormat: settings.dateFormat,
+        timeFormat: settings.timeFormat,
+      };
+      const created = await createNote(
+        vault,
+        path,
+        text === undefined ? undefined : { text, values },
+      );
+      setTag(undefined);
+      setPanel("notes");
+      openNote(created.id, created.cursor);
+    },
+    [vault, settings, openNote],
+  );
+
+  /** Opens the note for the day, week or month it is, made from its template the first time. */
+  const openPeriodic = useCallback(
+    (period: Period) => {
+      if (vault === undefined) return;
+      setNotice(undefined);
+      const { path, date } = periodicNote(settings, period, new Date());
+      const existing = vault.noteAt(path);
+      if (existing !== undefined) {
+        openNote(existing.id);
+        return;
+      }
+      const named = settings[period].template;
+      const template = findTemplate(vault.notes(), settings, named);
+      if (named !== "" && template === undefined) {
+        setNotice(t("templateMissing", { template: named }));
+      }
+      makeNote(path, template, date).catch((error: unknown) => {
+        setNotice(error instanceof Error ? error.message : String(error));
+      });
+    },
+    [vault, settings, openNote, makeNote],
+  );
+
   const shown = useMemo(() => {
     if (tag === undefined || graph === undefined) return notes;
     const tagged = new Set(graph.notesWithTag(tag));
@@ -146,9 +214,23 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       <aside className="sidebar" aria-label={info.name}>
         <header className="sidebar-header">
           <h2 title={info.path}>{info.name}</h2>
-          <button type="button" className="quiet" onClick={onClose}>
-            {t("closeVault")}
-          </button>
+          <div className="sidebar-header-actions">
+            {state.status === "open" ? (
+              <button
+                type="button"
+                className="quiet"
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setDialog("settings");
+                }}
+              >
+                {t("vaultSettings")}
+              </button>
+            ) : null}
+            <button type="button" className="quiet" onClick={onClose}>
+              {t("closeVault")}
+            </button>
+          </div>
         </header>
         {state.status === "opening" ? (
           <p className="placeholder" role="status">
@@ -158,6 +240,38 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
           <p role="alert">{state.error.message}</p>
         ) : (
           <>
+            <div className="sidebar-actions">
+              <button
+                type="button"
+                aria-haspopup="dialog"
+                aria-keyshortcuts="Control+N Meta+N"
+                title={t("newNoteHint")}
+                onClick={() => {
+                  setDialog("newNote");
+                }}
+              >
+                {t("newNote")}
+              </button>
+              {periods
+                .filter((period) => settings[period].enabled)
+                .map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    title={t(`${period}NoteHint`)}
+                    onClick={() => {
+                      openPeriodic(period);
+                    }}
+                  >
+                    {t(`${period}Note`)}
+                  </button>
+                ))}
+            </div>
+            {notice === undefined ? null : (
+              <p className="notice sidebar-notice" role="status">
+                {notice}
+              </p>
+            )}
             <div className="sidebar-tabs">
               <button
                 type="button"
@@ -239,6 +353,28 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
           onOpen={openNote}
           onClose={() => {
             setSwitcher(false);
+          }}
+        />
+      ) : null}
+      {dialog === "newNote" && state.status === "open" ? (
+        <NewNoteDialog
+          notes={notes}
+          settings={settings}
+          onCreate={(path, template) => makeNote(path, template, new Date())}
+          onClose={() => {
+            setDialog(undefined);
+          }}
+        />
+      ) : null}
+      {dialog === "settings" && state.status === "open" ? (
+        <TemplateSettingsDialog
+          settings={settings}
+          templates={templateChoices(notes, settings.folder, "").map((note) =>
+            note.path.replace(/\.md$/i, ""),
+          )}
+          onSave={save}
+          onClose={() => {
+            setDialog(undefined);
           }}
         />
       ) : null}

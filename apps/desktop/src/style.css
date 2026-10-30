@@ -260,6 +260,39 @@ button {
 }
 
 /* The sidebar's notes and tags, and a tag's notes. */
+.sidebar-header-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* New note, and the periodic notes, above the tabs. */
+.sidebar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0 0.75rem 0.5rem;
+}
+
+.sidebar-actions button {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.sidebar-actions button:hover {
+  border-color: var(--muted);
+}
+
+.sidebar-notice {
+  margin: 0 0.75rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
 .sidebar-tabs {
   display: flex;
   gap: 0.25rem;
@@ -1392,4 +1425,108 @@ button {
   .property .property-key {
     grid-column: 1 / -1;
   }
+}
+
+/* Dialogs over the vault: a new note, and the vault's settings. */
+.dialog {
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  font-size: 0.9375rem;
+}
+
+.dialog h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.dialog fieldset {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dialog legend {
+  margin-bottom: 0.5rem;
+  padding: 0;
+  font-weight: 600;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.field input,
+.template-choices input[type="search"] {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.field .hint {
+  font-size: 0.8125rem;
+}
+
+.field-check {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.template-choices {
+  min-height: 0;
+}
+
+.template-list {
+  max-height: 14rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.template-option {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  padding: 0.3rem 0.4rem;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.template-option:hover,
+.template-option:has(input:checked) {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.dialog-body {
+  display: grid;
+  gap: 1.25rem;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.settings-dialog {
+  max-height: 80vh;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.dialog-actions .primary:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
