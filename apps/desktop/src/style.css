@@ -878,6 +878,12 @@ button {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
+.slash-detail {
+  margin-left: 0.5rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
 .slash-empty {
   margin: 0;
   padding: 0.35rem 0.6rem;

@@ -4,11 +4,13 @@
 import type { NoteId } from "@nether/core";
 import { NoteEditor } from "@nether/editor";
 import "@nether/editor/math.css";
+import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
 import { type KeyboardEvent, Suspense, lazy, useMemo, useState } from "react";
 import type { VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
 import { noteFiles } from "./noteFiles.ts";
+import { noteLinks } from "./noteLinks.ts";
 import { useNote } from "./useNote.ts";
 
 export type NoteMode = "blocks" | "source";
@@ -40,11 +42,14 @@ function storeVim(on: boolean): void {
 export default function NoteView(props: {
   readonly vault: Vault;
   readonly media: VaultMedia;
+  readonly graph: LinkGraph;
   readonly id: NoteId;
+  /** Opens another note, as a link in this one does. */
+  readonly onOpenNote: (id: NoteId) => void;
   readonly mode: NoteMode;
   readonly onMode: (mode: NoteMode) => void;
 }) {
-  const { vault, media, id, mode, onMode } = props;
+  const { vault, media, graph, id, mode, onMode, onOpenNote } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
   const [fileError, setFileError] = useState<string | undefined>();
@@ -57,6 +62,13 @@ export default function NoteView(props: {
         setFileError(error instanceof Error ? error.message : String(error));
       }),
     [vault, media, id],
+  );
+  const links = useMemo(
+    () =>
+      noteLinks(vault, graph, id, onOpenNote, (error) => {
+        setFileError(error instanceof Error ? error.message : String(error));
+      }),
+    [vault, graph, id, onOpenNote],
   );
 
   const toggle = async () => {
@@ -137,6 +149,7 @@ export default function NoteView(props: {
           label={t("noteBody", { title: note.title })}
           placeholder={t("emptyNote")}
           files={files}
+          links={links}
           autofocus={switched}
         />
       )}

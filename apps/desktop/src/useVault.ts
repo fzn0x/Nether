@@ -4,11 +4,18 @@
 import { type NoteEntry, Vault } from "@nether/storage";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { type VaultMedia, backend } from "./backend.ts";
+import { Indexer } from "./indexer.ts";
 import type { VaultInfo } from "./mygo.ts";
 
 export type VaultState =
   | { readonly status: "opening" }
-  | { readonly status: "open"; readonly vault: Vault; readonly media: VaultMedia }
+  | {
+      readonly status: "open";
+      readonly vault: Vault;
+      readonly media: VaultMedia;
+      /** The vault's link index, which reads notes in the background. */
+      readonly indexer: Indexer;
+    }
   | { readonly status: "failed"; readonly error: Error };
 
 export function useVault(info: VaultInfo): VaultState {
@@ -19,6 +26,7 @@ export function useVault(info: VaultInfo): VaultState {
     // A function, so each await reads the signal again.
     const aborted = () => controller.signal.aborted;
     let closeStore: (() => Promise<void>) | undefined;
+    let indexer: Indexer | undefined;
     void (async () => {
       try {
         const { files, store, media } = await backend.connect(info);
@@ -30,7 +38,13 @@ export function useVault(info: VaultInfo): VaultState {
         const vault = new Vault(files, store);
         await vault.open();
         if (aborted()) return;
-        setState({ status: "open", vault, media });
+        indexer = new Indexer(
+          vault,
+          new Worker(new URL("./indexer.worker.ts", import.meta.url), { type: "module" }),
+        );
+        await indexer.start();
+        if (aborted()) return;
+        setState({ status: "open", vault, media, indexer });
         await vault.watch(controller.signal);
       } catch (error) {
         if (!aborted()) {
@@ -43,6 +57,7 @@ export function useVault(info: VaultInfo): VaultState {
     })();
     return () => {
       controller.abort();
+      indexer?.stop();
       void closeStore?.();
     };
   }, [info]);

@@ -15,6 +15,7 @@ export const messages = {
   noteCount: "{count} notes",
   oneNote: "1 note",
   indexing: "Reading the vault",
+  indexingLinks: "Reading links: {done} of {total}",
   selectNote: "Select a note to read it.",
   noNotes: "This vault has no notes yet.",
   binaryNote: "This file is not UTF-8 text, so Nether leaves it as it is.",
@@ -27,7 +28,7 @@ export const messages = {
   sourceModeHint: "Show the note as its Markdown, or as blocks again (Ctrl+/)",
   vimKeys: "Vim keys",
   saveFailed: "The note could not be saved: {error}",
-  fileFailed: "The file could not be added or opened: {error}",
+  fileFailed: "The file could not be added or opened, or the note made: {error}",
   errorTitle: "Something went wrong",
   dismiss: "Dismiss",
 } as const;

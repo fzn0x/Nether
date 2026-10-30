@@ -15,7 +15,11 @@ left to read it, or see [[Projects/Roadmap|the roadmap]].
 - [x] Read the sample vault
 - [ ] Open a folder of my own #start
 `,
-  "Projects/Roadmap.md": `# Roadmap
+  "Projects/Roadmap.md": `---
+aliases: [Plan]
+---
+
+# Roadmap
 
 > [!note] Local first
 > The desktop app works with no account and no server.

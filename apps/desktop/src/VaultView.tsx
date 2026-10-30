@@ -1,11 +1,12 @@
 // An open vault: its notes on the left, the selected note in the editor on
 // the right.
 import type { NoteId } from "@nether/core";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState, useSyncExternalStore } from "react";
 import { NoteList } from "./NoteList.tsx";
 import type { NoteMode } from "./NoteView.tsx";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
+import type { Indexer } from "./indexer.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
@@ -14,6 +15,24 @@ const loadNoteView = () => import("./NoteView.tsx");
 const NoteView = lazy(loadNoteView);
 
 const numbers = new Intl.NumberFormat();
+
+/** How far the link index has read, while it is reading. */
+function IndexStatus(props: { readonly indexer: Indexer }) {
+  const { indexer } = props;
+  const progress = useSyncExternalStore(
+    (listener) => indexer.subscribe(listener),
+    () => indexer.progress(),
+  );
+  if (progress.done >= progress.total) return null;
+  return (
+    <p className="count" role="status">
+      {t("indexingLinks", {
+        done: numbers.format(progress.done),
+        total: numbers.format(progress.total),
+      })}
+    </p>
+  );
+}
 
 export function VaultView(props: { readonly info: VaultInfo; readonly onClose: () => void }) {
   const { info, onClose } = props;
@@ -54,6 +73,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
                 ? t("oneNote")
                 : t("noteCount", { count: numbers.format(notes.length) })}
             </p>
+            <IndexStatus indexer={state.indexer} />
           </>
         )}
       </aside>
@@ -63,7 +83,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
             <NoteView
               vault={state.vault}
               media={state.media}
+              graph={state.indexer.graph}
               id={selected}
+              onOpenNote={setSelected}
               mode={mode}
               onMode={setMode}
             />

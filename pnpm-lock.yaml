@@ -56,6 +56,9 @@ importers:
       '@nether/editor':
         specifier: workspace:*
         version: link:../../packages/editor
+      '@nether/graph':
+        specifier: workspace:*
+        version: link:../../packages/graph
       '@nether/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
