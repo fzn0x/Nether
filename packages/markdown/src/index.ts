@@ -1,4 +1,10 @@
 export {
+  FrontmatterError,
+  type SerializeOptions,
+  type Serialized,
+  serializeMarkdown,
+} from "./serialize.ts";
+export {
   type MarkdownNote,
   type ParseOptions,
   type ParsedMarkdown,
@@ -8,3 +14,4 @@ export {
 export { readFrontmatter, writeFrontmatter } from "./frontmatter.ts";
 export { type Source, type SourceBlock, type Style, fingerprint } from "./source.ts";
 export { markdownToTree } from "./tree.ts";
+export { wikiLinkText } from "./to-markdown.ts";
