@@ -126,6 +126,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   their names; its rows are the notes in the folder beside it, and a view
   filters, sorts and groups them
   ([ADR 0018](docs/adr/0018-a-database-is-a-note-with-an-obsidian-base-beside-it.md)).
+- Databases in the app: **New database** makes a note whose rows are the
+  notes beside it, shown below its text as a table. Properties are added
+  and shown or hidden, rows added and opened, and values edited in their
+  cells, each written to its row's frontmatter. Each view sorts by a
+  column, filters by conditions, all or any, and groups by a property.
 
 ### Changed
 
@@ -155,6 +160,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the light theme, meet WCAG AA's contrast.
 - While the link index read notes for the first time, the backlinks
   panel could miss the text around their links.
+- A property emptied in Nether is written `key:`, as Obsidian writes it,
+  not `key: null`, and a comment after a property's value stays when the
+  value changes.
 - An embed within a line of text, as `Today: ![[Roadmap]]`, counts as a
   link: the note it names lists it among its backlinks, and renaming that
   note rewrites it.

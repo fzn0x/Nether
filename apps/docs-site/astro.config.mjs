@@ -24,6 +24,7 @@ export default defineConfig({
             "folders",
             "writing",
             "properties",
+            "databases",
             "templates",
             "links",
             "search",

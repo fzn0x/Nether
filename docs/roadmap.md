@@ -84,8 +84,8 @@ The Notion core, one feature per pull request, in this order:
 
 - [x] Opening a vault at a note its command line names, which the desktop app's measurements start at (carried over from Phase 1)
 - [x] `packages/database`: a database as a note with a schema, its rows as notes with properties, and how both are stored as Markdown and frontmatter ([ADR 0018](adr/0018-a-database-is-a-note-with-an-obsidian-base-beside-it.md))
+- [x] The table view, with each view's filters, sorts, grouping and visible properties
 - [ ] The Obsidian base beside each database, written from its schema, with Obsidian's edits read back
-- [ ] The table view, with each view's filters, sorts, grouping and visible properties
 - [ ] The board, list and gallery views
 - [ ] The calendar and timeline views
 - [ ] Relations between databases, both ways, and rollups
