@@ -66,7 +66,10 @@ function pairBlocks(base: readonly Block[], next: readonly Block[], written: Rea
       used.add(at);
     }
   });
-  const freeNext = next.flatMap((_, index) => (pairs.has(index) ? [] : [index]));
+  // A block whose file writes an ID of its own keeps it, for the links that name it.
+  const freeNext = next.flatMap((block, index) =>
+    pairs.has(index) || written.has(block.id) ? [] : [index],
+  );
   const freeBase = base.flatMap((_, index) => (used.has(index) ? [] : [index]));
   const content = (blocks: readonly Block[], index: number) =>
     fingerprint(blocks[index] as ContentBlock);
@@ -98,10 +101,10 @@ function pairBlocks(base: readonly Block[], next: readonly Block[], written: Rea
     }
     pending = [];
   };
-  next.forEach((_, index) => {
+  next.forEach((block, index) => {
     const at = pairs.get(index);
     if (at === undefined) {
-      pending.push(index);
+      if (!written.has(block.id)) pending.push(index);
       return;
     }
     flush(at);

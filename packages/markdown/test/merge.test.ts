@@ -58,6 +58,12 @@ describe("alignBlocks", () => {
     expect(ids(aligned.content)).toEqual([base.content[1]?.id, "a1"]);
   });
 
+  it("keeps an ID a block's file now writes, rather than the one the note knew", () => {
+    const base = parseMarkdown("Alpha.\n\nBeta.\n");
+    const aligned = alignBlocks(parseMarkdown("Alpha. ^a1\n\nBeta.\n"), base.content);
+    expect(ids(aligned.content)).toEqual(["a1", base.content[1]?.id]);
+  });
+
   it("gives a new block a new ID when its own is taken", () => {
     const base = [{ id: "x" as BlockId, type: "paragraph", content: [] }] as ContentBlock[];
     const parsed = parseMarkdown("One.\n\nTwo.\n", { newId: () => "x" as BlockId });
