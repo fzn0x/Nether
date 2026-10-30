@@ -2,7 +2,14 @@
 // and the mobile apps will through Capacitor's. The schema is versioned with
 // SQLite's user_version, and each version's migration runs once.
 import type { NoteId } from "@nether/core";
-import type { FileRecord, IndexChange, IndexStore, StoredDocument, StoredUpdate } from "./store.ts";
+import type {
+  FileRecord,
+  IndexChange,
+  IndexStore,
+  NoteIndexRow,
+  StoredDocument,
+  StoredUpdate,
+} from "./store.ts";
 
 export type SqlValue = string | number | bigint | Uint8Array | null;
 
@@ -48,6 +55,15 @@ const migrations: readonly (readonly string[])[] = [
     `CREATE TABLE documents (
       note TEXT PRIMARY KEY NOT NULL,
       file_hash TEXT
+    ) WITHOUT ROWID`,
+  ],
+  [
+    // What the link index and search keep of each note, and the file it was read from.
+    `CREATE TABLE note_indexes (
+      note TEXT PRIMARY KEY NOT NULL,
+      size INTEGER NOT NULL,
+      modified INTEGER NOT NULL,
+      data TEXT NOT NULL
     ) WITHOUT ROWID`,
   ],
 ];
@@ -188,6 +204,40 @@ export class SqliteStore implements IndexStore {
         ON CONFLICT (note) DO UPDATE SET file_hash = excluded.file_hash`,
       [note, hash],
     );
+  }
+
+  async noteIndexes(): Promise<readonly NoteIndexRow[]> {
+    const { rows } = await this.#database.query(
+      "SELECT note, size, modified, data FROM note_indexes",
+    );
+    return rows.map(([note, size, modified, data]) => ({
+      note: text(note) as NoteId,
+      size: integer(size),
+      modified: integer(modified),
+      data: text(data),
+    }));
+  }
+
+  async putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void> {
+    const statements = rows.map((row) => ({
+      sql: `INSERT INTO note_indexes (note, size, modified, data) VALUES (?, ?, ?, ?)
+        ON CONFLICT (note) DO UPDATE SET size = excluded.size, modified = excluded.modified,
+        data = excluded.data`,
+      params: [row.note, row.size, row.modified, row.data],
+    }));
+    for (let start = 0; start < statements.length; start += chunk) {
+      await this.#database.transaction(statements.slice(start, start + chunk));
+    }
+  }
+
+  async deleteNoteIndexes(notes: readonly NoteId[]): Promise<void> {
+    const statements = notes.map((note) => ({
+      sql: "DELETE FROM note_indexes WHERE note = ?",
+      params: [note],
+    }));
+    for (let start = 0; start < statements.length; start += chunk) {
+      await this.#database.transaction(statements.slice(start, start + chunk));
+    }
   }
 
   close(): Promise<void> {

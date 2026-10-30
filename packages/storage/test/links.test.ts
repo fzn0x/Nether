@@ -111,3 +111,20 @@ describe("Vault attachments and links", () => {
     expect(vault.resolveFile("b.png", "Note.md")).toBeUndefined();
   });
 });
+
+describe("Vault.readNotes", () => {
+  it("reads many notes' files, by ID, skipping notes it does not know", async () => {
+    const memory = new MemoryFiles({ "a.md": "A", "b.md": "B", "c.md": "C" });
+    const vault = new Vault(memory, new MemoryStore());
+    await vault.open();
+    const [a, , c] = vault.notes();
+    const read: string[] = [];
+    await vault.readNotes(
+      [a?.id, c?.id, "01929f4c-7b00-7a00-8000-000000000999"].filter(
+        (id): id is NonNullable<typeof id> => id !== undefined,
+      ) as never,
+      (id, file) => read.push(`${vault.note(id)?.path ?? "?"}=${file.text}`),
+    );
+    expect(read).toEqual(["a.md=A", "c.md=C"]);
+  });
+});

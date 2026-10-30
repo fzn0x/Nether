@@ -42,6 +42,8 @@ export interface VaultFiles {
   /** The size and modification time of each file that is there, in order. */
   stat(paths: readonly string[]): Promise<readonly FileInfo[]>;
   read(path: string): Promise<FileText>;
+  /** Reads many files, calling `each` with each in order; one that is gone comes with `missing`. */
+  readMany(paths: readonly string[], each: (file: FileText) => void): Promise<void>;
   /**
    * Replaces a file's text in one step. `base` is the hash of the text last
    * read, or "" for a file that must not exist yet; if the file is no longer

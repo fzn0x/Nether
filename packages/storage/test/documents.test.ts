@@ -68,3 +68,22 @@ describe("SqliteStore documents", () => {
     expect(stored.updates.map((update) => [...update.data])).toEqual([[7, 8]]);
   });
 });
+
+describe.each(stores)("%s note indexes", (_name, open) => {
+  it("keeps, replaces and deletes notes' index rows", async () => {
+    const store = await open();
+    expect(await store.noteIndexes()).toEqual([]);
+    await store.putNoteIndexes([
+      { note, size: 1, modified: 10, data: "{}" },
+      { note: other, size: 2, modified: 20, data: '{"tags":["a"]}' },
+    ]);
+    await store.putNoteIndexes([{ note, size: 3, modified: 30, data: '{"links":[]}' }]);
+    const rows = await store.noteIndexes();
+    expect([...rows].sort((a, b) => a.size - b.size)).toEqual([
+      { note: other, size: 2, modified: 20, data: '{"tags":["a"]}' },
+      { note, size: 3, modified: 30, data: '{"links":[]}' },
+    ]);
+    await store.deleteNoteIndexes([note]);
+    expect((await store.noteIndexes()).map((row) => row.note)).toEqual([other]);
+  });
+});

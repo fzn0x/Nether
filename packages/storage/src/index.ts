@@ -25,6 +25,7 @@ export {
   type IndexChange,
   type IndexStore,
   MemoryStore,
+  type NoteIndexRow,
   type StoredDocument,
   type StoredUpdate,
 } from "./store.ts";

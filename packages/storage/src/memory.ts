@@ -99,6 +99,10 @@ export class MemoryFiles implements VaultFiles {
     return { ...this.#info(path, entry), text: entry.text, hash: await sha256(entry.text) };
   }
 
+  async readMany(paths: readonly string[], each: (file: FileText) => void): Promise<void> {
+    for (const path of paths) each(await this.read(path));
+  }
+
   async write(path: string, text: string, base: string): Promise<FileText> {
     checkPath(path);
     const current = await this.read(path);

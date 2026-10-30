@@ -188,6 +188,25 @@ export class Vault {
   }
 
   /**
+   * Reads many notes' files, calling `each` with each note's ID and file;
+   * for the link index and search, which keep what they read themselves.
+   */
+  async readNotes(
+    ids: readonly NoteId[],
+    each: (id: NoteId, file: FileText) => void,
+  ): Promise<void> {
+    const byPath = new Map<string, NoteId>();
+    for (const id of ids) {
+      const path = this.#paths.get(id);
+      if (path !== undefined) byPath.set(path, id);
+    }
+    await this.#files.readMany([...byPath.keys()], (file) => {
+      const id = byPath.get(file.path);
+      if (id !== undefined) each(id, file);
+    });
+  }
+
+  /**
    * Writes a note's text. `base` is the hash of the text the caller last
    * read or wrote; if the file changed since, it throws `ChangedOnDisk`.
    */

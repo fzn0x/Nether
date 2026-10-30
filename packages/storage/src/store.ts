@@ -35,6 +35,17 @@ export interface StoredDocument {
   readonly fileHash?: string;
 }
 
+/**
+ * What the link index and search keep of a note, as JSON, with the size and
+ * modification time of the file it was read from, to tell when it is stale.
+ */
+export interface NoteIndexRow {
+  readonly note: NoteId;
+  readonly size: number;
+  readonly modified: number;
+  readonly data: string;
+}
+
 /** Where a client keeps a vault's index. */
 export interface IndexStore {
   /** Every file the index knows. */
@@ -48,6 +59,11 @@ export interface IndexStore {
   compact(note: NoteId, snapshot: Uint8Array, through: number): Promise<void>;
   /** Records the hash of the file the document now matches. */
   setFileHash(note: NoteId, hash: string): Promise<void>;
+  /** What the link index and search keep of every note read so far. */
+  noteIndexes(): Promise<readonly NoteIndexRow[]>;
+  /** Keeps notes' index rows, replacing those they had. */
+  putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void>;
+  deleteNoteIndexes(notes: readonly NoteId[]): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -55,6 +71,7 @@ export interface IndexStore {
 export class MemoryStore implements IndexStore {
   readonly #files = new Map<string, FileRecord>();
   readonly #documents = new Map<NoteId, { updates: StoredUpdate[]; fileHash?: string }>();
+  readonly #indexes = new Map<NoteId, NoteIndexRow>();
 
   #document(note: NoteId) {
     let document = this.#documents.get(note);
@@ -103,6 +120,20 @@ export class MemoryStore implements IndexStore {
 
   setFileHash(note: NoteId, hash: string): Promise<void> {
     this.#document(note).fileHash = hash;
+    return Promise.resolve();
+  }
+
+  noteIndexes(): Promise<readonly NoteIndexRow[]> {
+    return Promise.resolve([...this.#indexes.values()]);
+  }
+
+  putNoteIndexes(rows: readonly NoteIndexRow[]): Promise<void> {
+    for (const row of rows) this.#indexes.set(row.note, row);
+    return Promise.resolve();
+  }
+
+  deleteNoteIndexes(notes: readonly NoteId[]): Promise<void> {
+    for (const note of notes) this.#indexes.delete(note);
     return Promise.resolve();
   }
 

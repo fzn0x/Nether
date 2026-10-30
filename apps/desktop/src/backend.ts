@@ -6,6 +6,7 @@ import {
   ChangedOnDisk,
   type FileEvent,
   type FileInfo,
+  type FileText,
   type IndexStore,
   MemoryFiles,
   MemoryStore,
@@ -78,6 +79,11 @@ class DesktopFiles implements VaultFiles {
 
   read(path: string) {
     return Vaults.readFile(this.#id, path);
+  }
+
+  async readMany(paths: readonly string[], each: (file: FileText) => void): Promise<void> {
+    if (paths.length === 0) return;
+    await Vaults.read(this.#id, [...paths], new Channel<FileText>(each));
   }
 
   async write(path: string, text: string, base: string) {
