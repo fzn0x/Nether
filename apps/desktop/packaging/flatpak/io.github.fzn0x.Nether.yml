@@ -1,0 +1,37 @@
+# Nether as a Flatpak: the Linux build of the app, made by `mygo build`, on
+# GNOME's runtime, which has the GTK and WebKitGTK it loads. CI builds it
+# from the build folder of the desktop job.
+app-id: io.github.fzn0x.Nether
+runtime: org.gnome.Platform
+runtime-version: "48"
+sdk: org.gnome.Sdk
+command: nether
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Link previews and, later, sync.
+  - --share=network
+  # Vaults are folders anywhere in the home folder, which the app watches.
+  - --filesystem=home
+modules:
+  - name: nether
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../../build/linux-amd64
+      - type: file
+        path: ../io.github.fzn0x.Nether.metainfo.xml
+      - type: file
+        path: ../../icon.svg
+    build-commands:
+      - install -Dm755 nether /app/lib/nether/nether
+      - install -Dm644 libmygo-sqlite3.so /app/lib/nether/libmygo-sqlite3.so
+      - install -Dm644 icon.png /app/lib/nether/icon.png
+      - install -d /app/bin
+      - ln -s /app/lib/nether/nether /app/bin/nether
+      - install -Dm644 icon.svg /app/share/icons/hicolor/scalable/apps/io.github.fzn0x.Nether.svg
+      - desktop-file-edit --set-icon=io.github.fzn0x.Nether nether.desktop
+      - install -Dm644 nether.desktop /app/share/applications/io.github.fzn0x.Nether.desktop
+      - install -Dm644 io.github.fzn0x.Nether.metainfo.xml /app/share/metainfo/io.github.fzn0x.Nether.metainfo.xml

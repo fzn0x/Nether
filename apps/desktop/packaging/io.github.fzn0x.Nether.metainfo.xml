@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- What app stores and software centers show of Nether. -->
+<component type="desktop-application">
+  <id>io.github.fzn0x.Nether</id>
+  <name>Nether</name>
+  <summary>Markdown notes with databases, offline first</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <developer id="io.github.fzn0x">
+    <name>Nether contributors</name>
+  </developer>
+  <description>
+    <p>
+      Nether keeps your notes as plain Markdown files in a folder you choose, such as an
+      Obsidian vault, and works with no account and no server.
+    </p>
+    <ul>
+      <li>A block editor that writes Markdown, with math, code and diagrams</li>
+      <li>Links, backlinks, tags and properties, and pages within pages</li>
+      <li>Templates, daily notes, search, export and a trash</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.fzn0x.Nether.desktop</launchable>
+  <url type="homepage">https://fzn0x.github.io/Nether/</url>
+  <url type="bugtracker">https://github.com/fzn0x/Nether/issues</url>
+  <url type="vcs-browser">https://github.com/fzn0x/Nether</url>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.0.0" date="2026-10-31" />
+  </releases>
+</component>
