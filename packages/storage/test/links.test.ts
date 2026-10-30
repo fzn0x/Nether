@@ -128,3 +128,17 @@ describe("Vault.readNotes", () => {
     expect(read).toEqual(["a.md=A", "c.md=C"]);
   });
 });
+
+describe("Vault data", () => {
+  it("keeps JSON files of its own in .nether, out of the notes", async () => {
+    const memory = new MemoryFiles({ "a.md": "A", ".nether/broken.json": "{" });
+    const vault = new Vault(memory, new MemoryStore());
+    await vault.open();
+    expect(await vault.readData("types")).toBeUndefined();
+    expect(await vault.readData("broken")).toBeUndefined();
+    await vault.writeData("types", { status: "select" });
+    await vault.writeData("types", { status: "text", due: "date" });
+    expect(await vault.readData("types")).toEqual({ status: "text", due: "date" });
+    expect(vault.notes().map((note) => note.path)).toEqual(["a.md"]);
+  });
+});

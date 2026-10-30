@@ -95,6 +95,31 @@ export class Vault {
     return this.#store;
   }
 
+  /**
+   * A JSON file of the vault's own, `.nether/<name>.json`, such as its
+   * property types: undefined when there is none or it cannot be read.
+   */
+  async readData(name: string): Promise<unknown> {
+    const file = await this.#files.read(`.nether/${name}.json`);
+    if (file.missing === true || file.binary === true) return undefined;
+    try {
+      return JSON.parse(file.text) as unknown;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Replaces a JSON file of the vault's own, in one step. */
+  async writeData(name: string, value: unknown): Promise<void> {
+    const path = `.nether/${name}.json`;
+    const current = await this.#files.read(path);
+    await this.#files.write(
+      path,
+      `${JSON.stringify(value, null, 2)}\n`,
+      current.missing === true ? "" : current.hash,
+    );
+  }
+
   /** Where the vault keeps what the link index and search read of its notes. */
   get indexes(): NoteIndexes {
     return this.#store;
