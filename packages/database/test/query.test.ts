@@ -6,6 +6,7 @@ import {
   groupRows,
   matches,
   readDatabase,
+  rowDate,
   rowTitle,
   runView,
   sortRows,
@@ -165,6 +166,20 @@ describe("matches", () => {
         ],
       }),
     ).toEqual(["Docs", "Plan"]);
+  });
+});
+
+describe("rowDate", () => {
+  it("gives a row's day by a date, a date and time, or its file's time", () => {
+    const [launch, docs, plan, idea] = rows;
+    if (launch === undefined || docs === undefined || plan === undefined || idea === undefined) {
+      throw new Error("The rows are missing.");
+    }
+    expect(rowDate(launch, "due")).toBe("2026-11-15");
+    expect(rowDate(plan, "due")).toBe("2026-11-15");
+    expect(rowDate(docs, "$updated")).toBe("2026-10-20");
+    expect(rowDate(idea, "due")).toBeUndefined();
+    expect(rowDate(launch, "notes")).toBeUndefined();
   });
 });
 

@@ -76,6 +76,11 @@ function compareOrder(
   return undefined;
 }
 
+/** A row's day by a date property or its file's times, as `YYYY-MM-DD`, where it has one. */
+export function rowDate(row: Row, key: string): string | undefined {
+  return dayOf(rowValue(row, key));
+}
+
 /** Whether a row meets one condition of a filter. */
 function meets(row: Row, condition: Condition, schema: DatabaseSchema): boolean {
   const value = rowValue(row, condition.property);
