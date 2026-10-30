@@ -21,12 +21,19 @@ import {
   readOneOf,
   readOptional,
   readString,
+  readText,
 } from "./read.ts";
 
-/** Where a link points: an existing note, or a title no note has yet. Either may narrow to a heading or a block. */
+/**
+ * Where a link points: an existing note, or a title no note has yet, either
+ * of which may narrow to a heading or a block; or a heading or a block of
+ * the note the link is in, as Obsidian's `[[#Heading]]`.
+ */
 export type LinkTarget =
   | { readonly note: NoteId; readonly heading?: string; readonly block?: BlockId }
-  | { readonly title: string; readonly heading?: string; readonly block?: BlockId };
+  | { readonly title: string; readonly heading?: string; readonly block?: BlockId }
+  | { readonly heading: string }
+  | { readonly block: BlockId };
 
 export const markTypes = [
   "bold",
@@ -163,7 +170,11 @@ export interface Bookmark extends BlockBase<"bookmark"> {
 
 /** Another note, or a part of one, shown in place. */
 export interface Embed extends BlockBase<"embed"> {
-  readonly attrs: { readonly target: LinkTarget };
+  readonly attrs: {
+    readonly target: LinkTarget;
+    /** What follows `|` in `![[target|alias]]`: for an image, Obsidian reads a size such as `300` or `300x200`. */
+    readonly alias?: string;
+  };
 }
 
 /** A database shown inline; the database itself is a note. */
@@ -256,13 +267,16 @@ export function readLinkTarget(value: unknown, path: string): LinkTarget {
     ...(heading === undefined ? {} : { heading }),
     ...(block === undefined ? {} : { block }),
   };
-  if (fields.note !== undefined && fields.title === undefined) {
+  if (fields.note !== undefined && fields.title !== undefined) {
+    fail(path, "has both a note and a title: give one");
+  }
+  if (fields.note !== undefined)
     return { note: readNoteId(fields.note, `${path}.note`), ...narrow };
-  }
-  if (fields.title !== undefined && fields.note === undefined) {
+  if (fields.title !== undefined)
     return { title: readName(fields.title, `${path}.title`), ...narrow };
-  }
-  return fail(path, "needs either a note or a title");
+  if (heading !== undefined) return { heading };
+  if (block !== undefined) return { block };
+  return fail(path, "needs a note, a title, or a heading or block of this note");
 }
 
 function readMark(value: unknown, path: string): Mark {
@@ -333,10 +347,10 @@ function readInline(value: unknown, path: string): Inline {
     }
     case "math":
       allow("latex");
-      return { type, latex: readName(fields.latex, `${path}.latex`) };
+      return { type, latex: readText(fields.latex, `${path}.latex`) };
     case "raw":
       allow("markdown");
-      return { type, markdown: readName(fields.markdown, `${path}.markdown`) };
+      return { type, markdown: readText(fields.markdown, `${path}.markdown`) };
   }
 }
 
@@ -594,13 +608,13 @@ function readBlock(value: unknown, path: string, place: Place, reader: Reader): 
       if (!/^https?:\/\/\S+$/.test(url)) fail(`${path}.attrs.url`, "must be an http or https URL");
       return { id, type: builtIn, attrs: { url } };
     }
-    case "embed":
+    case "embed": {
       has("attrs");
-      return {
-        id,
-        type: builtIn,
-        attrs: { target: readLinkTarget(attrs(["target"]).target, `${path}.attrs.target`) },
-      };
+      const embedAttrs = attrs(["target"], ["alias"]);
+      const target = readLinkTarget(embedAttrs.target, `${path}.attrs.target`);
+      const alias = readOptional(embedAttrs, "alias", `${path}.attrs`, readName);
+      return { id, type: builtIn, attrs: alias === undefined ? { target } : { target, alias } };
+    }
     case "database": {
       has("attrs");
       const databaseAttrs = attrs(["database"], ["view"]);

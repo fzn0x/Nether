@@ -272,7 +272,11 @@ describe("blocks", () => {
     ],
     [
       { id: "x", type: "embed", attrs: { target: {} } },
-      "note.content[0].attrs.target needs either a note or a title",
+      "note.content[0].attrs.target needs a note, a title, or a heading or block of this note",
+    ],
+    [
+      { id: "x", type: "embed", attrs: { target: { title: "A" }, alias: "" } },
+      "note.content[0].attrs.alias must not be empty",
     ],
     [
       { id: "x", type: "database", attrs: { database: "Projects" } },
@@ -345,7 +349,7 @@ describe("blocks", () => {
     ],
     [
       { type: "wikiLink", target: { note: ids.other, title: "Both" } },
-      "note.content[0].content[0].target needs either a note or a title",
+      "note.content[0].content[0].target has both a note and a title: give one",
     ],
     [
       { type: "wikiLink", target: { title: "A", heading: "B", block: "c" } },

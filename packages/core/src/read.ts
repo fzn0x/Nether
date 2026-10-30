@@ -50,6 +50,13 @@ export function readName(value: unknown, path: string): string {
   return text;
 }
 
+/** A string with something in it besides white space; it may span lines. */
+export function readText(value: unknown, path: string): string {
+  const text = readString(value, path);
+  if (text.trim() === "") fail(path, "must not be empty");
+  return text;
+}
+
 export function readBoolean(value: unknown, path: string): boolean {
   if (typeof value !== "boolean") fail(path, "must be true or false");
   return value;

@@ -3,7 +3,7 @@ import { extractLinks, noteFromJson } from "../src/index.ts";
 import { databaseNote, edit, ids, richNote } from "./fixtures.ts";
 
 describe("extractLinks", () => {
-  it("finds wiki links in any block's text and the notes a note embeds, in order", () => {
+  it("finds wiki links in any block's text, links within the note, and what a note embeds, in order", () => {
     const links = extractLinks(noteFromJson(richNote()));
     expect(links).toEqual([
       {
@@ -16,6 +16,8 @@ describe("extractLinks", () => {
         target: { title: "Not written yet" },
         kind: "wiki",
       },
+      { source: { note: ids.note, block: "p1" }, target: { heading: "Next week" }, kind: "wiki" },
+      { source: { note: ids.note, block: "p1" }, target: { block: "b2" }, kind: "wiki" },
       {
         source: { note: ids.note, block: "b2" },
         target: { note: ids.other, block: "req-sync" },
@@ -24,6 +26,11 @@ describe("extractLinks", () => {
       { source: { note: ids.note, block: "c1" }, target: { title: "Decisions" }, kind: "wiki" },
       { source: { note: ids.note, block: "cell-3" }, target: { title: "Editor" }, kind: "wiki" },
       { source: { note: ids.note, block: "e1" }, target: { note: ids.other }, kind: "embed" },
+      {
+        source: { note: ids.note, block: "e2" },
+        target: { title: "diagram.png" },
+        kind: "embed",
+      },
     ]);
   });
 

@@ -42,9 +42,13 @@ export function richNote(): Record<string, unknown> {
           { type: "hardBreak" },
           { type: "wikiLink", target: { note: ids.other, heading: "Phase 1" }, alias: "the plan" },
           { type: "wikiLink", target: { title: "Not written yet" } },
+          { type: "wikiLink", target: { heading: "Next week" } },
+          { type: "wikiLink", target: { block: "b2" } },
           { type: "tag", name: "area/research" },
           { type: "math", latex: "e^{i\\pi} + 1 = 0" },
           { type: "raw", markdown: "<kbd>Ctrl</kbd>" },
+          { type: "math", latex: "a +\nb" },
+          { type: "raw", markdown: "<span\nclass=x>" },
         ],
       },
       {
@@ -131,6 +135,7 @@ export function richNote(): Record<string, unknown> {
       { id: "f1", type: "file", attrs: { src: "attachments/spec.pdf", name: "Spec" } },
       { id: "bm", type: "bookmark", attrs: { url: "https://example.com/post" } },
       { id: "e1", type: "embed", attrs: { target: { note: ids.other } } },
+      { id: "e2", type: "embed", attrs: { target: { title: "diagram.png" }, alias: "300" } },
       { id: "db", type: "database", attrs: { database: ids.database, view: ids.view } },
       { id: "raw1", type: "raw", text: "<details>\n</details>\n" },
       {
