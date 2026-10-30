@@ -30,7 +30,7 @@ function stamp(date: Date): string {
  */
 export function attachmentName(file: File, pasted: boolean, now: Date): string {
   const dot = file.name.lastIndexOf(".");
-  const extension = dot > 0 ? file.name.slice(dot).toLowerCase() : "";
+  const extension = dot > 0 && dot < file.name.length - 1 ? file.name.slice(dot).toLowerCase() : "";
   if (file.name === "" || (pasted && /^image\.\w+$/i.test(file.name))) {
     const type = /^image\/(\w+)/.exec(file.type)?.[1];
     return `Pasted image ${stamp(now)}${extension === "" ? `.${type ?? "png"}` : extension}`;
