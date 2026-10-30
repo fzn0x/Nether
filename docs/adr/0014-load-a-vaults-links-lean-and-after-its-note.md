@@ -1,6 +1,6 @@
 # 0014. Load a vault's links lean, and after the note it opens to
 
-- Status: Accepted
+- Status: Accepted; how it finds backlinks is superseded by [0016](0016-find-backlinks-by-the-names-links-write.md)
 - Date: 2026-10-31
 
 ## Context

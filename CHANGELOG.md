@@ -122,15 +122,19 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - On a vault of 50,000 notes the desktop app opens to the last note in
-  about 1.2 s, down from 3.5 s, and settles at about 290 MB, down from
+  about 1.2 s, down from 3.5 s, and settles at about 280 MB, down from
   0.5 to 1.2 GB. The vault shows as soon as its notes are listed, and its
   links load after the note it opens to, without the text around each
   link, which the backlinks panel reads for the notes it shows
   ([ADR 0014](docs/adr/0014-load-a-vaults-links-lean-and-after-its-note.md)).
   The vault's index moves to schema version 6.
-- Saving a note moves only its own backlinks, so typing in a large vault
-  no longer stops each time the note saves while every backlink is
-  worked out again.
+- A note's backlinks are found among the notes that write its name or an
+  alias, and a change to the vault looks only at the notes it touched, so
+  typing, opening a note, and reading a large vault for the first time no
+  longer work out every link in it again: on the reference vault, with the
+  CPU at half speed, switching notes takes 65 ms where it took 101 ms, and
+  each key shows in the next frame
+  ([ADR 0016](docs/adr/0016-find-backlinks-by-the-names-links-write.md)).
 
 ### Fixed
 

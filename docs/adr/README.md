@@ -21,5 +21,6 @@ record supersedes it and says so. Start a new one from
 | [0011](0011-templates-and-periodic-notes.md) | Fill templates with Obsidian's variables, and start from Obsidian's settings | Accepted |
 | [0012](0012-export-from-the-page.md) | Export notes from the page's own HTML, and let the app write the files | Accepted |
 | [0013](0013-pages-in-the-folder-beside-a-note.md) | Keep a page's pages in the folder beside it with its name | Accepted |
-| [0014](0014-load-a-vaults-links-lean-and-after-its-note.md) | Load a vault's links lean, and after the note it opens to | Accepted |
+| [0014](0014-load-a-vaults-links-lean-and-after-its-note.md) | Load a vault's links lean, and after the note it opens to | Accepted, partly superseded by 0016 |
 | [0015](0015-check-accessibility-and-lay-out-by-direction.md) | Check every screen with axe, and lay out by direction, not by side | Accepted |
+| [0016](0016-find-backlinks-by-the-names-links-write.md) | Find backlinks by the names links write | Accepted |
