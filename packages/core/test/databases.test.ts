@@ -17,7 +17,7 @@ function withView(view: Json): Json {
 }
 
 describe("database schemas", () => {
-  it("reject repeated property keys and view IDs", () => {
+  it("reject repeated property keys, view IDs and view names", () => {
     rejects(
       edit(databaseNote(), (note) => {
         (schemaOf(note).properties as Json[]).push({ key: "status", type: "text" });
@@ -29,6 +29,12 @@ describe("database schemas", () => {
         at(views(note), 1).id = ids.view;
       }),
       `note.database.views[1].id repeats the view ID "${ids.view}"`,
+    );
+    rejects(
+      edit(databaseNote(), (note) => {
+        at(views(note), 1).name = at(views(note), 0).name;
+      }),
+      "note.database.views[1].name repeats the view name",
     );
   });
 

@@ -228,10 +228,16 @@ export function readDatabaseSchema(value: unknown, path: string): DatabaseSchema
     readView(item, `${path}.views[${String(index)}]`, typeOf),
   );
   const ids = new Set<string>();
+  const names = new Set<string>();
   views.forEach((view, index) => {
     if (ids.has(view.id))
       fail(`${path}.views[${String(index)}].id`, `repeats the view ID "${view.id}"`);
     ids.add(view.id);
+    // A view's name is what names it in its database's file and Obsidian base.
+    if (names.has(view.name)) {
+      fail(`${path}.views[${String(index)}].name`, `repeats the view name "${view.name}"`);
+    }
+    names.add(view.name);
   });
   return { properties, views };
 }
