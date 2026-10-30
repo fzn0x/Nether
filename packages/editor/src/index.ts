@@ -1,4 +1,15 @@
 export {
+  type BlockAt,
+  BlockKeys,
+  canTurn,
+  currentBlock,
+  deleteBlock,
+  duplicateBlock,
+  moveBlock,
+  turnBlockInto,
+} from "./actions.ts";
+export { type BlockCommand, blockCommands, findCommands } from "./commands.ts";
+export {
   blocksFromEditor,
   blocksToEditor,
   fromEditor,
@@ -7,5 +18,20 @@ export {
   toEditor,
 } from "./convert.ts";
 export { BlockIds, type BlockIdOptions, blockIdsKey, fixBlockIds } from "./ids.ts";
-export { type SchemaOptions, blockNodes, netherExtensions } from "./schema.ts";
+export {
+  type NodeViews,
+  type SchemaOptions,
+  blockNodes,
+  codeLanguage,
+  netherExtensions,
+} from "./schema.ts";
 export { NoteEditor, type NoteEditorProps } from "./NoteEditor.tsx";
+export { SlashMenu, type SlashMenuOptions, slashMenuKey } from "./SlashMenu.tsx";
+export { netherNodeViews } from "./views.tsx";
+export {
+  type BuiltInBlock,
+  type CommandWords,
+  type EditorWords,
+  builtInBlocks,
+  englishWords,
+} from "./words.ts";
