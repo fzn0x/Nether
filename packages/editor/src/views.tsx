@@ -143,12 +143,13 @@ function MathView(props: ViewProps & { readonly display: boolean }) {
         />
       ) : (
         // Enter on selected math clicks this (see the schema's math nodes);
-        // it stays out of the tab order, which belongs to the note.
+        // it stays out of the tab order, which belongs to the note. Its name
+        // is the math, read from KaTeX's MathML, so that it says what shows.
         <button
           type="button"
           tabIndex={-1}
           className="math-render"
-          aria-label={`${words.showMath}: ${latex}`}
+          title={words.showMath}
           onClick={() => {
             if (editor.isEditable) setEditing(true);
           }}

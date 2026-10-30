@@ -18,7 +18,7 @@ ${s}article p, ${s}article ul, ${s}article ol, ${s}article table, ${s}article pr
 ${s}article a { color: var(--accent); }
 ${s}article .internal-link.unresolved { color: var(--muted); }
 ${s}article .tag { color: var(--accent); }
-${s}article mark { background: #f5d54780; color: inherit; border-radius: 2px; }
+${s}article mark { background: var(--mark-bg); color: inherit; border-radius: 2px; }
 ${s}article code { padding: 0.1em 0.3em; border-radius: 4px; background: var(--code-bg); font: 0.9em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 ${s}article pre { padding: 0.8em 1em; overflow-x: auto; border-radius: 6px; background: var(--code-bg); }
 ${s}article pre code { padding: 0; background: none; }
@@ -53,12 +53,14 @@ ${s}article .hljs-comment, ${s}article .hljs-quote { color: var(--muted); font-s
 const light = `
   --text: #1b1822; --muted: #5f5a66; --accent: #c43d18; --rule: #e3ddd3;
   --bg: #fffdf9; --code-bg: #f1ede6; --callout-bg: #c43d1812; --callout-rule: #c43d1847;
+  --mark-bg: #f5d5478c;
   --code-keyword: #86288c; --code-string: #2f6b1f; --code-number: #9a4600;
   --code-title: #1d5c94; --code-type: #735000;`;
 
 const dark = `
   --text: #ece8e1; --muted: #a39da8; --accent: #ff7a50; --rule: #2a2631;
   --bg: #131118; --code-bg: #1e1b24; --callout-bg: #ff7a501a; --callout-rule: #ff7a5047;
+  --mark-bg: #f5d5474d;
   --code-keyword: #dda3f2; --code-string: #a8da8d; --code-number: #f4ae74;
   --code-title: #92c6ff; --code-type: #e8c47e;`;
 

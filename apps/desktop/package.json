@@ -25,14 +25,15 @@
     "@nether/graph": "workspace:*",
     "@nether/markdown": "workspace:*",
     "@nether/search": "workspace:*",
-    "@nether/vault-generator": "workspace:*",
     "@nether/storage": "workspace:*",
+    "@nether/vault-generator": "workspace:*",
     "mygo-runtime": "0.6.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.64.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",

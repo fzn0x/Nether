@@ -1,6 +1,8 @@
-// A modal dialog's focus: while it is open, focus that leaves it, by Tab or
-// by an editor taking focus a frame late, comes back to where it was in
-// the dialog; when it closes, focus goes back to where it was before.
+// A modal dialog's focus: it opens with focus in it, on what it focuses
+// itself or else its first control; while it is open, focus that leaves
+// it, by Tab or by an editor taking focus a frame late, comes back to
+// where it was in the dialog; when it closes, focus goes back to where it
+// was before.
 import { type RefObject, useEffect } from "react";
 
 const focusable =
@@ -9,6 +11,10 @@ const focusable =
 export function useModal(dialog: RefObject<HTMLElement | null>): void {
   useEffect(() => {
     const before = document.activeElement;
+    const opened = dialog.current;
+    if (opened !== null && !opened.contains(document.activeElement)) {
+      (opened.querySelector<HTMLElement>(focusable) ?? opened).focus();
+    }
     let last: HTMLElement | undefined;
     const onFocusIn = (event: FocusEvent) => {
       const element = dialog.current;

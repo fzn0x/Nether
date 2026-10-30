@@ -12,6 +12,8 @@
   --code-number: #9a4600;
   --code-title: #1d5c94;
   --code-type: #735000;
+  /* Highlighted text, ==like this==, behind the text's own color. */
+  --mark-bg: color-mix(in srgb, #f5d547 55%, transparent);
   font-family:
     system-ui,
     -apple-system,
@@ -35,6 +37,7 @@
     --code-number: #f4ae74;
     --code-title: #92c6ff;
     --code-type: #e8c47e;
+    --mark-bg: color-mix(in srgb, #f5d547 30%, transparent);
   }
 }
 
@@ -618,7 +621,7 @@ button {
 
 .nether-editor mark {
   border-radius: 2px;
-  background: color-mix(in srgb, #f5d547 55%, transparent);
+  background: var(--mark-bg);
   color: inherit;
 }
 
@@ -720,7 +723,8 @@ button {
   padding: 0 0.25em;
   border-radius: 4px;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
-  color: var(--accent);
+  /* The accent, a little toward the text, so it reads on its own tint. */
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
 }
 
 .nether-editor .chip-rawInline {
@@ -1295,7 +1299,7 @@ button {
 
 .search-snippet mark {
   border-radius: 2px;
-  background: color-mix(in srgb, #f5d547 55%, transparent);
+  background: var(--mark-bg);
   color: var(--text);
 }
 
