@@ -157,7 +157,12 @@ export function NoteTree(props: {
     const row = rows[index];
     if (row === undefined) return;
     const page = Math.max(1, Math.floor(view.height / rowHeight) - 1);
-    switch (event.key) {
+    // Right to left, the tree opens towards the left, and so do the arrows.
+    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
+    const key = rtl
+      ? ({ ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[event.key] ?? event.key)
+      : event.key;
+    switch (key) {
       case "ArrowDown":
         focusRow(index + 1);
         break;

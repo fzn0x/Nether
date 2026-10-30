@@ -1,10 +1,11 @@
 // Every screen and dialog, checked against WCAG 2.2 A and AA with axe, in
 // the light theme and the dark one: the checks a machine can make, such as
 // names, roles, contrast and focus order. Screen readers and keyboards are
-// still tried by hand.
+// still tried by hand. And the layout from right to left, as Arabic and
+// Hebrew need it.
 import AxeBuilder from "@axe-core/playwright";
 import { type Page, expect, test } from "@playwright/test";
-import { openNote, openSample, openSampleTree } from "./helpers.ts";
+import { openNote, openSample, openSampleTree, settle } from "./helpers.ts";
 
 async function violations(page: Page): Promise<string[]> {
   const results = await new AxeBuilder({ page })
@@ -15,6 +16,55 @@ async function violations(page: Page): Promise<string[]> {
       `${violation.id}: ${violation.help} (${violation.nodes.map((node) => node.target.join(" ")).join(", ")})`,
   );
 }
+
+test("the layout mirrors from right to left, and text reads in its own direction", async ({
+  page,
+}) => {
+  const tree = await openSampleTree(page);
+  // As the interface does in a language written right to left.
+  await page.evaluate(() => {
+    document.documentElement.dir = "rtl";
+  });
+  const sidebar = await page.locator(".sidebar").boundingBox();
+  const pane = await page.locator(".pane").boundingBox();
+  expect(sidebar !== null && pane !== null && sidebar.x > pane.x).toBe(true);
+
+  // The tree opens towards the left: Right goes up to a folder and closes it.
+  const projects = tree.getByRole("treeitem", { name: /Projects/ });
+  await projects.click();
+  await tree.getByRole("treeitem", { name: /Ideas/ }).click();
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+  await expect(projects).toHaveAttribute("aria-expanded", "false");
+  await page.keyboard.press("ArrowLeft");
+  await expect(projects).toHaveAttribute("aria-expanded", "true");
+
+  // A paragraph in Hebrew starts at the right, one in English at the left.
+  await tree.getByRole("treeitem", { name: /Welcome/ }).click();
+  const editor = page.getByRole("textbox", { name: "Welcome, note text" });
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await settle(page);
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("שלום עולם");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Hello world");
+  const edges = await editor.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const text = (content: string) => {
+      const paragraph = [...element.querySelectorAll("p")].find((p) => p.textContent === content);
+      if (paragraph === undefined) return undefined;
+      const range = document.createRange();
+      range.selectNodeContents(paragraph);
+      const rect = range.getBoundingClientRect();
+      return { left: rect.left - box.left, right: box.right - rect.right };
+    };
+    return { hebrew: text("שלום עולם"), english: text("Hello world") };
+  });
+  expect(edges.hebrew !== undefined && edges.hebrew.right < edges.hebrew.left).toBe(true);
+  expect(edges.english !== undefined && edges.english.left < edges.english.right).toBe(true);
+  expect(await violations(page)).toEqual([]);
+});
 
 for (const colorScheme of ["light", "dark"] as const) {
   test.describe(`in the ${colorScheme} theme`, () => {

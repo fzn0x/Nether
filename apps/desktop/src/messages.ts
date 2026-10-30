@@ -188,6 +188,31 @@ export const messages = {
 
 export type MessageKey = keyof typeof messages;
 
+/** The language of the messages, as a BCP 47 tag. */
+export const language = "en";
+
+/** Languages written right to left, by their first subtag. */
+const rightToLeft = new Set([
+  "ar",
+  "arc",
+  "ckb",
+  "dv",
+  "fa",
+  "he",
+  "iw",
+  "ps",
+  "sd",
+  "syr",
+  "ug",
+  "ur",
+  "yi",
+]);
+
+/** The direction a language is written in, which the interface's layout follows. */
+export function directionOf(tag: string): "ltr" | "rtl" {
+  return rightToLeft.has(tag.split("-")[0]?.toLowerCase() ?? "") ? "rtl" : "ltr";
+}
+
 /** A message, with its {placeholders} filled in. */
 export function t(key: MessageKey, values: Readonly<Record<string, string | number>> = {}): string {
   return messages[key].replace(/\{(\w+)\}/g, (whole, name: string) => {

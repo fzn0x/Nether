@@ -162,7 +162,7 @@ button {
   padding: 0.5rem 0;
   border: 0;
   background: none;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -187,7 +187,7 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--rule);
+  border-inline-end: 1px solid var(--rule);
 }
 
 .sidebar-header {
@@ -195,7 +195,8 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.75rem 0.75rem 0.5rem 1rem;
+  padding-block: 0.75rem 0.5rem;
+  padding-inline: 1rem 0.75rem;
 }
 
 .sidebar-header h2 {
@@ -221,8 +222,7 @@ button {
 
 .note-list li {
   position: absolute;
-  right: 0;
-  left: 0;
+  inset-inline: 0;
 }
 
 .note-list button {
@@ -234,7 +234,7 @@ button {
   padding: 0 1rem;
   border: 0;
   background: none;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -497,7 +497,7 @@ button {
   }
 
   .sidebar {
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--rule);
   }
 }
@@ -509,7 +509,7 @@ button {
 
 .notice {
   padding: 0.5rem 0.75rem;
-  border-left: 3px solid var(--accent);
+  border-inline-start: 3px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
@@ -548,7 +548,7 @@ button {
 }
 
 .nether-editor p.is-editor-empty:first-child::before {
-  float: left;
+  float: inline-start;
   height: 0;
   color: var(--muted);
   content: attr(data-placeholder);
@@ -558,7 +558,7 @@ button {
 .nether-editor ul,
 .nether-editor ol {
   margin-bottom: 0;
-  padding-left: 1.5rem;
+  padding-inline-start: 1.5rem;
 }
 
 .nether-editor li > ul,
@@ -567,7 +567,7 @@ button {
 }
 
 .nether-editor ul[data-type="taskList"] {
-  padding-left: 0.25rem;
+  padding-inline-start: 0.25rem;
   list-style: none;
 }
 
@@ -593,9 +593,9 @@ button {
 }
 
 .nether-editor blockquote {
-  margin-left: 0;
-  padding-left: 1rem;
-  border-left: 3px solid var(--rule);
+  margin-inline-start: 0;
+  padding-inline-start: 1rem;
+  border-inline-start: 3px solid var(--rule);
   color: var(--muted);
 }
 
@@ -617,6 +617,12 @@ button {
 .nether-editor pre code {
   padding: 0;
   background: none;
+}
+
+/* Each block of text in its own direction: a paragraph in Arabic or Hebrew
+   reads right to left, and starts at the right, in a note in English. */
+.nether-editor :is(p, h1, h2, h3, h4, h5, h6, li, blockquote, th, td, .callout-title) {
+  unicode-bidi: plaintext;
 }
 
 .nether-editor mark {
@@ -669,7 +675,7 @@ button {
 .nether-editor td {
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--rule);
-  text-align: left;
+  text-align: start;
   vertical-align: top;
 }
 
@@ -803,7 +809,7 @@ button {
 .nether-editor .code-tools {
   position: absolute;
   top: 0.35rem;
-  right: 0.5rem;
+  inset-inline-end: 0.5rem;
 }
 
 .nether-editor .code-language {
@@ -815,14 +821,14 @@ button {
   color: var(--muted);
   font: inherit;
   font-size: 0.75rem;
-  text-align: right;
+  text-align: end;
 }
 
 .nether-editor .code-language:hover,
 .nether-editor .code-language:focus {
   border-color: var(--rule);
   background: var(--bg);
-  text-align: left;
+  text-align: start;
 }
 
 .nether-editor .hljs-comment,
@@ -1045,7 +1051,7 @@ button {
 }
 
 .slash-detail {
-  margin-left: 0.5rem;
+  margin-inline-start: 0.5rem;
   color: var(--muted);
   font-size: 0.8125rem;
 }
@@ -1058,7 +1064,7 @@ button {
 
 .block-handle {
   position: relative;
-  padding-right: 0.25rem;
+  padding-inline-end: 0.25rem;
 }
 
 .block-grip {
@@ -1086,7 +1092,7 @@ button {
 .block-menu {
   position: absolute;
   top: 100%;
-  left: 0;
+  inset-inline-start: 0;
   z-index: 20;
 }
 
@@ -1206,7 +1212,7 @@ button {
 .nether-editor .note-embed {
   margin: 0;
   padding: 0.5rem 0.75rem 0.75rem;
-  border-left: 3px solid var(--rule);
+  border-inline-start: 3px solid var(--rule);
 }
 
 .nether-editor .note-embed figcaption {
@@ -1396,7 +1402,7 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.15rem;
-  padding: 0 0.15rem 0 0.4rem;
+  padding-inline: 0.4rem 0.15rem;
   border-radius: 4px;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
@@ -1573,12 +1579,12 @@ button {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.25rem;
-  margin-left: -0.5rem;
+  margin-inline-start: -0.5rem;
   font-size: 0.8125rem;
 }
 
 .trash-actions > span {
-  padding-left: 0.5rem;
+  padding-inline-start: 0.5rem;
 }
 
 .quiet.danger {
@@ -1596,7 +1602,7 @@ button {
 }
 
 .trash-footer .trash-actions {
-  margin-left: 0;
+  margin-inline-start: 0;
 }
 
 .trash-days {
@@ -1618,7 +1624,7 @@ button {
 }
 
 .sidebar-notice .quiet {
-  margin-left: 0.25rem;
+  margin-inline-start: 0.25rem;
   color: var(--accent);
   font-weight: 600;
 }
@@ -1670,12 +1676,11 @@ button {
 
 .tree-row {
   position: absolute;
-  right: 0;
-  left: 0;
+  inset-inline: 0;
   display: flex;
   align-items: center;
   gap: 0.2rem;
-  padding: 0 0.5rem 0 0.75rem;
+  padding-inline: 0.75rem 0.5rem;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1714,7 +1719,7 @@ button {
 }
 
 .tree-add {
-  margin-left: auto;
+  margin-inline-start: auto;
   padding: 0 0.35rem;
   border: 0;
   border-radius: 4px;
@@ -1760,7 +1765,7 @@ kbd {
 }
 
 .palette-keys {
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--muted);
 }
 
@@ -1774,7 +1779,7 @@ kbd {
 .shortcuts td {
   padding: 0.35rem 0.4rem;
   border-bottom: 1px solid var(--rule);
-  text-align: left;
+  text-align: start;
 }
 
 .shortcuts thead th {
@@ -1821,7 +1826,7 @@ kbd {
 .bookmark-actions {
   display: flex;
   gap: 0.25rem;
-  margin-left: -0.5rem;
+  margin-inline-start: -0.5rem;
 }
 
 .bookmark-error {

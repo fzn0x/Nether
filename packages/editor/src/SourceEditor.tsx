@@ -79,6 +79,8 @@ export function SourceEditor(props: SourceEditorProps) {
           markdown({ base: markdownLanguage }),
           syntaxHighlighting(markdownClasses),
           EditorView.lineWrapping,
+          // Each line in its own direction: Arabic or Hebrew reads right to left.
+          EditorView.perLineTextDirection.of(true),
           placeholder(empty),
           // Tab indents; Escape, then Tab, leaves the editor, as CodeMirror documents.
           keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
