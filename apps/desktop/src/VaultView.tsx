@@ -5,16 +5,7 @@
 import type { NoteId, Period } from "@nether/core";
 import type { LinkGraph } from "@nether/graph";
 import type { NoteEntry } from "@nether/storage";
-import {
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
@@ -40,9 +31,28 @@ import { useTemplateSettings } from "./useTemplateSettings.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
-// show while they do.
-const loadNoteView = () => import("./NoteView.tsx");
-const NoteView = lazy(loadNoteView);
+// show while they do. Not through lazy(): a lazy component waits on its
+// first render even when its code has loaded, and React then holds back
+// what it waited for a further 300 ms, as it does after any fallback.
+type NoteViewModule = typeof import("./NoteView.tsx");
+let noteViewModule: NoteViewModule | undefined;
+const loadNoteView = () => import("./NoteView.tsx").then((module) => (noteViewModule = module));
+
+/** The note view's code, loading as the vault opens, before a note is picked. */
+function useNoteViewModule(): NoteViewModule | undefined {
+  const [module, setModule] = useState(noteViewModule);
+  useEffect(() => {
+    if (module !== undefined) return;
+    let current = true;
+    void loadNoteView().then((loaded) => {
+      if (current) setModule(loaded);
+    });
+    return () => {
+      current = false;
+    };
+  }, [module]);
+  return module;
+}
 // Making a note from a template takes the editor's document and the parser.
 const loadCreateNote = () => import("./createNote.ts");
 // Renaming a note reads the links to it with the parser.
@@ -128,6 +138,28 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const notes = useNotes(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
   const lastNoteKey = `nether.lastNote.${info.id}`;
+
+  // The vault's links load once the note it opens to shows, or at once when
+  // it opens to none: loaded alongside it, they held that note back.
+  const indexer = state.status === "open" ? state.indexer : undefined;
+  const linksStarted = useRef<Indexer | undefined>(undefined);
+  const loadLinks = useCallback(() => {
+    if (indexer === undefined || linksStarted.current === indexer) return;
+    linksStarted.current = indexer;
+    void indexer.start().then(() => {
+      backend.mark("links-loaded");
+      // Opening the vault is done, and what it took to open it can go.
+      backend.settle();
+    });
+  }, [indexer]);
+  useEffect(() => {
+    // Should the note never show.
+    const timer = setTimeout(loadLinks, 3000);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [loadLinks]);
+
   // Where a link to a heading or block asked to go, in the note it opened.
   const [focus, setFocus] = useState<(NotePart & { readonly key: number }) | undefined>();
   // Blocks or source, kept from note to note.
@@ -164,10 +196,7 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const { settings, save } = useTemplateSettings(vault);
   const version = useGraph(graph);
 
-  useEffect(() => {
-    // Start loading the editor as the vault opens, before a note is picked.
-    void loadNoteView();
-  }, []);
+  const noteView = useNoteViewModule();
 
   const openNote = useCallback((id: NoteId, part?: NotePart) => {
     setSelected(id);
@@ -444,14 +473,19 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   // The note open when the vault was last open opens again, found by its path.
   useEffect(() => {
     if (vault === undefined) return;
+    let restored = false;
     try {
       const path = localStorage.getItem(lastNoteKey);
       const note = path === null ? undefined : vault.noteAt(path);
-      if (note !== undefined) setSelected((current) => current ?? note.id);
+      if (note !== undefined) {
+        setSelected((current) => current ?? note.id);
+        restored = true;
+      }
     } catch {
       // Storage closed to the page: the vault opens to no note.
     }
-  }, [vault, lastNoteKey]);
+    if (!restored) loadLinks();
+  }, [vault, lastNoteKey, loadLinks]);
   const selectedPath = selected === undefined ? undefined : vault?.note(selected)?.path;
   useEffect(() => {
     if (selectedPath === undefined) return;
@@ -754,8 +788,8 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       ) : null}
       <main className="pane">
         {state.status === "open" && selected !== undefined ? (
-          <Suspense fallback={null}>
-            <NoteView
+          noteView === undefined ? null : (
+            <noteView.default
               vault={state.vault}
               media={state.media}
               graph={state.indexer.graph}
@@ -775,8 +809,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               sourceRequest={sourceRequest}
               renameRequest={renameRequest}
               sourceKeys={keysOf("toggleSource")}
+              onShown={loadLinks}
             />
-          </Suspense>
+          )
         ) : (
           <p className="placeholder">{t("selectNote")}</p>
         )}

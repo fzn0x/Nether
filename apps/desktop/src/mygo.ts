@@ -108,6 +108,23 @@ export const Desktop = {
   info(): Promise<AppInfo> {
     return call("Desktop.Info");
   },
+  /**
+   * Mark records how long after the app started the page reached a point,
+   * such as its vault open, in the file NETHER_TRACE names, for performance
+   * measurements; without NETHER_TRACE it records nothing.
+   */
+  mark(name: string): Promise<void> {
+    return call("Desktop.Mark", name);
+  },
+  /**
+   * Settle hands back to the system the memory the app no longer uses, once
+   * the page has finished a burst of work such as opening a vault: Go keeps
+   * what it freed for a while, in case it needs it again, and replies to a
+   * large vault's page take tens of megabytes.
+   */
+  settle(): Promise<void> {
+    return call("Desktop.Settle");
+  },
 } as const;
 
 /**

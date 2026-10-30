@@ -32,6 +32,7 @@ export function useVault(info: VaultInfo): VaultState {
     void (async () => {
       try {
         const { files, store, media, exporter } = await backend.connect(info);
+        backend.mark("store-open");
         closeStore = () => store.close();
         if (aborted()) {
           await store.close();
@@ -39,14 +40,23 @@ export function useVault(info: VaultInfo): VaultState {
         }
         const vault = new Vault(files, store);
         await vault.open();
+        backend.mark("vault-listed");
         if (aborted()) return;
         indexer = new Indexer(
           vault,
           new Worker(new URL("./indexer.worker.ts", import.meta.url), { type: "module" }),
         );
-        await indexer.start();
-        if (aborted()) return;
+        // The vault shows at once; the view starts its links loading.
         setState({ status: "open", vault, media, exporter, indexer });
+        backend.mark("vault-open");
+        // The page's heap as the vault settles, for the memory target.
+        for (const seconds of [10, 30, 60]) {
+          setTimeout(() => {
+            const heap = (performance as { memory?: { usedJSHeapSize: number } }).memory;
+            if (heap === undefined) return;
+            backend.mark(`heap-mb-${String(Math.round(heap.usedJSHeapSize / 2 ** 20))}`);
+          }, seconds * 1000);
+        }
         // What has been in the trash too long goes; what cannot is tried again next time.
         vault.purgeTrash().catch(() => undefined);
         await vault.watch(controller.signal);

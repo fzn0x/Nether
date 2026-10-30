@@ -7,7 +7,7 @@ import "@nether/editor/math.css";
 import type { Backlink, LinkGraph, NoteIndex } from "@nether/graph";
 import type { Vault } from "@nether/storage";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import type { VaultMedia } from "./backend.ts";
+import { type VaultMedia, backend } from "./backend.ts";
 import { readIndexRow } from "./indexer.ts";
 import { t } from "./messages.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
@@ -69,6 +69,8 @@ export default function NoteView(props: {
   readonly renameRequest: number;
   /** The shortcut that switches modes, for its button's hint. */
   readonly sourceKeys: string | undefined;
+  /** Called when the note's text shows. */
+  readonly onShown: () => void;
 }) {
   const {
     vault,
@@ -86,6 +88,7 @@ export default function NoteView(props: {
     sourceRequest,
     renameRequest,
     sourceKeys,
+    onShown,
   } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
@@ -121,6 +124,14 @@ export default function NoteView(props: {
     setSwitched(true);
     onMode(mode === "blocks" ? "source" : "blocks");
   };
+
+  // When a note's text shows, and for performance measurements.
+  const shown = state.status === "ready";
+  useEffect(() => {
+    if (!shown) return;
+    backend.mark("note-shown");
+    onShown();
+  }, [shown, id, onShown]);
 
   // The app's commands ask for a switch, or a rename; a request made before this view does nothing.
   const handledSource = useRef(sourceRequest);

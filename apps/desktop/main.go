@@ -4,10 +4,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/plugins/sqlite"
@@ -38,6 +41,33 @@ type Desktop struct {
 // Info returns the app's name, version and operating system.
 func (d Desktop) Info() AppInfo {
 	return AppInfo{Name: d.app.Name(), Version: d.app.Version(), Platform: runtime.GOOS}
+}
+
+// started is when the app's process started, which Mark counts from.
+var started = time.Now()
+
+// Mark records how long after the app started the page reached a point,
+// such as its vault open, in the file NETHER_TRACE names, for performance
+// measurements; without NETHER_TRACE it records nothing.
+func (d Desktop) Mark(name string) {
+	trace := os.Getenv("NETHER_TRACE")
+	if trace == "" {
+		return
+	}
+	file, err := os.OpenFile(trace, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	fmt.Fprintf(file, "%s %d\n", name, time.Since(started).Milliseconds())
+}
+
+// Settle hands back to the system the memory the app no longer uses, once
+// the page has finished a burst of work such as opening a vault: Go keeps
+// what it freed for a while, in case it needs it again, and replies to a
+// large vault's page take tens of megabytes.
+func (d Desktop) Settle() {
+	go debug.FreeOSMemory()
 }
 
 func main() {

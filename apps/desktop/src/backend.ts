@@ -15,6 +15,7 @@ import {
 } from "@nether/storage";
 import { Channel, isCallError, isMyGo } from "mygo-runtime";
 import {
+  Desktop,
   type ExportEntry,
   Exports,
   type LinkPreview,
@@ -98,6 +99,10 @@ export interface Backend {
   setAutomaticUpdates(on: boolean): Promise<void>;
   /** Looks for a newer version now. */
   checkForUpdates(): Promise<void>;
+  /** Records a point the page reached, such as its vault open, for performance measurements. */
+  mark(name: string): void;
+  /** Hands back to the system the memory the app no longer uses, after a burst of work. */
+  settle(): void;
 }
 
 /** A vault's files through the Go service. */
@@ -168,6 +173,12 @@ const desktop: Backend = {
   fetchPreview: (url) => Previews.fetch(url),
   openUrl: (url) => Previews.open(url),
   updateSettings: () => Updates.settings(),
+  mark(name) {
+    void Desktop.mark(name);
+  },
+  settle() {
+    void Desktop.settle();
+  },
   setAutomaticUpdates: (on) => Updates.setAutomatic(on),
   checkForUpdates: () => Updates.check(),
   startup: () => Vaults.startup(),
@@ -306,6 +317,12 @@ const preview: Backend = {
   updateSettings: () => Promise.resolve({ available: false, automatic: false }),
   setAutomaticUpdates: () => Promise.resolve(),
   checkForUpdates: () => Promise.resolve(),
+  mark() {
+    // Measured with the browser's own timing instead.
+  },
+  settle() {
+    // The browser's memory is its own.
+  },
   startup: () => Promise.resolve(null),
   recent: () => Promise.resolve([]),
   choose: () => Promise.resolve(sample),
