@@ -1,8 +1,8 @@
-// Keeps a vault's link index current. What it read of each note is kept in
-// the vault's index with the size and modification time of the note's
-// file, so opening a vault reads only the notes that changed since; the
-// rest it reads in the background, parsing them in a worker, and then each
-// note again whenever its file changes.
+// Keeps a vault's link index and search current. What it read of each
+// note is kept in the vault's index with the size and modification time
+// of the note's file, so opening a vault reads only the notes that changed
+// since; the rest it reads in the background, parsing them in a worker,
+// and then each note again whenever its file changes or moves.
 import type { NoteId } from "@nether/core";
 import { LinkGraph, type NoteIndex } from "@nether/graph";
 import type { Vault } from "@nether/storage";
@@ -93,13 +93,13 @@ export class Indexer {
     for (const note of this.#vault.notes()) {
       present.add(note.id);
       const known = this.#known.get(note.id);
-      if (known?.size !== note.size || known.modified !== note.modified) {
+      // Changed or moved: a move changes the title, which search reads.
+      if (
+        known?.size !== note.size ||
+        known.modified !== note.modified ||
+        known.path !== note.path
+      ) {
         this.#queue.add(note.id);
-      } else if (known.path !== note.path) {
-        // Moved, not changed: the same index at its new path.
-        const index = this.graph.note(note.id)?.index;
-        if (index !== undefined) this.graph.set(note.id, note.path, index);
-        this.#known.set(note.id, { ...known, path: note.path });
       }
     }
     const gone = [...this.#known.keys()].filter((id) => !present.has(id));
@@ -107,7 +107,10 @@ export class Indexer {
       this.#known.delete(id);
       this.graph.remove(id);
     }
-    if (gone.length > 0) void this.#vault.indexes.deleteNoteIndexes(gone);
+    if (gone.length > 0) {
+      void this.#vault.indexes.deleteNoteIndexes(gone);
+      void this.#vault.indexes.deleteNoteTexts(gone);
+    }
     if (this.#queue.size > 0 && !this.#running) void this.#read();
   }
 
@@ -140,6 +143,13 @@ export class Indexer {
             { note, size: known.size, modified: known.modified, data: JSON.stringify(index) },
           ];
         });
+        const texts = response.results.flatMap(({ id, text }) => {
+          const known = seen.get(id);
+          const title = known?.path.slice(known.path.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+          return title === undefined ? [] : [{ note: id as NoteId, title, body: text }];
+        });
+        // The text first: a note whose index row is kept is not read again.
+        await this.#vault.indexes.putNoteTexts(texts);
         await this.#vault.indexes.putNoteIndexes(rows);
         done += ids.length;
       }
