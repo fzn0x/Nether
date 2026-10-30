@@ -1530,3 +1530,90 @@ button {
   opacity: 0.6;
   cursor: default;
 }
+
+/* The vault's trash, in the sidebar. */
+.trash-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.trash-list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.trash-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.5rem;
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.trash-when {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.trash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-left: -0.5rem;
+  font-size: 0.8125rem;
+}
+
+.trash-actions > span {
+  padding-left: 0.5rem;
+}
+
+.quiet.danger {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.trash-footer {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.8125rem;
+}
+
+.trash-footer .trash-actions {
+  margin-left: 0;
+}
+
+.trash-days {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+
+.trash-days input {
+  width: 4rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.sidebar-notice .quiet {
+  margin-left: 0.25rem;
+  color: var(--accent);
+  font-weight: 600;
+}

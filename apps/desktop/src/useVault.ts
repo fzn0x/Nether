@@ -45,6 +45,8 @@ export function useVault(info: VaultInfo): VaultState {
         await indexer.start();
         if (aborted()) return;
         setState({ status: "open", vault, media, indexer });
+        // What has been in the trash too long goes; what cannot is tried again next time.
+        vault.purgeTrash().catch(() => undefined);
         await vault.watch(controller.signal);
       } catch (error) {
         if (!aborted()) {

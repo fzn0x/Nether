@@ -23,6 +23,7 @@ import { NoteList } from "./NoteList.tsx";
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
 import { SearchPanel } from "./SearchPanel.tsx";
 import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
+import { TrashPanel } from "./TrashPanel.tsx";
 import type { NotePart } from "./noteLinks.ts";
 import type { NoteMode } from "./NoteView.tsx";
 import { findTemplate, nameOf, periodicNote, periods, templateChoices } from "./templates.ts";
@@ -98,13 +99,15 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
   const [focus, setFocus] = useState<(NotePart & { readonly key: number }) | undefined>();
   // Blocks or source, kept from note to note.
   const [mode, setMode] = useState<NoteMode>("blocks");
-  const [panel, setPanel] = useState<"notes" | "tags" | "search">("notes");
+  const [panel, setPanel] = useState<"notes" | "tags" | "search" | "trash">("notes");
   const [switcher, setSwitcher] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
   const [dialog, setDialog] = useState<"newNote" | "settings" | undefined>();
-  // What happened when a note was made, such as a template the vault no longer has.
-  const [notice, setNotice] = useState<string | undefined>();
+  // What happened to a note: a template the vault no longer has, or the note moved to the trash.
+  const [notice, setNotice] = useState<
+    { readonly text: string; readonly restore?: string } | undefined
+  >();
   const { settings, save } = useTemplateSettings(vault);
   const version = useGraph(graph);
 
@@ -194,13 +197,41 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
       const named = settings[period].template;
       const template = findTemplate(vault.notes(), settings, named);
       if (named !== "" && template === undefined) {
-        setNotice(t("templateMissing", { template: named }));
+        setNotice({ text: t("templateMissing", { template: named }) });
       }
       makeNote(path, template, date).catch((error: unknown) => {
-        setNotice(error instanceof Error ? error.message : String(error));
+        setNotice({ text: error instanceof Error ? error.message : String(error) });
       });
     },
     [vault, settings, openNote, makeNote],
+  );
+
+  /** Moves a note to the trash, and offers to put it back. */
+  const trashNote = useCallback(
+    (id: NoteId) => {
+      if (vault === undefined) return;
+      const title = vault.note(id)?.title ?? "";
+      vault.remove(id).then(
+        (where) => {
+          setSelected((current) => (current === id ? undefined : current));
+          setNotice({ text: t("movedToTrash", { name: title }), restore: where });
+        },
+        (error: unknown) => {
+          setNotice({ text: error instanceof Error ? error.message : String(error) });
+        },
+      );
+    },
+    [vault],
+  );
+
+  /** Opens a note restored from the trash. */
+  const openRestored = useCallback(
+    (path: string) => {
+      setNotice(undefined);
+      const note = vault?.noteAt(path);
+      if (note !== undefined) openNote(note.id);
+    },
+    [vault, openNote],
   );
 
   const shown = useMemo(() => {
@@ -269,7 +300,24 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
             </div>
             {notice === undefined ? null : (
               <p className="notice sidebar-notice" role="status">
-                {notice}
+                {notice.text}
+                {notice.restore === undefined ? null : (
+                  <button
+                    type="button"
+                    className="quiet"
+                    onClick={() => {
+                      const where = notice.restore;
+                      if (where === undefined) return;
+                      state.vault.restore(where).then(openRestored, (error: unknown) => {
+                        setNotice({
+                          text: error instanceof Error ? error.message : String(error),
+                        });
+                      });
+                    }}
+                  >
+                    {t("restore")}
+                  </button>
+                )}
               </p>
             )}
             <div className="sidebar-tabs">
@@ -301,8 +349,19 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               >
                 {t("search")}
               </button>
+              <button
+                type="button"
+                aria-pressed={panel === "trash"}
+                onClick={() => {
+                  setPanel("trash");
+                }}
+              >
+                {t("trash")}
+              </button>
             </div>
-            {panel === "search" ? (
+            {panel === "trash" ? (
+              <TrashPanel vault={state.vault} onRestored={openRestored} />
+            ) : panel === "search" ? (
               <SearchPanel
                 vault={state.vault}
                 graph={state.indexer.graph}
@@ -391,6 +450,9 @@ export function VaultView(props: { readonly info: VaultInfo; readonly onClose: (
               onOpenTag={showTag}
               mode={mode}
               onMode={setMode}
+              onTrash={() => {
+                trashNote(selected);
+              }}
             />
           </Suspense>
         ) : (

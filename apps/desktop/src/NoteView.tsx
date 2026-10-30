@@ -54,8 +54,10 @@ export default function NoteView(props: {
   readonly onOpenTag: (name: string) => void;
   readonly mode: NoteMode;
   readonly onMode: (mode: NoteMode) => void;
+  /** Moves the note to the vault's trash. */
+  readonly onTrash: () => void;
 }) {
-  const { vault, media, graph, id, focus, mode, onMode, onOpenNote, onOpenTag } = props;
+  const { vault, media, graph, id, focus, mode, onMode, onOpenNote, onOpenTag, onTrash } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
   const [fileError, setFileError] = useState<string | undefined>();
@@ -132,6 +134,14 @@ export default function NoteView(props: {
                 onClick={() => void toggle()}
               >
                 {t("sourceMode")}
+              </button>
+              <button
+                type="button"
+                className="quiet"
+                title={t("moveToTrashHint")}
+                onClick={onTrash}
+              >
+                {t("moveToTrash")}
               </button>
             </div>
           ) : null}
