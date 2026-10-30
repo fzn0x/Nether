@@ -51,6 +51,7 @@ func main() {
 	vaults := NewVaults(data, mygo.Dialog, os.Args[1:])
 	mygo.Bind(vaults)
 	mygo.Bind(NewExports(vaults))
+	mygo.Bind(NewPreviews())
 
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{

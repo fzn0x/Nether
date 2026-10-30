@@ -66,6 +66,13 @@ export interface FileText {
   binary?: boolean;
 }
 
+/** LinkPreview is what a page says of itself. */
+export interface LinkPreview {
+  title?: string;
+  description?: string;
+  site?: string;
+}
+
 /** PDFPage is the paper a PDF export is laid out on. */
 export interface PDFPage {
   size: string;
@@ -262,5 +269,22 @@ export const Exports = {
   /** Reveal shows a file an export saved in the system's file manager. */
   reveal(file: string): Promise<void> {
     return call("Exports.Reveal", file);
+  },
+} as const;
+
+/**
+ * Previews fetches what a web page says of itself, its title, description
+ * and site, when the user asks to see a link's preview, and opens web
+ * addresses in the system's browser. It fetches nothing unasked, and reads
+ * no image, so showing a preview later reaches no server.
+ */
+export const Previews = {
+  /** Fetch reads the page at a web address and returns what it says of itself. */
+  fetch(raw: string): Promise<LinkPreview> {
+    return call("Previews.Fetch", raw);
+  },
+  /** Open opens a web address in the system's browser. */
+  open(raw: string): Promise<void> {
+    return call("Previews.Open", raw);
   },
 } as const;
