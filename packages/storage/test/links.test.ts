@@ -141,4 +141,21 @@ describe("Vault data", () => {
     expect(await vault.readData("types")).toEqual({ status: "text", due: "date" });
     expect(vault.notes().map((note) => note.path)).toEqual(["a.md"]);
   });
+
+  it("reads Obsidian's settings for the vault, and only reads them", async () => {
+    const memory = new MemoryFiles({
+      "a.md": "A",
+      ".obsidian/daily-notes.json": '{ "folder": "Daily", "format": "YYYY/MM-DD" }',
+      ".obsidian/broken.json": "{",
+    });
+    const vault = new Vault(memory, new MemoryStore());
+    await vault.open();
+    expect(await vault.readObsidianData("daily-notes")).toEqual({
+      folder: "Daily",
+      format: "YYYY/MM-DD",
+    });
+    expect(await vault.readObsidianData("templates")).toBeUndefined();
+    expect(await vault.readObsidianData("broken")).toBeUndefined();
+    expect(await vault.readData("daily-notes")).toBeUndefined();
+  });
 });

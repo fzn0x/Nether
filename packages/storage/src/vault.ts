@@ -99,8 +99,21 @@ export class Vault {
    * A JSON file of the vault's own, `.nether/<name>.json`, such as its
    * property types: undefined when there is none or it cannot be read.
    */
-  async readData(name: string): Promise<unknown> {
-    const file = await this.#files.read(`.nether/${name}.json`);
+  readData(name: string): Promise<unknown> {
+    return this.#readJson(`.nether/${name}.json`);
+  }
+
+  /**
+   * A JSON file of Obsidian's settings for the vault, from its `.obsidian`
+   * folder, such as `daily-notes`, so a vault moved from Obsidian keeps
+   * them; nothing when it is missing or does not read as JSON.
+   */
+  readObsidianData(name: string): Promise<unknown> {
+    return this.#readJson(`.obsidian/${name}.json`);
+  }
+
+  async #readJson(path: string): Promise<unknown> {
+    const file = await this.#files.read(path);
     if (file.missing === true || file.binary === true) return undefined;
     try {
       return JSON.parse(file.text) as unknown;
