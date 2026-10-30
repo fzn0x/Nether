@@ -10,7 +10,6 @@ and the page calls the Go services in `main.go` through the client that
 can do: the vault folder, the file watcher, SQLite and the operating
 system. See [ADR 0004](../../docs/adr/0004-desktop-on-mygo.md).
 
-
 ## Develop
 
 You need Go 1.27, Node.js and pnpm. MyGO uses no cgo, so there is no C
