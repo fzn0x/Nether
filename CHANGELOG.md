@@ -29,5 +29,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0007](docs/adr/0007-vault-folder-and-local-index.md)).
 - `@nether/storage`, the vault's index in SQLite, which brings itself up to
   date by size and modification time and keeps a note's ID when it moves.
+- The note editor: notes open in a block editor that turns Markdown typed at
+  the start of a line into blocks, and save back to their Markdown files as
+  you type, rewriting only the blocks you changed. An edit that meets a
+  change another app made is kept in a conflict copy beside the note.
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main
