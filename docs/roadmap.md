@@ -69,7 +69,7 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] Renaming and moving notes, with every link to them rewritten
 - [x] Folders and nested pages in the sidebar: the file tree and the page tree ([ADR 0013](adr/0013-pages-in-the-folder-beside-a-note.md))
 - [x] The command palette, Ctrl/Cmd+P, and a shortcut for every action
-- [ ] Block links made from `[[`, writing the block's `^id` into its note
+- [x] Block links made from `[[`, writing the block's `^id` into its note
 - [ ] Previews of web links, fetched only when asked
 - [ ] The desktop packages: AppImage, deb and Flatpak on Linux, and updates that can be turned off
 - [ ] The performance harness on the reference vault, which the gate runs

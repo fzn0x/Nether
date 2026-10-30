@@ -31,6 +31,12 @@ A link to a heading, `[[Roadmap#Next steps]]`, opens the note at that
 heading. A link to a block, `[[Roadmap#^b1]]`, opens it at the block whose
 file writes `^b1` after it, as Obsidian writes block IDs.
 
+To link to a block, type `#^` after the note's name, as in `[[Roadmap#^`,
+then words from the block: Nether lists the note's blocks that have them.
+`[[#^` lists the blocks of the note you are in. When the block you pick
+has no ID yet, Nether gives it one and writes it after the block in its
+note's file, as `^b1`, changing nothing else there.
+
 ## Embedding notes
 
 Put `!` before a link, alone on its line, to show the note it names inside

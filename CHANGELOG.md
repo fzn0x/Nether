@@ -99,6 +99,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   command can have a keyboard shortcut, changed in the Keyboard shortcuts
   list and kept in the vault; new defaults give today's note Ctrl+Shift+D,
   renaming F2, export Ctrl+Shift+E and the template settings Ctrl+,.
+- Links to blocks from `[[Note#^`: the note's blocks are found by their
+  text, and a block chosen without an ID gets one, written after it in
+  its note's file as Obsidian writes them.
 
 ### Fixed
 
