@@ -58,10 +58,10 @@ test("a line break written in source stays a new line when its paragraph is edit
   await page.keyboard.type(" more");
   await settle(page);
   await page.keyboard.press("ControlOrMeta+/");
-  // A new line, as written, not a hard break's backslash.
-  const lines = (await sourceOf(page, "Roadmap").innerText()).split("\n");
-  expect(lines).toContain("first line");
-  expect(lines).toContain("second line more");
+  // A new line, as written, not a hard break's backslash, once the source editor shows it.
+  await expect
+    .poll(async () => (await sourceOf(page, "Roadmap").innerText()).split("\n"))
+    .toEqual(expect.arrayContaining(["first line", "second line more"]));
 });
 
 test("Vim keys work in source mode when they are on", async ({ page }) => {
