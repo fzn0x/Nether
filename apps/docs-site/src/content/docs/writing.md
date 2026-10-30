@@ -96,6 +96,19 @@ A PDF's card can open it in your system's PDF app, and any other file's
 card shows it in your file manager. On Linux, whose web view has no PDF
 viewer, PDFs show as cards.
 
+## Markdown source
+
+Press Ctrl+/ (Cmd+/ on a Mac), or the **Markdown source** button above a
+note, to see and edit the note as its Markdown, exactly as the file holds
+it, frontmatter and all; press it again to go back to blocks. Nothing is
+lost either way: what you change in one shows in the other, and the file
+keeps its line endings. Notes stay in the mode you chose as you move
+between them.
+
+In source mode, Ctrl+F finds and replaces, Tab indents, and Escape then
+Tab leaves the editor. Turn on **Vim keys** to edit with Vim's modes and
+commands; Nether remembers the choice.
+
 ## What happens to your file
 
 Nether rewrites only the blocks you change. The rest of the file keeps its
