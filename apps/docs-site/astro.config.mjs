@@ -19,7 +19,16 @@ export default defineConfig({
         { label: "Start here", items: ["introduction", "roadmap"] },
         {
           label: "Notes",
-          items: ["vaults", "writing", "properties", "templates", "links", "search", "markdown"],
+          items: [
+            "vaults",
+            "writing",
+            "properties",
+            "templates",
+            "links",
+            "search",
+            "export",
+            "markdown",
+          ],
         },
       ],
     }),

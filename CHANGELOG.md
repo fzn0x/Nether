@@ -81,5 +81,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   restores a note where it was as the same note, and deletes notes for
   good, one at a time or all at once. Notes are deleted for good after 30
   days, or as many as the vault sets.
+- Export: a note, its folder or the whole vault, as its Markdown files with
+  the files they show, as web pages that link to each other with an index,
+  or as a PDF on A4 or Letter, each note on a new page, with math, code,
+  diagrams and embedded notes drawn as in the app
+  ([ADR 0012](docs/adr/0012-export-from-the-page.md)).
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main
