@@ -1,7 +1,7 @@
 # @nether/docs-site
 
 The user, self-hosting, admin and plugin developer documentation, published
-at https://fzn0x.github.io/nether/. It is built with
+at https://fzn0x.github.io/Nether/. It is built with
 [Starlight](https://starlight.astro.build) on Astro; the pages are Markdown
 in `src/content/docs/`.
 

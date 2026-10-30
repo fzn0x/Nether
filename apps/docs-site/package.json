@@ -2,7 +2,7 @@
   "name": "@nether/docs-site",
   "version": "0.0.0",
   "private": true,
-  "description": "The Nether documentation site, published at https://fzn0x.github.io/nether/.",
+  "description": "The Nether documentation site, published at https://fzn0x.github.io/Nether/.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "engines": {
