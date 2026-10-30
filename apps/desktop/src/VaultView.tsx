@@ -57,6 +57,8 @@ function useNoteViewModule(): NoteViewModule | undefined {
 const loadCreateNote = () => import("./createNote.ts");
 // Renaming a note reads the links to it with the parser.
 const loadRenameNote = () => import("./renameNote.ts");
+// So does making a database, which writes its note's frontmatter.
+const loadDatabases = () => import("./databases.ts");
 
 const numbers = new Intl.NumberFormat();
 
@@ -384,6 +386,22 @@ export function VaultView(props: {
         ? () => {
             setNewIn("");
             setDialog("newNote");
+          }
+        : undefined,
+      newDatabase: open
+        ? () => {
+            const vault = state.vault;
+            const folder =
+              selectedPath?.includes("/") === true
+                ? selectedPath.slice(0, selectedPath.lastIndexOf("/"))
+                : "";
+            void loadDatabases()
+              .then(({ createDatabase }) => createDatabase(vault, folder, t("newDatabaseName")))
+              .then((created) => {
+                setTag(undefined);
+                setPanel("notes");
+                openNote(created.id);
+              });
           }
         : undefined,
       dayNote: open

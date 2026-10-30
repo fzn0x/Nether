@@ -2,6 +2,7 @@
 // vault's choice or what its value looks like, and an editor for that
 // type. Changes go to the note's document, and from there to its file.
 import { type JsonValue, type PropertyEntry, type PropertyType, propertyTypes } from "@nether/core";
+import { databaseKey } from "@nether/database";
 import { documentProperties, setDocumentProperties } from "@nether/editor";
 import type { Vault } from "@nether/storage";
 import { type KeyboardEvent, useEffect, useState } from "react";
@@ -31,7 +32,7 @@ function itemText(item: JsonValue): string {
   return typeof item === "string" ? item : JSON.stringify(item);
 }
 
-function ListEditor(props: {
+export function ListEditor(props: {
   readonly label: string;
   readonly values: readonly string[];
   readonly onChange: (values: string[]) => void;
@@ -213,59 +214,64 @@ export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vaul
 
   return (
     <section className="properties" aria-label={t("properties")}>
-      {entries.map((entry) => {
-        const type = typeOf(entry.key, entry.value, types);
-        return (
-          <div key={entry.key} className="property" role="group" aria-label={entry.key}>
-            <KeyField
-              name={entry.key}
-              taken={keys}
-              autoFocus={added === entry.key}
-              onRename={(name) => {
-                save(
-                  entries.map((item) =>
-                    item.key === entry.key ? { key: name, value: item.value } : item,
-                  ),
-                );
-              }}
-            />
-            <select
-              className="property-type"
-              aria-label={t("propertyType", { name: entry.key })}
-              value={type}
-              onChange={(event) => {
-                setType(entry.key, event.target.value as PropertyType);
-              }}
-            >
-              {editableTypes.map((option) => (
-                <option key={option} value={option}>
-                  {t(`type_${option}`)}
-                </option>
-              ))}
-            </select>
-            <ValueEditor
-              name={entry.key}
-              type={type}
-              value={entry.value}
-              onChange={(value) => {
-                save(
-                  entries.map((item) => (item.key === entry.key ? { key: item.key, value } : item)),
-                );
-              }}
-            />
-            <button
-              type="button"
-              className="quiet property-remove"
-              aria-label={t("removeProperty", { name: entry.key })}
-              onClick={() => {
-                save(entries.filter((item) => item.key !== entry.key));
-              }}
-            >
-              ×
-            </button>
-          </div>
-        );
-      })}
+      {/* A database's schema shows as the database below the note, and is kept on every save. */}
+      {entries
+        .filter((entry) => entry.key !== databaseKey)
+        .map((entry) => {
+          const type = typeOf(entry.key, entry.value, types);
+          return (
+            <div key={entry.key} className="property" role="group" aria-label={entry.key}>
+              <KeyField
+                name={entry.key}
+                taken={keys}
+                autoFocus={added === entry.key}
+                onRename={(name) => {
+                  save(
+                    entries.map((item) =>
+                      item.key === entry.key ? { key: name, value: item.value } : item,
+                    ),
+                  );
+                }}
+              />
+              <select
+                className="property-type"
+                aria-label={t("propertyType", { name: entry.key })}
+                value={type}
+                onChange={(event) => {
+                  setType(entry.key, event.target.value as PropertyType);
+                }}
+              >
+                {editableTypes.map((option) => (
+                  <option key={option} value={option}>
+                    {t(`type_${option}`)}
+                  </option>
+                ))}
+              </select>
+              <ValueEditor
+                name={entry.key}
+                type={type}
+                value={entry.value}
+                onChange={(value) => {
+                  save(
+                    entries.map((item) =>
+                      item.key === entry.key ? { key: item.key, value } : item,
+                    ),
+                  );
+                }}
+              />
+              <button
+                type="button"
+                className="quiet property-remove"
+                aria-label={t("removeProperty", { name: entry.key })}
+                onClick={() => {
+                  save(entries.filter((item) => item.key !== entry.key));
+                }}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
       <button type="button" className="quiet property-add" onClick={add}>
         {t("addProperty")}
       </button>

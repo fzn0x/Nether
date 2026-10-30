@@ -13,6 +13,7 @@ import { t } from "./messages.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
 import { linkPreviews } from "./linkPreviews.ts";
 import { noteFiles } from "./noteFiles.ts";
+import { DatabaseView } from "./DatabaseView.tsx";
 import { PropertiesPanel } from "./PropertiesPanel.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
 import { useGraph } from "./useGraph.ts";
@@ -260,6 +261,15 @@ export default function NoteView(props: {
               previews={linkPreviews(vault)}
               autofocus={switched}
               {...(focus === undefined ? {} : { focus })}
+            />
+            <DatabaseView
+              vault={vault}
+              graph={graph}
+              document={state.document}
+              path={note.path}
+              onOpenNote={(row) => {
+                onOpenNote(row);
+              }}
             />
           </>
         )}

@@ -1832,3 +1832,146 @@ kbd {
 .bookmark-error {
   font-size: 0.8125rem;
 }
+
+/* A database below its note: its views as tabs, then the chosen view's
+   toolbar and table, which keep to the note's column and scroll across
+   when their columns are wider. */
+.database {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 1.5rem 2rem;
+  font-size: 0.875rem;
+}
+
+.database-tabs,
+.database-tabs [role="tablist"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: end;
+}
+
+.database-tabs {
+  border-block-end: 1px solid var(--rule);
+}
+
+.database-tabs [role="tab"] {
+  padding: 0.3rem 0.6rem;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.database-tabs [role="tab"][aria-selected="true"] {
+  border-block-end-color: var(--accent);
+  color: var(--text);
+}
+
+.database-toolbar,
+.database-filters,
+.database-condition,
+.database-properties,
+.database-add-property {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.database-filters,
+.database-properties {
+  padding: 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.database-toolbar label,
+.database-properties label {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--muted);
+}
+
+.database [role="tabpanel"] {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.database-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.database-table th,
+.database-table td {
+  padding: 0.15rem 0.35rem;
+  border-block-end: 1px solid var(--rule);
+  text-align: start;
+  vertical-align: middle;
+}
+
+.database-table thead th {
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.database-table thead button {
+  padding-inline: 0;
+  font: inherit;
+}
+
+.database-table input:not([type="checkbox"]),
+.database select,
+.database input:not([type="checkbox"]) {
+  min-width: 0;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+}
+
+.database input:not([type="checkbox"]):hover,
+.database input:not([type="checkbox"]):focus,
+.database select:hover,
+.database select:focus {
+  border-color: var(--rule);
+  background: var(--bg);
+}
+
+.database-table td input:not([type="checkbox"]) {
+  width: 100%;
+}
+
+.database-row-title {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: start;
+  cursor: pointer;
+}
+
+.database-row-title:hover {
+  color: var(--accent);
+}
+
+.database-group th {
+  padding-block-start: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.database-group .count {
+  margin-inline-start: 0.35rem;
+}

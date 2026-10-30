@@ -8,6 +8,7 @@ export const commandIds = [
   "switcher",
   "search",
   "newNote",
+  "newDatabase",
   "dayNote",
   "weekNote",
   "monthNote",

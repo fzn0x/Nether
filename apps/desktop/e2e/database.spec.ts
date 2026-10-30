@@ -1,0 +1,103 @@
+// A database made in the app: its properties, rows and their values, kept
+// in the files as ADR 0018 has it, and a view's sorts, groups and filters.
+import AxeBuilder from "@axe-core/playwright";
+import { type Page, expect, test } from "@playwright/test";
+import { errorsOf, openSample } from "./helpers.ts";
+
+/** A file of the sample vault, as the app last wrote it. */
+async function fileText(page: Page, path: string): Promise<string | undefined> {
+  return page.evaluate(async (file) => {
+    const preview = (
+      globalThis as unknown as {
+        netherPreview: {
+          files: { read(path: string): Promise<{ text: string; missing?: boolean }> };
+        };
+      }
+    ).netherPreview;
+    const read = await preview.files.read(file);
+    return read.missing === true ? undefined : read.text;
+  }, path);
+}
+
+test("a database keeps its schema in its note and its values in its rows, and a view sorts, groups and filters them", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("new database");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#note-title")).toHaveText("Untitled database");
+  const database = page.getByRole("region", { name: "Database" });
+  await expect(database.getByRole("tab", { name: "Table" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+
+  // Two properties, shown in the table as they are added.
+  await database.getByRole("button", { name: "Properties" }).click();
+  const add = async (name: string, type: string) => {
+    await database.getByRole("textbox", { name: "Property name" }).fill(name);
+    await database.getByRole("combobox", { name: "Type of the new property" }).selectOption(type);
+    await database.getByRole("button", { name: "Add a property" }).click();
+  };
+  await add("Status", "Select");
+  await add("Points", "Number");
+  const table = database.getByRole("table");
+  await expect(table.getByRole("columnheader")).toHaveText(["Name", "Status", "Points"]);
+
+  // Two rows, notes in the folder beside the database.
+  await database.getByRole("button", { name: "New row" }).click();
+  await database.getByRole("button", { name: "New row" }).click();
+  await expect(table.getByRole("rowheader")).toHaveText(["Untitled", "Untitled 2"]);
+  // A select is a text field until it has options to suggest.
+  const cell = (name: string, row: string) =>
+    database.getByLabel(`${name} of ${row}`, { exact: true });
+  for (const [row, status, points] of [
+    ["Untitled", "Doing", "8"],
+    ["Untitled 2", "Done", "3"],
+  ] as const) {
+    await cell("Status", row).fill(status);
+    await cell("Status", row).press("Enter");
+    await cell("Points", row).fill(points);
+    await cell("Points", row).press("Enter");
+  }
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled.md"))
+    .toBe("---\nStatus: Doing\nPoints: 8\n---\n");
+  // The schema, with the options its values added, in the database's note.
+  await expect
+    .poll(() => fileText(page, "Untitled database.md"))
+    .toContain("    - key: Status\n      type: select\n      options:\n        - name: Doing\n");
+
+  // Sorted by points one way, then the other.
+  await table.getByRole("button", { name: "Points" }).click();
+  await expect(table.getByRole("rowheader")).toHaveText(["Untitled 2", "Untitled"]);
+  await table.getByRole("button", { name: "Points" }).click();
+  await expect(table.getByRole("rowheader")).toHaveText(["Untitled", "Untitled 2"]);
+
+  // Grouped by status: its options in order, then rows with none.
+  await database.getByRole("combobox", { name: "Group by" }).selectOption("Status");
+  await expect(table.locator(".database-group")).toHaveText(["Doing 1", "Done 1", "No value 0"]);
+  await database.getByRole("combobox", { name: "Group by" }).selectOption("");
+
+  // Filtered to the rows with more than five points.
+  await database.getByRole("button", { name: "Filter" }).click();
+  await database.getByRole("button", { name: "Add a condition" }).click();
+  await database.getByRole("combobox", { name: "Property of condition 1" }).selectOption("Points");
+  await database
+    .getByRole("combobox", { name: "Comparison of condition 1" })
+    .selectOption("greaterThan");
+  await database.getByRole("spinbutton", { name: "Value of condition 1" }).fill("5");
+  await expect(table.getByRole("rowheader")).toHaveText(["Untitled"]);
+
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((violation) => violation.id)).toEqual([]);
+
+  // A row's name opens it.
+  await table.getByRole("button", { name: "Untitled", exact: true }).click();
+  await expect(page.locator("#note-title")).toHaveText("Untitled");
+  expect(errors).toEqual([]);
+});
