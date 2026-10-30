@@ -8,6 +8,8 @@ export const allowed = new Set([
   "BSD-3-Clause",
   "Apache-2.0",
   "0BSD",
+  // MIT without its attribution clause: more permissive than MIT (ADR 0008).
+  "MIT-0",
   "Zlib",
   "Unlicense",
   "CC0-1.0",

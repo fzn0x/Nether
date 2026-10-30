@@ -1,6 +1,6 @@
 # 0001. License the whole repository under the AGPL-3.0-or-later, with the DCO
 
-- Status: Accepted
+- Status: Accepted; [0008](0008-allow-mit-0.md) adds MIT-0 to the permissive licenses
 - Date: 2026-10-30
 
 ## Context

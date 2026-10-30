@@ -15,3 +15,4 @@ record supersedes it and says so. Start a new one from
 | [0005](0005-server-on-fastify.md) | Run the server on Fastify | Accepted |
 | [0006](0006-markdown-file-format.md) | Write notes as Obsidian-flavored Markdown, and mark Nether's own blocks with HTML | Accepted |
 | [0007](0007-vault-folder-and-local-index.md) | Keep a vault's ID in its folder and its index with the app | Accepted |
+| [0008](0008-allow-mit-0.md) | Allow MIT-0 among the permissive licenses | Accepted |
