@@ -1,31 +1,5 @@
-import { type Page, expect, test } from "@playwright/test";
-
-/** Collects what the page writes to the console as errors, and what it throws. */
-function errorsOf(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
-  page.on("pageerror", (error) => errors.push(error.message));
-  return errors;
-}
-
-/**
- * Waits for the editor to see where the caret is. A click or a key such as
- * End moves the browser's caret, and the editor reads it when the browser
- * reports the change, a frame later: keys pressed sooner act where it was.
- */
-async function settle(page: Page) {
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  );
-}
-
-async function openSample(page: Page) {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Open a folder" }).click();
-  return page.getByRole("list", { name: "Notes" });
-}
+import { expect, test } from "@playwright/test";
+import { endOfFirstParagraph, errorsOf, openSample } from "./helpers.ts";
 
 test("the welcome screen names Nether and offers to open a folder", async ({ page }) => {
   await page.goto("/");
@@ -61,14 +35,7 @@ test("what is typed in a note is saved, and Markdown shortcuts make blocks", asy
   const notes = await openSample(page);
   await notes.getByRole("button", { name: /Ideas/ }).click();
   const editor = page.getByRole("textbox", { name: "Ideas, note text" });
-  // At the paragraph's start, plain text on every platform's fonts, not on the math in it.
-  await editor
-    .locator("p")
-    .last()
-    .click({ position: { x: 2, y: 4 } });
-  await settle(page);
-  await page.keyboard.press("End");
-  await settle(page);
+  await endOfFirstParagraph(page, editor);
   await page.keyboard.press("Enter");
   await page.keyboard.type("## A new heading");
   await page.keyboard.press("Enter");
