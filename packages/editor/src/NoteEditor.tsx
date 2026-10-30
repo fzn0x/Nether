@@ -5,7 +5,6 @@
 import { type ContentBlock, newBlockId } from "@nether/core";
 import Collaboration from "@tiptap/extension-collaboration";
 import { Placeholder } from "@tiptap/extensions";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useMemo, useRef } from "react";
 import { BlockKeys } from "./actions.ts";
@@ -16,6 +15,7 @@ import { contentField } from "./document.ts";
 import { FileDrop, type NoteFiles } from "./files.ts";
 import { blockIdsKey } from "./ids.ts";
 import { LinkMenu, type NoteLinks } from "./LinkMenu.tsx";
+import { type NotePart, findPart } from "./parts.ts";
 import { netherExtensions } from "./schema.ts";
 import { SlashMenu } from "./SlashMenu.tsx";
 import { netherNodeViews } from "./views.tsx";
@@ -49,30 +49,11 @@ export interface NoteEditorProps {
   /** Whether the note can be edited; read only, it shows no menus or handles. */
   readonly editable?: boolean;
   /**
-   * A heading or block to go to, as a link to a part of the note asks: the
-   * caret goes there and it scrolls into view. A new `key` goes again.
+   * A heading or block to go to, as a link to a part of the note asks, or a
+   * place in a block's text: the caret goes there and it scrolls into view.
+   * A new `key` goes again.
    */
-  readonly focus?: { readonly heading?: string; readonly block?: string; readonly key: number };
-}
-
-/** Where in a note a heading, case and spaces aside, or a block by its ID, starts. */
-function findPart(
-  doc: ProseMirrorNode,
-  part: { readonly heading?: string; readonly block?: string },
-): number | undefined {
-  const heading = part.heading?.trim().replace(/\s+/g, " ").toLowerCase();
-  let found: number | undefined;
-  doc.descendants((node, pos) => {
-    if (found !== undefined) return false;
-    const byBlock = part.block !== undefined && node.attrs.id === part.block;
-    const byHeading =
-      heading !== undefined &&
-      node.type.name === "heading" &&
-      node.textContent.trim().replace(/\s+/g, " ").toLowerCase() === heading;
-    if (byBlock || byHeading) found = pos + 1;
-    return true;
-  });
-  return found;
+  readonly focus?: NotePart & { readonly key: number };
 }
 
 export function NoteEditor(props: NoteEditorProps) {
