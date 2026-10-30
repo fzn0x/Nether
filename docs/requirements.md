@@ -177,8 +177,9 @@ depends on them.
 
 ## Non-functional requirements
 
-These apply to every feature. CI measures the performance targets on a
-reference vault of 50,000 notes.
+These apply to every feature. The performance targets are measured on a
+reference vault of 50,000 notes before each phase's gate, not in CI
+([ADR 0017](adr/0017-measure-performance-before-each-gate-not-in-ci.md)).
 
 | Area | Requirement |
 | --- | --- |

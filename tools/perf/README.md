@@ -7,11 +7,16 @@ share the work, each measuring the targets that need what it runs:
 
 | Harness | Targets | Where it runs |
 | --- | --- | --- |
-| `pnpm perf:bench`, in Node.js | Title search under 50 ms, full-text search under 300 ms, and reading and parsing a note | CI, on every push |
-| `pnpm --filter @nether/desktop perf:ui`, the desktop page in Chromium | Switching notes under 100 ms, and typing under 16 ms | CI, on every push |
+| `pnpm perf:bench`, in Node.js | Title search under 50 ms, full-text search under 300 ms, and reading and parsing a note | A maintainer's machine, before each phase's gate |
+| `pnpm --filter @nether/desktop perf:ui`, the desktop page in Chromium | Switching notes under 100 ms, and typing under 16 ms | A maintainer's machine, before each phase's gate |
 | `tools/perf/desktop.ps1`, the desktop app on Windows | Opening to the last note under 1.5 s, idle memory under 300 MB, and picking up another app's edit within 2 s | A maintainer's machine, before each phase's gate |
 
 Each writes what it measured and exits with 1 when a target is missed.
+None runs in CI, whose shared runners vary too much from run to run to
+time a frame by
+([ADR 0017](../../docs/adr/0017-measure-performance-before-each-gate-not-in-ci.md));
+run them for a change that may cost time or memory, and give their numbers
+before and after in its pull request.
 
 ## In Node.js
 

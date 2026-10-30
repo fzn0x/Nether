@@ -58,7 +58,7 @@ Some parts have checks of their own, which CI runs too:
 | The desktop page in Chromium | `pnpm --filter @nether/desktop exec playwright install chromium` once, then `pnpm --filter @nether/desktop test:e2e`, which checks every screen against WCAG 2.2 AA with axe too |
 | The server with every enterprise feature off | `pnpm --filter @nether/server build`, then `pnpm --filter @nether/server smoke` |
 | Dependency licenses | `node .github/scripts/check-licenses.mjs` |
-| The performance targets on 50,000 notes | `pnpm perf:bench` and `pnpm --filter @nether/desktop perf:ui`; on Windows, `tools/perf/desktop.ps1` before a phase's gate ([tools/perf](tools/perf/)) |
+| The performance targets on 50,000 notes | `pnpm perf:bench` and `pnpm --filter @nether/desktop perf:ui`, and on Windows `tools/perf/desktop.ps1`: before a phase's gate, and for a change that may cost time or memory, not in CI ([tools/perf](tools/perf/), [ADR 0017](docs/adr/0017-measure-performance-before-each-gate-not-in-ci.md)) |
 
 After changing a Go service the desktop page calls, run
 `pnpm --filter @nether/desktop generate` and commit `src/mygo.ts`. The

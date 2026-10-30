@@ -111,9 +111,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The performance harness on the reference vault of 50,000 notes:
   `pnpm perf:bench` times search and parsing in Node.js, and
   `pnpm --filter @nether/desktop perf:ui` switching notes and typing in
-  Chromium, both in CI; `tools/perf/desktop.ps1` times the desktop app's
-  start, its memory and how soon it picks up a note another app writes,
-  on Windows.
+  Chromium, and `tools/perf/desktop.ps1` times the desktop app's start,
+  its memory and how soon it picks up a note another app writes, on
+  Windows; they run before each phase's gate, not in CI
+  ([ADR 0017](docs/adr/0017-measure-performance-before-each-gate-not-in-ci.md)).
 - Each paragraph of a note reads in the direction of its own text, so a
   paragraph in Arabic or Hebrew starts at the right, and the interface
   lays itself out right to left in a language written so

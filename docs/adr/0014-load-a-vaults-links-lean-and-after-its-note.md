@@ -1,6 +1,6 @@
 # 0014. Load a vault's links lean, and after the note it opens to
 
-- Status: Accepted; how it finds backlinks is superseded by [0016](0016-find-backlinks-by-the-names-links-write.md)
+- Status: Accepted; how it finds backlinks is superseded by [0016](0016-find-backlinks-by-the-names-links-write.md), and where the targets are measured by [0017](0017-measure-performance-before-each-gate-not-in-ci.md)
 - Date: 2026-10-31
 
 ## Context
