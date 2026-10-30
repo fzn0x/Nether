@@ -48,7 +48,9 @@ func main() {
 	// which the page opens through the SQLite plugin.
 	mygo.Use(sqlite.New(sqlite.Options{Directory: filepath.Join(data, "vaults")}))
 	mygo.Bind(Desktop{app: mygo.App})
-	mygo.Bind(NewVaults(data, mygo.Dialog, os.Args[1:]))
+	vaults := NewVaults(data, mygo.Dialog, os.Args[1:])
+	mygo.Bind(vaults)
+	mygo.Bind(NewExports(vaults))
 
 	mygo.App.WhenReady(func() {
 		mygo.NewWindow(mygo.WindowOptions{

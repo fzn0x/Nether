@@ -14,6 +14,16 @@ export interface AppInfo {
   platform: string;
 }
 
+/**
+ * ExportEntry is a file of a ZIP: Text the page made, or Source, the path
+ * of a file in the vault, copied as it is.
+ */
+export interface ExportEntry {
+  path: string;
+  text?: string;
+  source?: string;
+}
+
 /** FileEvent is a change to a vault's files. */
 export interface FileEvent {
   op: FileOp;
@@ -54,6 +64,12 @@ export interface FileText {
    * text back would change its bytes.
    */
   binary?: boolean;
+}
+
+/** PDFPage is the paper a PDF export is laid out on. */
+export interface PDFPage {
+  size: string;
+  landscape: boolean;
 }
 
 /** VaultInfo identifies a vault: a folder of notes the user chose. */
@@ -201,5 +217,50 @@ export const Vaults = {
    */
   write(id: string, rel: string, text: string, base: string): Promise<FileText> {
     return call("Vaults.Write", id, rel, text, base);
+  },
+} as const;
+
+/**
+ * Exports saves what the page exports where the user chooses: a ZIP of
+ * notes, files and pages, written as the page sends it, or the page printed
+ * as a PDF. The user chooses where first, so nothing is made for an export
+ * that is cancelled; a ZIP is written beside its destination and takes its
+ * place only when it is whole.
+ */
+export const Exports = {
+  /** Add writes files into a ZIP export, in order. A path can be added once. */
+  add(token: string, entries: ExportEntry[]): Promise<void> {
+    return call("Exports.Add", token, entries);
+  },
+  /** Cancel drops an export, and what was written of it. */
+  cancel(token: string): Promise<void> {
+    return call("Exports.Cancel", token);
+  },
+  /**
+   * Choose asks where to save an export of kind "zip" or "pdf" from the vault
+   * id, suggesting name, and returns the export's token for the calls that
+   * make it, or "" when the user cancels.
+   */
+  choose(id: string, name: string, kind: string): Promise<string> {
+    return call("Exports.Choose", id, name, kind);
+  },
+  /**
+   * Finish completes a ZIP export, puts it where the user chose, and returns
+   * where that is.
+   */
+  finish(token: string): Promise<string> {
+    return call("Exports.Finish", token);
+  },
+  /**
+   * PrintPDF prints the calling page, as its print styles lay it out, to the
+   * PDF export token names, and returns where it went. Size is "a4" or
+   * "letter".
+   */
+  printPDF(token: string, page: PDFPage): Promise<string> {
+    return call("Exports.PrintPDF", token, page);
+  },
+  /** Reveal shows a file an export saved in the system's file manager. */
+  reveal(file: string): Promise<void> {
+    return call("Exports.Reveal", file);
   },
 } as const;
