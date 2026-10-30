@@ -14,7 +14,8 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "@nether/core": "workspace:*"
+    "@nether/core": "workspace:*",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@nether/markdown": "workspace:*",
