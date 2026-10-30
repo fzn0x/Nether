@@ -9,7 +9,7 @@ share the work, each measuring the targets that need what it runs:
 | --- | --- | --- |
 | `pnpm perf:bench`, in Node.js | Title search under 50 ms, full-text search under 300 ms, and reading and parsing a note | CI, on every push |
 | `pnpm --filter @nether/desktop perf:ui`, the desktop page in Chromium | Switching notes under 100 ms, and typing under 16 ms | CI, on every push |
-| `tools/perf/desktop.ps1`, the desktop app on Windows | Opening to the last note under 1.5 s, idle memory under 300 MB, and picking up another app's edit within 2 s | CI, on a Windows runner |
+| `tools/perf/desktop.ps1`, the desktop app on Windows | Opening to the last note under 1.5 s, idle memory under 300 MB, and picking up another app's edit within 2 s | A maintainer's machine, before each phase's gate |
 
 Each writes what it measured and exits with 1 when a target is missed.
 
@@ -53,10 +53,9 @@ powershell -File tools/perf/desktop.ps1 -Note "Daily/2023/2023-01-02.md" -Out pe
 
 Each of its three runs starts the app on the vault at the note `-Note`
 names, as `nether <vault> <note>` does, or else at the note last open, and
-idles 60 s; `-Runs` and `-IdleSeconds` change them. CI runs it in the
-Desktop performance job, on a vault generated and read once on the runner.
-Leave the app's windows alone while it runs: a click or a key there changes
-what it measures.
+idles 60 s; `-Runs` and `-IdleSeconds` change them. Leave the app's
+windows alone while it runs: a click or a key there changes what it
+measures.
 
 The script starts the app on the vault with `NETHER_TRACE` set to a file,
 where the app records how many milliseconds after its process started it

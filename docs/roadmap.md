@@ -82,7 +82,7 @@ The Obsidian core, one feature per pull request, in this order:
 
 The Notion core, one feature per pull request, in this order:
 
-- [x] The desktop app's start, memory and pickup measured in CI, on Windows (carried over from Phase 1)
+- [x] Opening a vault at a note its command line names, which the desktop app's measurements start at (carried over from Phase 1)
 - [ ] `packages/database`: a database as a note with a schema, its rows as notes with properties, and how both are stored as Markdown and frontmatter
 - [ ] The table view, with each view's filters, sorts, grouping and visible properties
 - [ ] The board, list and gallery views
