@@ -16,6 +16,35 @@ describe("migrate", () => {
     expect(tables.rows.flat()).toContain("files");
   });
 
+  it("keeps the texts of a version 4 index, found by their rows from then on", async () => {
+    const database = nodeDatabase();
+    await migrate(database);
+    // As version 4 left it: texts in note_texts, and no table of their rows.
+    await database.execute("DROP TABLE note_text_rows");
+    await database.execute("PRAGMA user_version = 4");
+    await database.execute("INSERT INTO note_texts (note, title, body) VALUES (?, ?, ?)", [
+      note(1),
+      "Plan",
+      "old words",
+    ]);
+    const store = await SqliteStore.open(database);
+    const query = (word: string) => ({
+      words: [word],
+      phrases: [],
+      excluded: [],
+      filters: [],
+      excludedFilters: [],
+    });
+    expect((await store.searchText(query("old"), 10)).map((hit) => hit.note)).toEqual([note(1)]);
+    await store.putNoteTexts([{ note: note(1), title: "Plan", body: "new words" }]);
+    expect(await store.searchText(query("old"), 10)).toEqual([]);
+    expect((await store.searchText(query("new"), 10)).map((hit) => hit.note)).toEqual([note(1)]);
+    await store.deleteNoteTexts([note(1)]);
+    expect(await store.searchText(query("new"), 10)).toEqual([]);
+    const rows = await database.query("SELECT count(*) FROM note_text_rows");
+    expect(rows.rows[0]?.[0]).toBe(0);
+  });
+
   it("refuses an index a newer Nether wrote", async () => {
     const database = nodeDatabase();
     await database.execute(`PRAGMA user_version = ${String(schemaVersion + 1)}`);

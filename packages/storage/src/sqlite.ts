@@ -82,6 +82,17 @@ const migrations: readonly (readonly string[])[] = [
     // Every note is read again, to fill it.
     "DELETE FROM note_indexes",
   ],
+  [
+    // Each note's row in note_texts, which FTS5 finds by its rowid alone: found
+    // by its note, a row took a scan of every other, so filling the table took
+    // time growing with the square of the notes. The rows already there keep
+    // their rowids.
+    `CREATE TABLE note_text_rows (
+      id INTEGER PRIMARY KEY,
+      note TEXT NOT NULL UNIQUE
+    )`,
+    "INSERT OR IGNORE INTO note_text_rows (id, note) SELECT rowid, note FROM note_texts",
+  ],
 ];
 
 /** The schema version this code writes. */
@@ -264,11 +275,17 @@ export class SqliteStore implements IndexStore {
   }
 
   async putNoteTexts(rows: readonly NoteTextRow[]): Promise<void> {
+    // Each note's text replaces the one in its row, found by rowid.
     const statements = rows.flatMap((row) => [
-      { sql: "DELETE FROM note_texts WHERE note = ?", params: [row.note] },
+      { sql: "INSERT OR IGNORE INTO note_text_rows (note) VALUES (?)", params: [row.note] },
       {
-        sql: "INSERT INTO note_texts (note, title, body) VALUES (?, ?, ?)",
-        params: [row.note, row.title, row.body],
+        sql: "DELETE FROM note_texts WHERE rowid = (SELECT id FROM note_text_rows WHERE note = ?)",
+        params: [row.note],
+      },
+      {
+        sql: `INSERT INTO note_texts (rowid, note, title, body)
+          VALUES ((SELECT id FROM note_text_rows WHERE note = ?), ?, ?, ?)`,
+        params: [row.note, row.note, row.title, row.body],
       },
     ]);
     for (let start = 0; start < statements.length; start += chunk) {
@@ -277,10 +294,13 @@ export class SqliteStore implements IndexStore {
   }
 
   async deleteNoteTexts(notes: readonly NoteId[]): Promise<void> {
-    const statements = notes.map((note) => ({
-      sql: "DELETE FROM note_texts WHERE note = ?",
-      params: [note],
-    }));
+    const statements = notes.flatMap((note) => [
+      {
+        sql: "DELETE FROM note_texts WHERE rowid = (SELECT id FROM note_text_rows WHERE note = ?)",
+        params: [note],
+      },
+      { sql: "DELETE FROM note_text_rows WHERE note = ?", params: [note] },
+    ]);
     for (let start = 0; start < statements.length; start += chunk) {
       await this.#database.transaction(statements.slice(start, start + chunk));
     }
