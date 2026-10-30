@@ -17,6 +17,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@mygo-plugins/sqlite": "0.6.2",
+    "@nether/core": "workspace:*",
+    "@nether/storage": "workspace:*",
     "mygo-runtime": "0.6.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
