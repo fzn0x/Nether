@@ -50,6 +50,7 @@ export {
   readDatabaseSchema,
   viewLayouts,
 } from "./databases.ts";
+export { type Period, addToDate, formatDate, startOfPeriod } from "./dateFormat.ts";
 export { isDate, isTimestamp, now } from "./dates.ts";
 export { ModelError } from "./errors.ts";
 export {
