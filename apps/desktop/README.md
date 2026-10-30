@@ -10,8 +10,6 @@ and the page calls the Go services in `main.go` through the client that
 can do: the vault folder, the file watcher, SQLite and the operating
 system. See [ADR 0004](../../docs/adr/0004-desktop-on-mygo.md).
 
-So far the window shows the app's name, version and platform; the vault
-and the editor arrive in Phase 1.
 
 ## Develop
 
@@ -38,6 +36,44 @@ pnpm --filter @nether/desktop test:e2e    # the page in Chromium, with Playwrigh
 After changing a bound Go service, run `pnpm --filter @nether/desktop
 generate` and commit the new `src/mygo.ts`; CI fails when it is out of
 date.
+
+## Packages
+
+`go tool mygo build` writes, for each platform in `build/`:
+
+| Platform | Packages |
+| --- | --- |
+| Windows | the app and its installer, `Nether Setup <version> amd64.exe` |
+| macOS | the app, universal for Intel and Apple silicon, and its disk image |
+| Linux | the app, its Debian package, and an archive with `install.sh`, which installs it for the user and lets it update itself |
+
+On Linux, two more packages are made from the Linux build's own files,
+as CI does for every change:
+
+```sh
+sh packaging/appimage.sh build/linux-amd64 path/to/appimagetool   # Nether-<version>-x86_64.AppImage
+flatpak-builder --user --install out packaging/flatpak/io.github.fzn0x.Nether.yml
+```
+
+Both use the system's, or the Flatpak runtime's, GTK and WebKitGTK.
+
+## Updates
+
+The app updates itself through MyGO's updater once it is built with an
+update key; until then, it checks for nothing and the command palette
+offers no update commands. A maintainer sets it up once:
+
+1. `go tool mygo keygen` writes the key pair; keep the secret key in a
+   password manager and in the repository's CI secrets as
+   `MYGO_UPDATER_PRIVATE_KEY`.
+2. Add `"updates": { "publicKey": "…", "github": "fzn0x/Nether" }` to
+   `mygo.json`.
+3. Release with `MYGO_UPDATER_PRIVATE_KEY` set, which signs each
+   platform's build and writes its update manifest.
+
+The app checks in the background, and the command palette turns the
+checks off or on and checks now. Apps a package manager installed, from
+the Debian package or the Flatpak, are updated by it instead.
 
 ## The icon
 

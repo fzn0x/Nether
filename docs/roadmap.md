@@ -71,5 +71,5 @@ The Obsidian core, one feature per pull request, in this order:
 - [x] The command palette, Ctrl/Cmd+P, and a shortcut for every action
 - [x] Block links made from `[[`, writing the block's `^id` into its note
 - [x] Previews of web links, fetched only when asked
-- [ ] The desktop packages: AppImage, deb and Flatpak on Linux, and updates that can be turned off
+- [x] The desktop packages: AppImage, deb and Flatpak on Linux, and updates that can be turned off (they start once a maintainer adds the update key)
 - [ ] The performance harness on the reference vault, which the gate runs

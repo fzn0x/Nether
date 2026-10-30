@@ -105,6 +105,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Previews of web links: a link alone on its line shows as a card, and
   Show preview fetches the page's title, description and site, only then,
   keeping them in the vault; Open opens the page in the browser.
+- Linux packages: an AppImage and a Flatpak, besides MyGO's Debian package
+  and self-updating archive. Builds signed with an update key check for
+  updates in the background, which the command palette turns off.
 
 ### Fixed
 
