@@ -19,5 +19,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The documentation site at https://fzn0x.github.io/nether/.
 - `pnpm vault:generate`, which writes the reference vault of 50,000 notes
   that performance targets are measured on.
+- `@nether/markdown`, which reads Markdown with Obsidian's syntax into
+  Nether's blocks and writes notes back with every unchanged block byte for
+  byte ([ADR 0006](docs/adr/0006-markdown-file-format.md)), and a page on the
+  documentation site about how notes are stored as Markdown.
 
 [Unreleased]: https://github.com/fzn0x/nether/commits/main
