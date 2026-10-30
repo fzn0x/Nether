@@ -10,6 +10,7 @@ import { BlockKeys } from "./actions.ts";
 import { BlockHandle } from "./BlockHandle.tsx";
 import { blockCommands } from "./commands.ts";
 import { fromEditor, toEditor } from "./convert.ts";
+import { FileDrop, type NoteFiles } from "./files.ts";
 import { blockIdsKey } from "./ids.ts";
 import { netherExtensions } from "./schema.ts";
 import { SlashMenu } from "./SlashMenu.tsx";
@@ -28,6 +29,8 @@ export interface NoteEditorProps {
   readonly autofocus?: boolean;
   /** The editor's words in the app's language; English by default. */
   readonly words?: EditorWords;
+  /** Finds the files the note links to, and adds those pasted or dropped into it. */
+  readonly files?: NoteFiles;
 }
 
 export function NoteEditor(props: NoteEditorProps) {
@@ -38,6 +41,7 @@ export function NoteEditor(props: NoteEditorProps) {
     label,
     autofocus = false,
     words = englishWords,
+    files,
   } = props;
   // The latest callback, so the editor need not be made again when it changes.
   const changed = useRef(onChange);
@@ -49,7 +53,8 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const editor = useEditor({
     extensions: [
-      ...netherExtensions({ nodeViews: netherNodeViews(words) }),
+      ...netherExtensions({ nodeViews: netherNodeViews(words, files) }),
+      FileDrop.configure({ files }),
       Placeholder.configure({ placeholder }),
       SlashMenu.configure({ commands, words }),
       BlockKeys,

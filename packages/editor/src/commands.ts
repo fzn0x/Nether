@@ -76,6 +76,8 @@ const runs: Readonly<Record<BuiltInBlock, Omit<BlockCommand, "id" | "title" | "k
     run: (editor) =>
       editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
   },
+  image: { run: insert({ type: "image", attrs: { src: "" } }) },
+  file: { run: insert({ type: "file", attrs: { src: "" } }) },
   columns: {
     run: insert({
       type: "columns",

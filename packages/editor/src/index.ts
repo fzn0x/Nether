@@ -17,6 +17,18 @@ export {
   inlinesToEditor,
   toEditor,
 } from "./convert.ts";
+export {
+  FileDrop,
+  type FileKind,
+  type NoteFiles,
+  embedSize,
+  fileDropKey,
+  fileKind,
+  fileUrl,
+  isNoteLink,
+  isWebLink,
+  markdownPath,
+} from "./files.ts";
 export { BlockIds, type BlockIdOptions, blockIdsKey, fixBlockIds } from "./ids.ts";
 export {
   type NodeViews,

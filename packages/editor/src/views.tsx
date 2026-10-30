@@ -8,7 +8,6 @@ import {
   NodeViewWrapper,
   ReactNodeViewRenderer,
 } from "@tiptap/react";
-import { NodeSelection } from "@tiptap/pm/state";
 import type { KatexOptions } from "katex";
 import {
   type ChangeEvent,
@@ -18,6 +17,8 @@ import {
   useId,
   useState,
 } from "react";
+import { EmbedView, FileView, ImageView, backToNote } from "./embeds.tsx";
+import type { NoteFiles } from "./files.ts";
 import { type NodeViews, codeLanguage } from "./schema.ts";
 import { type EditorWords, englishWords } from "./words.ts";
 
@@ -53,13 +54,7 @@ function useRenderMath(): RenderMath | undefined {
 /** Ends editing; back in the note with the math selected, unless focus left for elsewhere. */
 function finish(props: ViewProps, refocus: boolean, close: () => void) {
   close();
-  const pos = props.getPos();
-  if (!refocus || pos === undefined) return;
-  // Focus now: TipTap's focus command waits a frame, and keys pressed
-  // within it would go nowhere.
-  const { view, state } = props.editor;
-  view.dispatch(state.tr.setSelection(NodeSelection.create(state.doc, pos)));
-  view.focus();
+  if (refocus) backToNote(props);
 }
 
 function MathSource(props: {
@@ -270,15 +265,21 @@ function CodeBlockView(props: ViewProps) {
   );
 }
 
-/** The node views of rich blocks, for an editor in a page. */
-export function netherNodeViews(words: EditorWords = englishWords): NodeViews {
-  const view = (View: ComponentType<ViewProps>) =>
+/**
+ * The node views of rich blocks, for an editor in a page, in the app's
+ * words; `files` finds the files a note links to.
+ */
+export function netherNodeViews(words: EditorWords = englishWords, files?: NoteFiles): NodeViews {
+  const view = (View: ComponentType<ViewProps & { readonly files: NoteFiles | undefined }>) =>
     ReactNodeViewRenderer(function WordedView(props: NodeViewProps) {
-      return <View {...props} words={words} />;
+      return <View {...props} words={words} files={files} />;
     });
   return {
     mathBlock: view(MathBlockView),
     mathInline: view(MathInlineView),
     codeBlock: view(CodeBlockView),
+    image: view(ImageView),
+    file: view(FileView),
+    embed: view(EmbedView),
   };
 }

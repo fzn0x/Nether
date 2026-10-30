@@ -19,6 +19,8 @@ export const builtInBlocks = [
   "divider",
   "table",
   "columns",
+  "image",
+  "file",
 ] as const;
 
 export type BuiltInBlock = (typeof builtInBlocks)[number];
@@ -49,6 +51,19 @@ export interface EditorWords {
   readonly showMath: string;
   readonly codeLanguage: string;
   readonly diagramError: string;
+  /** A field for the path or URL of an image or file block that has none. */
+  readonly fileLink: string;
+  readonly chooseFile: string;
+  /** What an embed of a file the vault does not have says, before its link. */
+  readonly missingFile: string;
+  /** What an embed of a file the page cannot show says, before its link. */
+  readonly brokenFile: string;
+  /** Opens a file in the system's app for it. */
+  readonly openFile: string;
+  /** Shows a file in the system's file manager. */
+  readonly revealFile: string;
+  /** What an embedded note says, before its link, until notes can be embedded. */
+  readonly embeddedNote: string;
 }
 
 export const englishWords: EditorWords = {
@@ -69,6 +84,8 @@ export const englishWords: EditorWords = {
     divider: { title: "Divider", keywords: "rule separator hr line" },
     table: { title: "Table", keywords: "grid rows" },
     columns: { title: "Columns", keywords: "side layout split" },
+    image: { title: "Image", keywords: "picture photo img" },
+    file: { title: "File", keywords: "pdf audio video attachment embed" },
   },
   slashMenu: "Blocks",
   noBlocks: "No blocks match",
@@ -83,4 +100,11 @@ export const englishWords: EditorWords = {
   showMath: "Math, press Enter to edit",
   codeLanguage: "Language",
   diagramError: "This diagram cannot be drawn:",
+  fileLink: "Path or URL of the file",
+  chooseFile: "Choose a file",
+  missingFile: "Not in the vault",
+  brokenFile: "Cannot be shown",
+  openFile: "Open",
+  revealFile: "Show in folder",
+  embeddedNote: "Embedded note",
 };
