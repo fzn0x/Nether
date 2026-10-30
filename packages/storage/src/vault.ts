@@ -66,6 +66,24 @@ const trashData = "trash";
 /** Sorts as a file explorer does: case aside, and numbers by their value. */
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
+/** The order of the vault's notes: as a file explorer sorts, then as written. */
+function byPath(a: string, b: string): number {
+  return collator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
+}
+
+/** Where a path is, or would go, in a list of notes in that order. */
+function pathIndex(notes: readonly NoteEntry[], path: string): number {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    const note = notes[middle];
+    if (note !== undefined && byPath(note.path, path) < 0) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
 function extension(path: string): string {
   const name = path.slice(path.lastIndexOf("/") + 1);
   const dot = name.lastIndexOf(".");
@@ -97,7 +115,7 @@ export class Vault {
   readonly #now: () => number;
   readonly #records = new Map<string, FileRecord>();
   readonly #paths = new Map<NoteId, string>();
-  readonly #listeners = new Set<() => void>();
+  readonly #listeners = new Set<(changed: readonly NoteId[]) => void>();
   #notes: NoteEntry[] | undefined;
   #links: LinkIndex | undefined;
   #queue: Promise<void> = Promise.resolve();
@@ -179,7 +197,7 @@ export class Vault {
               },
             ],
       )
-      .sort((a, b) => collator.compare(a.path, b.path) || (a.path < b.path ? -1 : 1));
+      .sort((a, b) => byPath(a.path, b.path));
     return this.#notes;
   }
 
@@ -226,8 +244,12 @@ export class Vault {
     return this.#links;
   }
 
-  /** Calls `listener` after every change to the vault's notes; returns a function that stops it. */
-  subscribe(listener: () => void): () => void {
+  /**
+   * Calls `listener` after every change to the vault's notes, with the IDs
+   * of the notes it added, changed, moved or removed; returns a function
+   * that stops it.
+   */
+  subscribe(listener: (changed: readonly NoteId[]) => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
   }
@@ -693,36 +715,56 @@ export class Vault {
       (change.remove?.length ?? 0) > 0 ||
       (change.upsert ?? []).some((record) => !this.#records.has(record.path));
     if (moves) this.#links = undefined;
+    const changed = new Set<NoteId>();
     for (const path of change.remove ?? []) {
       const record = this.#records.get(path);
       this.#records.delete(path);
-      if (record?.note !== undefined && this.#paths.get(record.note) === path) {
-        this.#paths.delete(record.note);
-      }
+      if (record?.note === undefined) continue;
+      changed.add(record.note);
+      if (this.#paths.get(record.note) === path) this.#paths.delete(record.note);
     }
     const before = this.#notes;
-    for (const record of change.upsert ?? []) this.#remember(record);
+    // Listeners see a file's path, note, size and time, not its hash: a
+    // change that only learns hashes, as the first read of a note does,
+    // tells no one, where each note opened made every view of the vault
+    // look at all its notes again.
+    const seen =
+      moves ||
+      (change.upsert ?? []).some((record) => {
+        const known = this.#records.get(record.path);
+        return (
+          known === undefined ||
+          known.note !== record.note ||
+          known.size !== record.size ||
+          known.modified !== record.modified
+        );
+      });
+    for (const record of change.upsert ?? []) {
+      this.#remember(record);
+      if (record.note !== undefined) changed.add(record.note);
+    }
+    if (!seen) return;
     // A change that moves nothing, as a save, changes the notes in place,
     // which keeps their order: sorting 50,000 notes again took 80 ms.
     this.#notes = moves || before === undefined ? undefined : this.#updated(before, change);
-    for (const listener of this.#listeners) listener();
+    const notes = [...changed];
+    for (const listener of this.#listeners) listener(notes);
   }
 
   /** The list of notes with the notes a change updated, each where it was. */
   #updated(notes: readonly NoteEntry[], change: IndexChange): NoteEntry[] | undefined {
-    const changed = new Map<NoteId, FileRecord>();
+    const next = notes.slice();
     for (const record of change.upsert ?? []) {
-      if (record.note !== undefined) changed.set(record.note, record);
+      if (record.note === undefined) continue;
+      // Found by its path, as the list is sorted by path: going over the
+      // whole list took a save among 50,000 notes 10 ms.
+      const at = pathIndex(next, record.path);
+      const note = next[at];
+      // A note new to the list, as a file that becomes a note, takes the list made anew.
+      if (note?.path !== record.path || note.id !== record.note) return undefined;
+      next[at] = { ...note, size: record.size, modified: record.modified };
     }
-    let found = 0;
-    const next = notes.map((note) => {
-      const record = changed.get(note.id);
-      if (record === undefined) return note;
-      found++;
-      return { ...note, size: record.size, modified: record.modified };
-    });
-    // A note new to the list, as a file that becomes a note, takes the list made anew.
-    return found === changed.size ? next : undefined;
+    return next;
   }
 }
 

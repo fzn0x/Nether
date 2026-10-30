@@ -120,6 +120,35 @@ describe("Vault notes", () => {
     await vault.create("b.md", "B");
     expect(calls).toBe(1);
   });
+
+  it("tells its listeners which notes each change added, changed, moved or removed", async () => {
+    const vault = await openVault(new MemoryFiles({ "a.md": "A", "b.md": "B" }));
+    const [a, b] = vault.notes().map((note) => note.id);
+    if (a === undefined || b === undefined) throw new Error("The vault has not two notes.");
+    const told: (readonly NoteId[])[] = [];
+    vault.subscribe((changed) => told.push(changed));
+    const read = await vault.read(a);
+    await vault.write(a, "A again", read.hash);
+    await vault.rename(b, "Folder/b.md");
+    const created = await vault.create("c.md", "C");
+    await vault.remove(a);
+    expect(told).toEqual([[a], [b], [created.id], [a]]);
+  });
+
+  it("keeps the hash a note's first read learns, telling no one, as nothing they see changed", async () => {
+    const store = new MemoryStore();
+    const vault = await openVault(new MemoryFiles({ "a.md": "one" }), store);
+    const id = firstNote(vault);
+    const notes = vault.notes();
+    let calls = 0;
+    vault.subscribe(() => calls++);
+    const read = await vault.read(id);
+    expect(calls).toBe(0);
+    expect(vault.notes()).toBe(notes);
+    expect((await store.files()).find((file) => file.path === "a.md")?.hash).toBe(read.hash);
+    await vault.write(id, "two", read.hash);
+    expect(calls).toBe(1);
+  });
 });
 
 describe("Vault.watch", () => {
