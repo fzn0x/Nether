@@ -332,6 +332,7 @@ export function EmbedView(props: ViewProps) {
           files={files}
           links={props.links}
           depth={depth}
+          editable={props.editor.isEditable}
         />
       </NodeViewWrapper>
     );

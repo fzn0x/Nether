@@ -71,6 +71,10 @@ export interface EditorWords {
   readonly noNotes: string;
   /** What an embed of a note the vault does not have says, before its link. */
   readonly missingNote: string;
+  /** A synced block's editor, before the name of the note it comes from. */
+  readonly syncedBlock: string;
+  /** Before why a synced block's edit could not be written to its note. */
+  readonly syncFailed: string;
   /** Fetches a web link's preview. */
   readonly showPreview: string;
   /** What the preview button says while it fetches. */
@@ -130,4 +134,6 @@ export const englishWords: EditorWords = {
   previewFailed: "The preview could not be fetched",
   openLink: "Open",
   missingNote: "No such note or part of one",
+  syncedBlock: "Synced block from",
+  syncFailed: "This block could not be saved to its note:",
 };

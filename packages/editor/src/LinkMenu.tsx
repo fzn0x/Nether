@@ -41,10 +41,23 @@ export interface NoteLinks {
   /**
    * The note, or the part of one, an embed names, with its title, for the
    * embed to show; undefined when the vault has no such note or part.
+   * `synced` is true for a block of another note, which edits in place.
    */
-  embed?(
-    target: LinkTarget,
-  ): Promise<{ readonly title: string; readonly blocks: readonly ContentBlock[] } | undefined>;
+  embed?(target: LinkTarget): Promise<
+    | {
+        readonly title: string;
+        readonly blocks: readonly ContentBlock[];
+        readonly synced?: boolean;
+      }
+    | undefined
+  >;
+  /**
+   * Writes a synced block, edited where it is embedded, to the note it
+   * comes from; rejects with why it could not.
+   */
+  saveEmbed?(target: LinkTarget, block: ContentBlock): Promise<void>;
+  /** Calls `listener` whenever the note an embed comes from changes; returns what stops it. */
+  watchEmbed?(target: LinkTarget, listener: () => void): () => void;
   /**
    * What a `base` code block shows below its code: the notes its query
    * finds, as Obsidian shows a base embedded in a note.
