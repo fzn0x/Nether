@@ -12,6 +12,7 @@ export {
   parseWikiLink,
 } from "./parse.ts";
 export { readFrontmatter, writeFrontmatter } from "./frontmatter.ts";
+export { type DiffPart, diffLines, textLines } from "./diff.ts";
 export {
   type HtmlHooks,
   type HtmlNote,
