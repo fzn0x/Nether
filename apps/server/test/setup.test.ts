@@ -49,6 +49,7 @@ describe("migrate", () => {
       "invitations",
       "memberships",
       "note_units",
+      "notifications",
       "oidc_flows",
       "schema_migrations",
       "sessions",

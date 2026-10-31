@@ -10,6 +10,7 @@ import { type EnterpriseModule, enterpriseFeatures, registerEnterprise } from ".
 import { tooManyTries } from "./http.ts";
 import { registerInvitations } from "./invitations.ts";
 import { registerMembers } from "./members.ts";
+import { purgeNotifications, registerNotifications } from "./notifications.ts";
 import type { Mailer } from "./mail.ts";
 import { registerOidc } from "./oidc.ts";
 import { registerSessions } from "./sessions.ts";
@@ -89,11 +90,17 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   registerInvitations(app, services.db);
   registerWorkspaces(app, services.db);
   registerVersions(app, services.db);
-  // Versions older than the admin keeps them go on start, then every hour.
-  const purge = () =>
-    purgeVersions(services.db, config.historyDays).catch((error: unknown) => {
+  registerNotifications(app, services.db, services.mailer);
+  // Versions older than the admin keeps them, and old notifications, go on
+  // start, then every hour.
+  const purge = async () => {
+    await purgeVersions(services.db, config.historyDays).catch((error: unknown) => {
       app.log.error({ err: error }, "Could not delete the versions kept too long");
     });
+    await purgeNotifications(services.db).catch((error: unknown) => {
+      app.log.error({ err: error }, "Could not delete the notifications kept too long");
+    });
+  };
   const hourly = setInterval(() => void purge(), 3_600_000);
   hourly.unref();
   app.addHook("onReady", async () => {

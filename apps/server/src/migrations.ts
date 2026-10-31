@@ -285,6 +285,34 @@ export const migrations: readonly Migration[] = [
         ADD COLUMN level text CHECK (level IN ('full', 'edit', 'comment', 'view'));
     `,
   },
+  {
+    version: 11,
+    name: "notifications",
+    sql: `
+      -- What someone is told of in the app, and by email: a mention of them by
+      -- another member, in a note's comments (ADR 0045). The title and the
+      -- excerpt are the client's, and none for an encrypted workspace.
+      CREATE TABLE notifications (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        actor_id uuid REFERENCES users (id) ON DELETE SET NULL,
+        kind text NOT NULL CHECK (kind IN ('mention')),
+        note text NOT NULL,
+        thread text,
+        title text,
+        excerpt text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        read_at timestamptz
+      );
+
+      CREATE INDEX notifications_by_user ON notifications (user_id, created_at DESC);
+      CREATE INDEX notifications_by_age ON notifications (created_at);
+
+      -- Whether an account is emailed when it is mentioned.
+      ALTER TABLE users ADD COLUMN email_notifications boolean NOT NULL DEFAULT true;
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

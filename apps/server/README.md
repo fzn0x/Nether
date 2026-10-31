@@ -103,6 +103,10 @@ token as `Authorization: Bearer <token>`. Every error is
 | `GET /api/workspaces/:id/attachments/:hash` | member | The file, served so it runs and loads nothing |
 | `GET /api/workspaces/:id/documents/:note/versions` | member | The note's versions, the latest 200 first: `{ versions: [{ id, time }] }` |
 | `GET /api/workspaces/:id/documents/:note/versions/:version` | member | A version, as the Yjs state the note had |
+| `POST /api/workspaces/:id/notifications` | comment on the note | Tells the `people` a comment on `note` mentions, in `thread`, those who may open the note; `title` and `excerpt` only outside encrypted workspaces; gives who was `notified` |
+| `GET /api/notifications` | yes | The account's latest 50 notifications, or the `unread` ones, with the `unread` count |
+| `POST /api/notifications/read` | yes | Marks the notifications `ids`, or `all`, read |
+| `GET /api/me/notification-settings`, `PUT /api/me/notification-settings` | yes | Whether the account is emailed when mentioned, `email` |
 | `GET /api/relay` | per message | The WebSocket encrypted workspaces sync over, below |
 | `GET /api/workspaces/:id/documents` | member | The documents stored since `since`, a number, in order, a thousand at a time with `more` |
 | `GET /api/sync` | per document | The WebSocket that Hocuspocus providers sync documents over, below |
@@ -117,9 +121,20 @@ or of a code, is kept.
 
 Signing in is limited to 30 tries in five minutes from one address, and 10
 in 15 minutes for one account from anywhere. One email address gets at
-most three codes in 15 minutes. Setup, invitations, ending sessions and
-changing passwords have limits of their own. Each answers `429` with
-`Retry-After`.
+most three codes in 15 minutes. One account mentions people 60 times in
+10 minutes. Setup, invitations, ending sessions and changing passwords
+have limits of their own. Each answers `429` with `Retry-After`.
+
+## Notifications
+
+Someone mentioned in a comment is told in the app, and by email
+([ADR 0045](../../docs/adr/0045-mentions-are-named-by-the-commenting-client-and-the-server-tells-those-who-may-open-the-note.md)).
+The app that sends the comment names the people it mentions; the server
+checks that the sender may comment on the note, and tells only those who
+may open it. In an encrypted workspace, a notification says who mentioned
+whom in which note, and nothing of the note or the comment. The server
+keeps notifications for 90 days, and deletes older ones when it starts and
+every hour.
 
 ## Members
 
@@ -228,8 +243,9 @@ devices keep their own.
 ## Email
 
 Set `NETHER_SMTP_URL` and `NETHER_MAIL_FROM` for the server to send email:
-so far, the codes that sign in by email. Without them it sends none, and
-the app offers only passwords.
+the codes that sign in by email, and notifications of mentions to those
+who have not turned them off. Without them it sends none, and the app
+offers only passwords.
 
 ```sh
 NETHER_SMTP_URL=smtp://nether:secret@mail.example.org:587
