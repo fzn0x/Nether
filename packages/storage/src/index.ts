@@ -43,6 +43,7 @@ export {
 } from "./trash.ts";
 export {
   type NoteDocuments,
+  type VaultSettings,
   type NoteEntry,
   type NoteIndexes,
   Vault,

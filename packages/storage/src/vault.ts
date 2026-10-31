@@ -38,6 +38,9 @@ export type NoteDocuments = Pick<
   "document" | "appendUpdates" | "compact" | "setFileHash"
 >;
 
+/** What this device keeps for a vault outside its folder. */
+export type VaultSettings = Pick<IndexStore, "setting" | "setSetting">;
+
 /** Where a vault keeps what the link index and search read of its notes. */
 export type NoteIndexes = Pick<
   IndexStore,
@@ -129,6 +132,11 @@ export class Vault {
 
   /** Where the vault keeps its notes' documents. */
   get documents(): NoteDocuments {
+    return this.#store;
+  }
+
+  /** What this device keeps for the vault outside its folder, as what sync knows. */
+  get settings(): VaultSettings {
     return this.#store;
   }
 
@@ -333,8 +341,12 @@ export class Vault {
   }
 
   /** Creates a note with its text at a path where no file is. */
-  create(path: string, text: string): Promise<NoteEntry> {
-    return this.#serial(() => this.#create(path, text));
+  /**
+   * Makes a note at `path`. It takes `id` when given and no other note has
+   * it, as a note made from a server's document keeps the server's ID.
+   */
+  create(path: string, text: string, id?: NoteId): Promise<NoteEntry> {
+    return this.#serial(() => this.#create(path, text, id));
   }
 
   /**
@@ -376,10 +388,12 @@ export class Vault {
     });
   }
 
-  async #create(path: string, text: string): Promise<NoteEntry> {
+  async #create(path: string, text: string, wanted?: NoteId): Promise<NoteEntry> {
     if (!isNotePath(path)) throw new Error(`${path} is not a Markdown file.`);
     const written = await this.#files.write(path, text, "");
-    const id = this.#records.get(path)?.note ?? this.#newId();
+    const id =
+      this.#records.get(path)?.note ??
+      (wanted === undefined || this.#paths.has(wanted) ? this.#newId() : wanted);
     await this.#commit({
       upsert: [
         { path, note: id, size: written.size, modified: written.modified, hash: written.hash },

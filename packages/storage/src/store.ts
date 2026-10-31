@@ -100,6 +100,13 @@ export interface IndexStore {
   setFileHash(note: NoteId, hash: string): Promise<void>;
   /** Forgets a note's document, its updates and its file's hash, as when the note is deleted for good. */
   deleteDocument(note: NoteId): Promise<void>;
+  /**
+   * A setting this device keeps for the vault, outside its folder, as its
+   * link to a server and what sync knows; undefined when there is none.
+   */
+  setting(key: string): Promise<Uint8Array | undefined>;
+  /** Keeps a setting, or forgets it when given undefined. */
+  setSetting(key: string, value: Uint8Array | undefined): Promise<void>;
   /** What the link index and search keep of every note read so far. */
   noteIndexes(): Promise<readonly NoteIndexRow[]>;
   /**
@@ -152,6 +159,7 @@ export class MemoryStore implements IndexStore {
   /** The notes of #indexes in order, until they change. */
   #indexOrder: NoteId[] | undefined;
   readonly #texts = new Map<NoteId, NoteTextRow>();
+  readonly #settings = new Map<string, Uint8Array>();
 
   #document(note: NoteId) {
     let document = this.#documents.get(note);
@@ -200,6 +208,17 @@ export class MemoryStore implements IndexStore {
 
   deleteDocument(note: NoteId): Promise<void> {
     this.#documents.delete(note);
+    return Promise.resolve();
+  }
+
+  setting(key: string): Promise<Uint8Array | undefined> {
+    const value = this.#settings.get(key);
+    return Promise.resolve(value === undefined ? undefined : value.slice());
+  }
+
+  setSetting(key: string, value: Uint8Array | undefined): Promise<void> {
+    if (value === undefined) this.#settings.delete(key);
+    else this.#settings.set(key, value.slice());
     return Promise.resolve();
   }
 

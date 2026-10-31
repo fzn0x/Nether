@@ -95,6 +95,17 @@ describe("Vault notes", () => {
     expect((await files.read("a.md")).text).toBe("three");
   });
 
+  it("makes a note with the ID it is given, unless another note has it", async () => {
+    const files = new MemoryFiles({});
+    const vault = await openVault(files);
+    const id = "01929f4c-7b00-7a00-8000-0000000000aa" as NoteId;
+    const made = await vault.create("From the server.md", "# Hello", id);
+    expect(made.id).toBe(id);
+    expect(vault.noteAt("From the server.md")?.id).toBe(id);
+    const again = await vault.create("Another.md", "# Another", id);
+    expect(again.id).not.toBe(id);
+  });
+
   it("creates, renames and removes notes, keeping an ID through a rename", async () => {
     const files = new MemoryFiles({});
     const vault = await openVault(files);

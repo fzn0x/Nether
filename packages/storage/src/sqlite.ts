@@ -100,6 +100,13 @@ const migrations: readonly (readonly string[])[] = [
     // there keep it in their data until the link index splits them.
     "ALTER TABLE note_indexes ADD COLUMN detail TEXT NOT NULL DEFAULT ''",
   ],
+  [
+    // What this device keeps for the vault outside its folder, as what sync knows.
+    `CREATE TABLE settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      value BLOB NOT NULL
+    ) WITHOUT ROWID`,
+  ],
 ];
 
 /** The schema version this code writes. */
@@ -237,6 +244,24 @@ export class SqliteStore implements IndexStore {
       { sql: "DELETE FROM document_updates WHERE note = ?", params: [note] },
       { sql: "DELETE FROM documents WHERE note = ?", params: [note] },
     ]);
+  }
+
+  async setting(key: string): Promise<Uint8Array | undefined> {
+    const { rows } = await this.#database.query("SELECT value FROM settings WHERE key = ?", [key]);
+    const row = rows[0];
+    return row === undefined ? undefined : bytes(row[0]);
+  }
+
+  async setSetting(key: string, value: Uint8Array | undefined): Promise<void> {
+    if (value === undefined) {
+      await this.#database.execute("DELETE FROM settings WHERE key = ?", [key]);
+      return;
+    }
+    await this.#database.execute(
+      `INSERT INTO settings (key, value) VALUES (?, ?)
+        ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+      [key, value],
+    );
   }
 
   async setFileHash(note: NoteId, hash: string): Promise<void> {

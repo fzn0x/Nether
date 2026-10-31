@@ -146,3 +146,27 @@ describe.each(stores)("%s note indexes", (_name, open) => {
     ).toEqual(['["0"]', '["4"]']);
   });
 });
+
+describe.each(stores)("%s settings", (_name, open) => {
+  it("keeps a setting by its key, replaces it, and forgets it", async () => {
+    const store = await open();
+    expect(await store.setting("sync")).toBeUndefined();
+    await store.setSetting("sync", bytes(1, 2));
+    await store.setSetting("other", bytes(9));
+    await store.setSetting("sync", bytes(3));
+    expect([...((await store.setting("sync")) ?? [])]).toEqual([3]);
+    await store.setSetting("sync", undefined);
+    expect(await store.setting("sync")).toBeUndefined();
+    expect([...((await store.setting("other")) ?? [])]).toEqual([9]);
+  });
+});
+
+describe("SqliteStore settings", () => {
+  it("keeps them across opens of the same database", async () => {
+    const database = nodeDatabase();
+    const first = await SqliteStore.open(database);
+    await first.setSetting("sync", bytes(4, 5));
+    const again = await SqliteStore.open(database);
+    expect([...((await again.setting("sync")) ?? [])]).toEqual([4, 5]);
+  });
+});
