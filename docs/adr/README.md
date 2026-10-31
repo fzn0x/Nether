@@ -27,3 +27,4 @@ record supersedes it and says so. Start a new one from
 | [0017](0017-measure-performance-before-each-gate-not-in-ci.md) | Measure performance before each phase's gate, not in CI | Accepted |
 | [0018](0018-a-database-is-a-note-with-an-obsidian-base-beside-it.md) | A database is a note, with an Obsidian base beside it | Accepted |
 | [0019](0019-relations-are-links-both-ways-and-rollups-are-worked-out.md) | Relations are links, kept both ways, and rollups are worked out | Accepted |
+| [0020](0020-formulas-in-a-language-nether-reads-and-runs-itself.md) | Formulas in a language Nether reads and runs itself | Accepted |

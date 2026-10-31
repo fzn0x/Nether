@@ -57,8 +57,7 @@ sort:
   property names, as `[[photo.png]]` or a web address.
 
 - A **calendar** shows a month, from Monday, with each row on the day of
-  its **Date**: a date property, or the day the row was made or last
-  edited. **+** on a day adds a row with that date; the arrows and
+  its **Date**: a date property, or the day the row was last edited. **+** on a day adds a row with that date; the arrows and
   **Today** move between months.
 - A **timeline** shows six weeks, each row a bar from its **Date** to its
   **End**, another date property, or one day long without one. **Earlier**
@@ -102,7 +101,15 @@ or latest date.
 A rollup's value is worked out each time Nether shows the database, so it
 follows the related rows as they change; it is never written to a row's
 file, and Obsidian's view of the database leaves it out. Filters, sorts
-and groups use it as any other value. Formulas come next.
+and groups use it as any other value.
+
+## Formulas
+
+A formula works out a value from a row's other values, `Price * Count` or
+`if(Done, "Yes", "No")`: add a property of type **Formula** and write it,
+and change it under **Properties**. Like a rollup, its value is worked out
+each time the database shows, and never written to a row's file. The
+[formula language](../formulas/) has every operator, function and method.
 
 ## How a database is written
 

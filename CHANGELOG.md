@@ -142,6 +142,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Formulas: a property that works out each row's value from its others,
+  in a small language Nether reads and runs itself, so a formula can do
+  nothing but work out a value: arithmetic, text, dates and durations,
+  logic, `if()` and a set of functions and methods, documented on the new
+  Formulas page. A formula that cannot be read says why as it is written;
+  one that fails for a row shows why in its cell
+  ([ADR 0020](docs/adr/0020-formulas-in-a-language-nether-reads-and-runs-itself.md)).
 - Rollups: a property that works out, from the rows a relation links to,
   their count, the count of their values, the sum, average, lowest or
   highest of a number, or the earliest or latest of a date, each time a
