@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Nether's mark on macOS's icon grid: an 824 px body with 100 px of margin. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#17141f"/>
+  <path d="M370 679V345L654 679V345" fill="none" stroke="#f5f1ea" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="370" cy="345" r="58" fill="#f2552c"/>
+  <circle cx="654" cy="679" r="58" fill="#f2552c"/>
+</svg>
