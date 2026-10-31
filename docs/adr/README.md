@@ -35,3 +35,4 @@ record supersedes it and says so. Start a new one from
 | [0025](0025-graph-view-with-sigma-and-forceatlas2-in-a-worker.md) | The graph view with Sigma, laid out by ForceAtlas2 in a worker | Accepted |
 | [0026](0026-themes-and-snippets-are-css-files-of-the-vault.md) | Themes and snippets are CSS files of the vault | Accepted |
 | [0027](0027-imports-are-plans-made-from-sources-read-only.md) | Imports are plans, made from sources only read | Accepted |
+| [0028](0028-a-notion-export-becomes-pages-and-databases-without-ids.md) | A Notion export becomes pages and databases without their IDs | Accepted |

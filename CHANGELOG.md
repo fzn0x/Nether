@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- A Notion export, Markdown and CSV in a ZIP file or in parts, imports as
+  pages without Notion's IDs in their names, its databases as databases
+  whose rows have their properties as frontmatter, and its links as wiki
+  links, with every word of every page kept
+  ([ADR 0028](docs/adr/0028-a-notion-export-becomes-pages-and-databases-without-ids.md)).
 - Import, in the command palette: an Obsidian vault or a folder of
   Markdown comes over byte for byte with its files, Markdown files as
   notes, and CSV tables as databases, each line a note with its cells
