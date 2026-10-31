@@ -9,12 +9,16 @@ knows kept between runs, so edits made offline are sent when it is back.
 | File | What it does |
 | --- | --- |
 | `src/paths.ts` | The vault document's list of notes, and `reconcilePaths`: what to make, move or remove on each side, by what the two last agreed on |
-| `src/engine.ts` | `VaultSync`: one WebSocket for the vault document and the notes syncing; reconciles the list, catches up on the notes stored since the last number seen, hears of each as it is stored, and syncs notes through the documents the app holds for them |
+| `src/engine.ts` | `VaultSync`: reconciles the list, catches up on the notes stored since the last number seen, hears of each as it is stored, and syncs notes through the documents the app holds for them, over a channel |
+| `src/channel.ts` | The channel the engine syncs documents through, and `HocuspocusChannel`, for a workspace the server can read: one WebSocket for the vault document and the notes syncing |
+| `src/relayChannel.ts` | `RelayChannel`, for an encrypted workspace ([ADR 0038](../../docs/adr/0038-encrypted-workspaces-seal-a-key-to-each-member-and-relay-updates-the-server-cannot-read.md)): subscribes after the last number applied, decrypts and applies; sends only this side's changes, encrypted, by the snapshot last sent; replaces a long log with a snapshot, and never after an update it could not read |
+| `src/crypto.ts` | Keys and the 24-word recovery phrase, the private key's box, workspace keys sealed to members, and updates encrypted with XChaCha20-Poly1305 for their document, with libsodium |
 
 The engine knows a vault only through `SyncVault`, which the app gives it:
 its notes' paths, their documents (the ones its editor shares), and making,
 moving and removing notes. What a device keeps goes through `SyncStore`.
 
-The tests sync two devices through a real server on PGlite.
+The tests sync two devices through a real server on PGlite, encrypted
+workspaces included, and check the server keeps nothing it can read.
 
 Roadmap: the desktop app's side and end-to-end encryption in Phase 3.

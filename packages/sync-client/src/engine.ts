@@ -15,9 +15,11 @@
 // What a device knows between runs, the base, the last number seen, the
 // notes changed here and not sent, and the vault document, is kept by the
 // store it is given, so edits made offline are sent when it reconnects.
-import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import * as Y from "yjs";
+import { type Channel, HocuspocusChannel } from "./channel.ts";
+import type { WorkspaceKey } from "./crypto.ts";
 import { type Paths, reconcilePaths, removeVaultPath, setVaultPath, vaultPaths } from "./paths.ts";
+import { RelayChannel } from "./relayChannel.ts";
 
 /** A note's document, held while it syncs; let go when done. */
 export interface HeldDocument {
@@ -54,6 +56,8 @@ export interface SyncRecord {
   readonly pending: readonly string[];
   /** The vault document as last seen. */
   readonly vault: Uint8Array | null;
+  /** What the channel keeps, as the relay its documents' numbers and what it sent. */
+  readonly channel?: unknown;
 }
 
 export interface SyncStore {
@@ -84,43 +88,25 @@ export interface SyncOptions {
   readonly onStatus?: (status: SyncStatus) => void;
   /** How many notes sync at once. */
   readonly concurrency?: number;
-}
-
-/** The sync WebSocket's address for a server's. */
-export function syncUrl(server: string): string {
-  return `${server.replace(/^http/, "ws")}/api/sync`;
-}
-
-/** What the vault document's clients hear when a note is stored. */
-interface Stored {
-  readonly type: "stored";
-  readonly document: string;
-  readonly seq: number;
-}
-
-function isStored(value: unknown): value is Stored {
-  const stored = value as Partial<Stored> | null;
-  return (
-    typeof stored === "object" &&
-    stored !== null &&
-    stored.type === "stored" &&
-    typeof stored.document === "string"
-  );
+  /**
+   * The keys of an encrypted workspace, which syncs through the relay: the
+   * latest to encrypt with, and every version this device has to decrypt with.
+   */
+  readonly encryption?: {
+    readonly key: WorkspaceKey;
+    readonly keys: ReadonlyMap<number, Uint8Array>;
+  };
 }
 
 export class VaultSync {
   readonly #options: SyncOptions;
-  readonly #name: (document: string) => string;
-  readonly #socket: HocuspocusProviderWebsocket;
   readonly #vaultDocument = new Y.Doc();
-  #vaultProvider: HocuspocusProvider | undefined;
+  #channel: Channel | undefined;
   #cursor = 0;
   #base = new Map<string, string>();
   readonly #pending = new Set<string>();
   /** Notes syncing now, which do not start again until done. */
   readonly #syncing = new Set<string>();
-  /** How to give up on each document syncing now, when the engine stops. */
-  readonly #inflight = new Set<(error: Error) => void>();
   #queue: Promise<void> = Promise.resolve();
   #queued = false;
   #saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -131,11 +117,6 @@ export class VaultSync {
 
   private constructor(options: SyncOptions) {
     this.#options = options;
-    this.#name = (document) => `${options.workspaceId}/${document}`;
-    this.#socket = new HocuspocusProviderWebsocket({
-      url: syncUrl(options.server),
-      ...(options.WebSocket === undefined ? {} : { WebSocketPolyfill: options.WebSocket }),
-    });
   }
 
   /** Starts syncing a vault with a workspace, from what this device kept. */
@@ -167,10 +148,7 @@ export class VaultSync {
   async #halt(): Promise<void> {
     this.#stopped = true;
     this.#unwatch?.();
-    // A document syncing now gets no answer once the socket is gone.
-    for (const giveUp of this.#inflight) giveUp(new Error("Sync stopped."));
-    this.#vaultProvider?.destroy();
-    this.#socket.destroy();
+    this.#channel?.close();
     await this.#queue.catch(() => undefined);
     clearTimeout(this.#saveTimer);
     await this.#save();
@@ -193,36 +171,36 @@ export class VaultSync {
       this.#saveSoon();
       this.#schedule();
     });
-    const provider = new HocuspocusProvider({
-      websocketProvider: this.#socket,
-      name: this.#name("vault"),
-      document: this.#vaultDocument,
-      token: this.#options.token,
+    const options = this.#options;
+    const events = {
+      // Connected, or connected again: all of it, from the list on.
       onSynced: () => {
-        // Connected, or connected again: all of it, from the list on.
         this.#schedule();
       },
-      onStateless: ({ payload }) => {
-        let stored: unknown;
-        try {
-          stored = JSON.parse(payload);
-        } catch {
-          return;
-        }
-        if (isStored(stored) && this.#options.vault.paths().has(stored.document)) {
-          this.#pending.add(stored.document);
-          this.#schedule();
-        }
+      onStored: (document: string) => {
+        if (!options.vault.paths().has(document)) return;
+        this.#pending.add(document);
+        this.#schedule();
       },
-      onAuthenticationFailed: ({ reason }) => {
-        this.#report({ state: "offline", error: reason });
+      onOffline: (error?: string) => {
+        this.#report({ state: "offline", ...(error === undefined ? {} : { error }) });
       },
-      onDisconnect: () => {
-        this.#report({ state: "offline" });
-      },
-    });
-    this.#vaultProvider = provider;
-    provider.attach();
+    };
+    const where = {
+      server: options.server,
+      token: options.token,
+      workspaceId: options.workspaceId,
+      ...(options.WebSocket === undefined ? {} : { WebSocket: options.WebSocket }),
+    };
+    this.#channel =
+      options.encryption === undefined
+        ? new HocuspocusChannel(where, this.#vaultDocument, events)
+        : new RelayChannel(
+            { ...where, ...options.encryption },
+            this.#vaultDocument,
+            events,
+            record?.channel,
+          );
   }
 
   /** Tells of the state, and of a failure until the next success. */
@@ -237,7 +215,7 @@ export class VaultSync {
 
   /** Whether the engine runs and the vault document is synced; read anew after each wait. */
   #live(): boolean {
-    return !this.#stopped && this.#vaultProvider?.isSynced === true;
+    return !this.#stopped && this.#channel?.synced === true;
   }
 
   /** Runs a round of sync after the one under way, once however often it is asked for. */
@@ -280,7 +258,7 @@ export class VaultSync {
     await this.#each(plan.download, async ({ id, path }) => {
       const document = new Y.Doc();
       try {
-        await this.#syncDocument(id, document);
+        await this.#sync(id, document);
         await vault.create(id, path, Y.encodeStateAsUpdate(document));
       } finally {
         document.destroy();
@@ -332,7 +310,7 @@ export class VaultSync {
       try {
         const held = await vault.hold(id);
         try {
-          await this.#syncDocument(id, held.document);
+          await this.#sync(id, held.document);
         } finally {
           held.release();
         }
@@ -361,38 +339,9 @@ export class VaultSync {
   }
 
   /** Syncs a document with the server's: both get what the other lacks. */
-  #syncDocument(id: string, document: Y.Doc): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const provider = new HocuspocusProvider({
-        websocketProvider: this.#socket,
-        name: this.#name(id),
-        document,
-        token: this.#options.token,
-        // A note syncing is not a person there: no cursor to show.
-        awareness: null,
-      });
-      const done = (error?: Error) => {
-        this.#inflight.delete(done);
-        provider.off("synced", check);
-        provider.off("unsyncedChanges", check);
-        provider.destroy();
-        if (error === undefined) resolve();
-        else reject(error);
-      };
-      this.#inflight.add(done);
-      // Synced once the server has this side's changes too, or, for a
-      // guest, whose changes it refuses, once it has sent its own.
-      function check() {
-        if (!provider.isSynced) return;
-        if (!provider.hasUnsyncedChanges || provider.authorizedScope === "readonly") done();
-      }
-      provider.on("synced", check);
-      provider.on("unsyncedChanges", check);
-      provider.on("authenticationFailed", ({ reason }: { reason: string }) => {
-        done(new Error(reason));
-      });
-      provider.attach();
-    });
+  #sync(id: string, document: Y.Doc): Promise<void> {
+    if (this.#channel === undefined) return Promise.reject(new Error("Sync has not started."));
+    return this.#channel.sync(id, document);
   }
 
   #saveSoon(): void {
@@ -406,6 +355,7 @@ export class VaultSync {
       base: Object.fromEntries(this.#base),
       pending: [...this.#pending],
       vault: Y.encodeStateAsUpdate(this.#vaultDocument),
+      channel: this.#channel?.state(),
     });
   }
 }
