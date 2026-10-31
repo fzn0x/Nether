@@ -397,6 +397,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The desktop app run with `pnpm dev` reads a vault's links again: its
+  link index worker loaded the browser build of an entity decoder, which
+  needs a `document` a worker has not, and stopped before its first note,
+  leaving tags, outlines and backlinks empty. A worker that fails now says
+  so in the sidebar.
 - A property in a narrow pane or window keeps its value in the wide
   column and its type in the narrow one, and a note's buttons wrap rather
   than run past its pane.
