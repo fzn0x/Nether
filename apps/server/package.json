@@ -16,6 +16,7 @@
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/websocket": "^11.3.4",
     "@hocuspocus/server": "~4.7.1",
+    "@nether/search": "workspace:*",
     "aws4fetch": "^1.0.20",
     "fastify": "^5.12.7",
     "hash-wasm": "^4.12.0",
@@ -32,6 +33,7 @@
     "@types/pg": "^8.23.1",
     "@types/ws": "^8.18.2",
     "jose": "^6.2.13",
+    "undici-types": "7.24.6",
     "vitest": "^5.0.5"
   }
 }

@@ -5,6 +5,9 @@
     "allowImportingTsExtensions": false,
     "rewriteRelativeImportExtensions": true,
     "rootDir": "src",
+    // Workspace packages, as @nether/search, are dependencies, not this
+    // server's source: their TypeScript runs as Node strips its types.
+    "preserveSymlinks": true,
     "outDir": "dist",
     "sourceMap": true
   },
