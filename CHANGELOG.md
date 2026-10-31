@@ -142,6 +142,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Unlinked mentions: beside a note, under its backlinks, the notes that
+  write its name or an alias without linking it, each mention on its line;
+  **Link** makes one a link, changing only its words in the file
+  ([ADR 0024](docs/adr/0024-unlinked-mentions-found-by-the-index-and-linked-where-written.md)).
 - Synced blocks: a block of another note embedded by its ID,
   `![[Roadmap#^b1]]`, edits in place, and its edits are written to the block
   in its note, so every note that embeds it shows them. Every embed now

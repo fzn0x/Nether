@@ -93,7 +93,7 @@ The Notion core, one feature per pull request, in this order:
 - [x] Query blocks: a live table or list of the notes a folder, tag or property finds ([ADR 0021](adr/0021-query-blocks-are-obsidian-bases-in-a-code-block.md))
 - [x] Databases exported to CSV ([ADR 0022](adr/0022-a-database-exports-to-csv-as-its-view-shows-it.md))
 - [x] Synced blocks: one block embedded in several notes, the same everywhere ([ADR 0023](adr/0023-synced-blocks-are-block-embeds-edited-in-place.md))
-- [ ] Unlinked mentions, each made a link in one click
+- [x] Unlinked mentions, each made a link in one click ([ADR 0024](adr/0024-unlinked-mentions-found-by-the-index-and-linked-where-written.md))
 - [ ] The graph view, global and local, filtered by tag, folder and property, smooth at 10,000 notes
 - [ ] Themes and CSS snippets
 - [ ] Importers: Obsidian vaults, Notion exports, Logseq, plain Markdown, HTML and CSV

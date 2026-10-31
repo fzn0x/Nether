@@ -31,3 +31,4 @@ record supersedes it and says so. Start a new one from
 | [0021](0021-query-blocks-are-obsidian-bases-in-a-code-block.md) | Query blocks are Obsidian bases in a code block | Accepted |
 | [0022](0022-a-database-exports-to-csv-as-its-view-shows-it.md) | A database exports to CSV as its view shows it | Accepted |
 | [0023](0023-synced-blocks-are-block-embeds-edited-in-place.md) | Synced blocks are block embeds, edited in place | Accepted |
+| [0024](0024-unlinked-mentions-found-by-the-index-and-linked-where-written.md) | Unlinked mentions are found by the index and linked where written | Accepted |

@@ -76,6 +76,15 @@ Beside each note, Nether shows its outline, the note's headings, which go
 to the heading when clicked, and the notes that link to it, each with the
 text around its links. On a narrow window they show below the note.
 
+Below them, **Unlinked mentions** opens the list of the notes that write
+the note's name, or one of its aliases, without linking it: each mention on
+its line, with the name marked. **Link** makes that mention a link,
+`[[Roadmap]]`, or `[[Roadmap|roadmap]]` where it is written otherwise, so
+the sentence reads as before, and changes nothing else in the file. A name
+counts as a whole word, case aside, but not inside a link, a tag, a path,
+code, math, a comment or HTML. The list stays open from note to note until
+you close it.
+
 The **Tags** list in the sidebar shows every tag in the vault, from `#tag`
 in notes and from their `tags` property, with nested tags such as
 `#area/project` under theirs and how many notes have each. Click a tag,
