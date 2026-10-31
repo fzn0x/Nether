@@ -217,11 +217,15 @@ jobs:
         run: pnpm --filter @nether/desktop exec playwright install --with-deps chromium
       - name: The desktop page in Chromium
         run: pnpm --filter @nether/desktop test:e2e
+      - name: The web app, served by a real server, in Chromium
+        run: pnpm --filter @nether/web test:e2e
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
-          path: apps/desktop/playwright-report/
+          path: |
+            apps/desktop/playwright-report/
+            apps/web/playwright-report/
           retention-days: 7
 
   commits:
