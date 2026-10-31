@@ -47,6 +47,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@mygo-plugins/fetch':
+        specifier: 0.6.2
+        version: 0.6.2(mygo-runtime@0.6.2)
       '@mygo-plugins/sqlite':
         specifier: 0.6.2
         version: 0.6.2(mygo-runtime@0.6.2)
@@ -1274,6 +1277,11 @@ packages:
   '@mermaid-js/parser@2.0.1':
     resolution: {integrity: sha512-j37dj/h6p6pots1L7pLPPNuABEEu9WP4OYg9pW1g+nYG331j0+3canE9OagtYdytYvdSAMG+2fKU5cxep6LgjA==}
     engines: {node: '>=22.12.0'}
+
+  '@mygo-plugins/fetch@0.6.2':
+    resolution: {integrity: sha512-n8kyHXcJebArMYBNsHpEWrE8hqryGa5ANsOWmIEKyz9d56FWOBsH0nlJm0TqjKP4wpjxHDKNLK4SezS+QMCmlQ==}
+    peerDependencies:
+      mygo-runtime: ^0.6.2
 
   '@mygo-plugins/sqlite@0.6.2':
     resolution: {integrity: sha512-/4//39/jeM3s5b1HzNUwH7nL8CF+V48mlBVhGSdDrCwu52+CySeaKZG4l/0akYaODKSSbGNdorHWev6ybfhsfQ==}
@@ -5198,6 +5206,10 @@ snapshots:
   '@mermaid-js/parser@2.0.1':
     dependencies:
       '@chevrotain/types': 13.2.0
+
+  '@mygo-plugins/fetch@0.6.2(mygo-runtime@0.6.2)':
+    dependencies:
+      mygo-runtime: 0.6.2
 
   '@mygo-plugins/sqlite@0.6.2(mygo-runtime@0.6.2)':
     dependencies:
