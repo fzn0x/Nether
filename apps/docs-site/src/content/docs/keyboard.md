@@ -25,6 +25,7 @@ renaming it, show once a note is open.
 | Show the note as Markdown or as blocks | Ctrl+/ |
 | Rename the note | F2 |
 | Export… | Ctrl+Shift+E |
+| Open the graph | Ctrl+G |
 | Templates and periodic notes settings | Ctrl+, |
 
 The other commands, such as opening this week's note, moving the note to

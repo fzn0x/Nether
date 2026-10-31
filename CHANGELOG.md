@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- The graph view, Ctrl+G: the vault's notes and their links, every note's or
+  those up to three links around the open note, kept to a filter written
+  as a search is; drawn by Sigma with WebGL and laid out by ForceAtlas2 in a
+  worker, smooth with 10,000 notes, and usable from the keyboard
+  ([ADR 0025](docs/adr/0025-graph-view-with-sigma-and-forceatlas2-in-a-worker.md)).
+  `pnpm --filter @nether/desktop perf:graph` measures it.
 - Unlinked mentions: beside a note, under its backlinks, the notes that
   write its name or an alias without linking it, each mention on its line;
   **Link** makes one a link, changing only its words in the file

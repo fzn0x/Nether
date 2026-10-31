@@ -2,13 +2,14 @@
 
 Measures Nether's [performance targets](../../docs/requirements.md#non-functional-requirements)
 on the reference vault of 50,000 notes that
-[`@nether/vault-generator`](../vault-generator/) writes. Three harnesses
+[`@nether/vault-generator`](../vault-generator/) writes. Four harnesses
 share the work, each measuring the targets that need what it runs:
 
 | Harness | Targets | Where it runs |
 | --- | --- | --- |
 | `pnpm perf:bench`, in Node.js | Title search under 50 ms, full-text search under 300 ms, and reading and parsing a note | A maintainer's machine, before each phase's gate |
 | `pnpm --filter @nether/desktop perf:ui`, the desktop page in Chromium | Switching notes under 100 ms, and typing under 16 ms | A maintainer's machine, before each phase's gate |
+| `pnpm --filter @nether/desktop perf:graph`, the desktop page in Chromium | The graph of 10,000 notes shows in under 3 s and moves at 30 frames a second or better | A maintainer's machine, before each phase's gate |
 | `tools/perf/desktop.ps1`, the desktop app on Windows | Opening to the last note under 1.5 s, idle memory under 300 MB, and picking up another app's edit within 2 s | A maintainer's machine, before each phase's gate |
 
 Each writes what it measured and exits with 1 when a target is missed.
@@ -46,6 +47,22 @@ notes forty times, timing each from the click to the frame that shows the
 note, then types at the end of a note and reads each key's time to the
 frame that shows it from the browser's Event Timing. Chromium draws the
 page as WebView2 does in the Windows app.
+
+## The graph, in Chromium
+
+```sh
+pnpm --filter @nether/desktop perf:graph                         # 10,000 notes, into perf-graph-report.json
+NETHER_PERF_GRAPH_NOTES=20000 pnpm --filter @nether/desktop perf:graph
+```
+
+The test opens the graph of the reference vault once the link index has
+read it, times how long it takes to show, and the time between frames for
+three seconds while ForceAtlas2 lays it out, and for two while it zooms in
+and out once laid out. Chromium draws it with the GPU, as WebView2 and
+WebKit do: through Direct3D on Windows, Metal on macOS and OpenGL on Linux.
+Without that, headless Chromium draws WebGL in software, which says nothing
+about the app
+([ADR 0025](../../docs/adr/0025-graph-view-with-sigma-and-forceatlas2-in-a-worker.md)).
 
 ## In the desktop app
 

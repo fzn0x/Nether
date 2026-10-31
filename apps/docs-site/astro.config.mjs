@@ -29,6 +29,7 @@ export default defineConfig({
             "queries",
             "templates",
             "links",
+            "graph",
             "search",
             "export",
             "keyboard",

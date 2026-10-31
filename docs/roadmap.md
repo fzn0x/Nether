@@ -94,6 +94,6 @@ The Notion core, one feature per pull request, in this order:
 - [x] Databases exported to CSV ([ADR 0022](adr/0022-a-database-exports-to-csv-as-its-view-shows-it.md))
 - [x] Synced blocks: one block embedded in several notes, the same everywhere ([ADR 0023](adr/0023-synced-blocks-are-block-embeds-edited-in-place.md))
 - [x] Unlinked mentions, each made a link in one click ([ADR 0024](adr/0024-unlinked-mentions-found-by-the-index-and-linked-where-written.md))
-- [ ] The graph view, global and local, filtered by tag, folder and property, smooth at 10,000 notes
+- [x] The graph view, global and local, filtered by tag, folder and property, smooth at 10,000 notes ([ADR 0025](adr/0025-graph-view-with-sigma-and-forceatlas2-in-a-worker.md))
 - [ ] Themes and CSS snippets
 - [ ] Importers: Obsidian vaults, Notion exports, Logseq, plain Markdown, HTML and CSV

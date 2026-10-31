@@ -32,3 +32,4 @@ record supersedes it and says so. Start a new one from
 | [0022](0022-a-database-exports-to-csv-as-its-view-shows-it.md) | A database exports to CSV as its view shows it | Accepted |
 | [0023](0023-synced-blocks-are-block-embeds-edited-in-place.md) | Synced blocks are block embeds, edited in place | Accepted |
 | [0024](0024-unlinked-mentions-found-by-the-index-and-linked-where-written.md) | Unlinked mentions are found by the index and linked where written | Accepted |
+| [0025](0025-graph-view-with-sigma-and-forceatlas2-in-a-worker.md) | The graph view with Sigma, laid out by ForceAtlas2 in a worker | Accepted |
