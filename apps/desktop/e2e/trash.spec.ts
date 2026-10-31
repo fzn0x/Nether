@@ -105,3 +105,16 @@ test("the trash keeps notes as many days as it is set to, and empties at once", 
   await expect(trash.getByText("The trash is empty.")).toBeVisible();
   expect(await fileText(page, ".trash/Welcome.md")).toBeUndefined();
 });
+
+test("a notice in the sidebar closes with its ×", async ({ page }) => {
+  const errors = errorsOf(page);
+  const notes = await openSample(page);
+  await notes.getByRole("button", { name: /Welcome/ }).click();
+  await page.getByRole("button", { name: "Move to trash" }).click();
+  const notice = page.getByRole("status").filter({ hasText: "Welcome is in the trash." });
+  await expect(notice).toBeVisible();
+
+  await notice.getByRole("button", { name: "Dismiss" }).click();
+  await expect(notice).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

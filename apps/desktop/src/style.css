@@ -318,8 +318,17 @@ button {
 }
 
 .sidebar-notice {
+  display: flex;
+  gap: 0.25rem;
+  align-items: flex-start;
   margin: 0 0.75rem 0.5rem;
   font-size: 0.8125rem;
+}
+
+.sidebar-notice-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .sidebar-tabs {
@@ -1954,6 +1963,21 @@ button {
   margin-inline-start: 0.25rem;
   color: var(--accent);
   font-weight: 600;
+}
+
+/* The notice's ×, which closes it. */
+.sidebar-notice .notice-dismiss {
+  margin: -0.15rem 0 0;
+  margin-inline-end: -0.4rem;
+  padding: 0 0.35rem;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: normal;
+  line-height: 1.15;
+}
+
+.sidebar-notice .notice-dismiss:hover {
+  color: var(--text);
 }
 
 /* A note's name, renamed in place. */

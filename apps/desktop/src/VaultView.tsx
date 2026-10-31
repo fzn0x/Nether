@@ -741,24 +741,37 @@ export function VaultView(props: {
             </div>
             {notice === undefined ? null : (
               <p className="notice sidebar-notice" role="status">
-                {notice.text}
-                {notice.restore === undefined ? null : (
-                  <button
-                    type="button"
-                    className="quiet"
-                    onClick={() => {
-                      const where = notice.restore;
-                      if (where === undefined) return;
-                      state.vault.restore(where).then(openRestored, (error: unknown) => {
-                        setNotice({
-                          text: error instanceof Error ? error.message : String(error),
+                <span className="sidebar-notice-text">
+                  {notice.text}
+                  {notice.restore === undefined ? null : (
+                    <button
+                      type="button"
+                      className="quiet"
+                      onClick={() => {
+                        const where = notice.restore;
+                        if (where === undefined) return;
+                        state.vault.restore(where).then(openRestored, (error: unknown) => {
+                          setNotice({
+                            text: error instanceof Error ? error.message : String(error),
+                          });
                         });
-                      });
-                    }}
-                  >
-                    {t("restore")}
-                  </button>
-                )}
+                      }}
+                    >
+                      {t("restore")}
+                    </button>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="quiet notice-dismiss"
+                  aria-label={t("dismiss")}
+                  title={t("dismiss")}
+                  onClick={() => {
+                    setNotice(undefined);
+                  }}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
               </p>
             )}
             <div className="sidebar-tabs">
