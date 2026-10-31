@@ -67,14 +67,27 @@ export function NoteTree(props: {
   readonly onNewIn: (folder: string) => void;
   /** Opens a note's menu at a point. */
   readonly onMenu?: (id: NoteId, at: MenuPoint) => void;
+  /** Opens a note in a new tab: Ctrl or Cmd and a click, or a middle click. */
+  readonly onOpenInNewTab?: (id: NoteId) => void;
   /** The note whose menu is open, which shows so. */
   readonly menuFor?: NoteId | undefined;
   readonly label: string;
   /** Where the tree remembers what is open, for its vault and view. */
   readonly storageKey: string;
 }) {
-  const { notes, mode, selected, onSelect, onMove, onNewIn, onMenu, menuFor, label, storageKey } =
-    props;
+  const {
+    notes,
+    mode,
+    selected,
+    onSelect,
+    onMove,
+    onNewIn,
+    onMenu,
+    onOpenInNewTab,
+    menuFor,
+    label,
+    storageKey,
+  } = props;
   const scroller = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 600 });
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => readStored(storageKey));
@@ -303,9 +316,24 @@ export function NoteTree(props: {
               onDrop={(event) => {
                 drop(event, target);
               }}
-              onClick={() => {
+              onClick={(event) => {
                 setFocusKey(node.key);
+                if (
+                  node.kind === "note" &&
+                  onOpenInNewTab !== undefined &&
+                  (event.ctrlKey || event.metaKey)
+                ) {
+                  onOpenInNewTab(node.note.id);
+                  return;
+                }
                 open(row);
+              }}
+              onAuxClick={(event) => {
+                if (event.button !== 1 || node.kind !== "note" || onOpenInNewTab === undefined) {
+                  return;
+                }
+                event.preventDefault();
+                onOpenInNewTab(node.note.id);
               }}
               onContextMenu={(event) => {
                 if (node.kind !== "note" || onMenu === undefined) return;

@@ -1,7 +1,7 @@
 // The app's commands: every action, by its ID, in the order the palette and
 // the shortcuts list show them, and the shortcuts each has unless the
 // vault chooses others. Their names are in the messages, as `command_ID`.
-import type { Hotkeys } from "./shortcuts.ts";
+import { type Hotkeys, isMac } from "./shortcuts.ts";
 
 export const commandIds = [
   "palette",
@@ -18,6 +18,10 @@ export const commandIds = [
   "history",
   "comment",
   "export",
+  "splitRight",
+  "nextTab",
+  "previousTab",
+  "closeTab",
   "import",
   "trashNote",
   "showNotes",
@@ -51,6 +55,10 @@ export const defaultHotkeys: Hotkeys = {
   rename: ["F2"],
   comment: ["Mod+Alt+M"],
   export: ["Mod+Shift+E"],
+  // Ctrl and Tab, as browsers have it: on a Mac, Cmd and Tab is the system's.
+  nextTab: [isMac() ? "Ctrl+Tab" : "Mod+Tab"],
+  previousTab: [isMac() ? "Ctrl+Shift+Tab" : "Mod+Shift+Tab"],
+  closeTab: ["Mod+W"],
   openGraph: ["Mod+G"],
   templateSettings: ["Mod+,"],
 };

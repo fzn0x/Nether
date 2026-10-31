@@ -106,6 +106,8 @@ export default function NoteView(props: {
   readonly onMention?: (thread: string, people: readonly CommentAuthor[], body: string) => void;
   /** A thread to show, as a notification asks; a new `key` shows it again. */
   readonly threadRequest?: { readonly thread: string; readonly key: number } | undefined;
+  /** The ID of the note's name, its own in each pane. */
+  readonly titleId?: string;
 }) {
   const {
     vault,
@@ -133,6 +135,7 @@ export default function NoteView(props: {
     people,
     onMention,
     threadRequest,
+    titleId = "note-title",
   } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
@@ -234,7 +237,7 @@ export default function NoteView(props: {
   useEffect(() => {
     if (renameRequest === handledRename.current) return;
     handledRename.current = renameRequest;
-    const title = document.getElementById("note-title");
+    const title = document.getElementById(titleId);
     if (title === null) return;
     title.focus();
     const selection = window.getSelection();
@@ -249,9 +252,10 @@ export default function NoteView(props: {
   }
   return (
     <div className="note-layout">
-      <article className="note" aria-labelledby="note-title">
+      <article className="note" aria-labelledby={titleId}>
         <header className="note-header">
           <NoteTitle
+            id={titleId}
             title={note.title}
             onRename={onRename}
             onError={(error) => {
@@ -401,11 +405,12 @@ export default function NoteView(props: {
  * Escape puts the name back.
  */
 function NoteTitle(props: {
+  readonly id: string;
   readonly title: string;
   readonly onRename: (name: string) => Promise<void>;
   readonly onError: (error: string) => void;
 }) {
-  const { title, onRename, onError } = props;
+  const { id, title, onRename, onError } = props;
   const element = useRef<HTMLHeadingElement>(null);
   const commit = () => {
     const name = element.current?.textContent.trim() ?? title;
@@ -419,7 +424,7 @@ function NoteTitle(props: {
     <h1
       // A new name starts the heading anew, so React and the browser agree on its text.
       key={title}
-      id="note-title"
+      id={id}
       ref={element}
       className="note-title-field"
       contentEditable="plaintext-only"

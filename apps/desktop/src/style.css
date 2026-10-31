@@ -445,6 +445,110 @@ button {
   color: var(--muted);
 }
 
+/* Notes open in tabs, in one pane or two side by side (ADR 0046). */
+.pane:has(> .panes) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.panes {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  height: 100%;
+}
+
+.note-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.note-pane + .note-pane {
+  border-inline-start: 1px solid var(--rule);
+}
+
+.pane-body {
+  flex: 1;
+  min-height: 0;
+  /* What shows in it fits its width, as the panes split the window. */
+  container-type: inline-size;
+  overflow-y: auto;
+  padding: 2rem clamp(1.5rem, 6vw, 5rem);
+}
+
+.panes.split .pane-body {
+  padding-inline: clamp(1rem, 3vw, 2.5rem);
+}
+
+.tab-strip {
+  display: flex;
+  flex-shrink: 0;
+  overflow-x: auto;
+  border-block-end: 1px solid var(--rule);
+  scrollbar-width: thin;
+}
+
+.tab {
+  display: flex;
+  flex: 0 1 12rem;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 6rem;
+  padding: 0.4rem 0.35rem 0.4rem 0.75rem;
+  border-inline-end: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tab:hover {
+  background: color-mix(in srgb, var(--rule) 50%, transparent);
+}
+
+.tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--rule) 45%, transparent);
+  color: var(--text);
+}
+
+/* The tab the keyboard's pane shows. */
+.panes:not(.split) .tab[aria-selected="true"],
+.note-pane.focused .tab[aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tab-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-close {
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  line-height: 1.3;
+  opacity: 0;
+}
+
+.tab:hover .tab-close,
+.tab[aria-selected="true"] .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover {
+  background: var(--rule);
+  color: var(--text);
+}
+
 /* The graph in the pane: its tools above, the picture filling the rest. */
 .graph-view {
   display: flex;
@@ -646,8 +750,8 @@ button {
   color: var(--accent);
 }
 
-/* Below this width the panel goes under the note. */
-@media (max-width: 64rem) {
+/* Below this width of its pane, the panel goes under the note. */
+@container (max-width: 38rem) {
   .note-layout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -673,9 +777,10 @@ button {
 
 .note-tools {
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.25rem 0.75rem;
   font-size: 0.875rem;
 }
 
@@ -1767,10 +1872,10 @@ button {
   font-size: 0.8125rem;
 }
 
-/* Below this width a property's name goes above its value. */
-@media (max-width: 40rem) {
+/* Below this width of its pane, a property's name goes above its value. */
+@container (max-width: 35rem) {
   .property {
-    grid-template-columns: minmax(0, 1fr) 6.5rem auto;
+    grid-template-columns: 6.5rem minmax(0, 1fr) auto;
   }
 
   .property .property-key {

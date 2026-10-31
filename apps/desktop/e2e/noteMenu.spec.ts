@@ -11,6 +11,8 @@ test("a note's menu opens on a right click and from the keyboard, and closes bac
   const menu = page.getByRole("menu", { name: "Welcome: actions" });
   await expect(menu.getByRole("menuitem")).toHaveText([
     "Open",
+    "Open in new tab",
+    "Open to the right",
     "Rename…",
     "Make a copy",
     "Move to…",
@@ -24,7 +26,7 @@ test("a note's menu opens on a right click and from the keyboard, and closes bac
     "Version history",
     "Move to trash",
   ]);
-  await expect(menu.getByRole("menuitem", { name: "Open" })).toBeFocused();
+  await expect(menu.getByRole("menuitem", { name: "Open", exact: true })).toBeFocused();
   expect(await violations(page)).toEqual([]);
 
   // The arrows go round, a letter goes to the next item starting with it.

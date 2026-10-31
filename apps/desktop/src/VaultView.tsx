@@ -33,6 +33,23 @@ import { NoteList } from "./NoteList.tsx";
 import { type Dragged, NoteTree } from "./NoteTree.tsx";
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
 import { RenameNoteDialog } from "./RenameNoteDialog.tsx";
+import { TabStrip } from "./TabStrip.tsx";
+import {
+  type Layout,
+  activeNote,
+  chooseTab,
+  closeNote,
+  closeTab,
+  cycleTab,
+  emptyLayout,
+  focusPane,
+  openHere,
+  openInNewTab,
+  openToTheRight,
+  readLayout,
+  replaceNote,
+  shownIn,
+} from "./tabs.ts";
 import { SearchPanel } from "./SearchPanel.tsx";
 import { ShortcutsDialog } from "./ShortcutsDialog.tsx";
 import { ariaKeys, commandFor, eventKeys } from "./shortcuts.ts";
@@ -188,6 +205,23 @@ function TagList(props: { readonly graph: LinkGraph; readonly onSelect: (tag: st
   );
 }
 
+/**
+ * What a pane asks of the note it shows: blocks or source, kept from note
+ * to note; where a link to a heading or block asked to go; and counters
+ * that change to ask it to switch modes, take a new name, comment on its
+ * selection, or show a thread a notification opened.
+ */
+interface PaneAsks {
+  readonly mode: NoteMode;
+  readonly focus?: (NotePart & { readonly key: number }) | undefined;
+  readonly source: number;
+  readonly rename: number;
+  readonly comment: number;
+  readonly thread?: { readonly thread: string; readonly key: number } | undefined;
+}
+
+const noAsks: PaneAsks = { mode: "blocks", source: 0, rename: 0, comment: 0 };
+
 export function VaultView(props: {
   readonly info: VaultInfo;
   /** The note to open first, by its path, as the command line names one; else the last open. */
@@ -205,10 +239,21 @@ export function VaultView(props: {
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
   const bookmarks = useBookmarks(vault);
-  const [selected, setSelected] = useState<NoteId | undefined>();
+  // Where notes are open: tabs in one pane or two (ADR 0046). Commands
+  // about a note act on the note the focused pane shows.
+  const [layout, setLayout] = useState<Layout>(emptyLayout);
+  const layoutNow = useRef(layout);
+  const changeLayout = useCallback((change: (current: Layout) => Layout): Layout => {
+    const next = change(layoutNow.current);
+    layoutNow.current = next;
+    setLayout(next);
+    return next;
+  }, []);
+  const selected = activeNote(layout);
   // Whether the graph shows in place of the note.
   const [graphShown, setGraphShown] = useState(false);
   const lastNoteKey = `nether.lastNote.${info.id}`;
+  const tabsKey = `nether.tabs.${info.id}`;
 
   // The vault's links load once the note it opens to shows, or at once when
   // it opens to none: loaded alongside it, they held that note back.
@@ -235,10 +280,13 @@ export function VaultView(props: {
     };
   }, [loadLinks]);
 
-  // Where a link to a heading or block asked to go, in the note it opened.
-  const [focus, setFocus] = useState<(NotePart & { readonly key: number }) | undefined>();
-  // Blocks or source, kept from note to note.
-  const [mode, setMode] = useState<NoteMode>("blocks");
+  // What each pane, by its key, asks of the note it shows.
+  const [asks, setAsks] = useState<Readonly<Record<number, PaneAsks>>>({});
+  const ask = useCallback((key: number, change: (current: PaneAsks) => PaneAsks) => {
+    setAsks((all) => ({ ...all, [key]: change(all[key] ?? noAsks) }));
+  }, []);
+  const focusedKey = layout.panes[layout.focused]?.key ?? 0;
+  const mode = (asks[focusedKey] ?? noAsks).mode;
   const [panel, setPanel] = useState<"notes" | "tags" | "search" | "trash">("notes");
   const [switcher, setSwitcher] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -259,14 +307,6 @@ export function VaultView(props: {
     | "palette"
     | "shortcuts"
     | undefined
-  >();
-  // Asks the open note to switch modes, to take a new name, or to comment on its selection.
-  const [sourceRequest, setSourceRequest] = useState(0);
-  const [renameRequest, setRenameRequest] = useState(0);
-  const [commentRequest, setCommentRequest] = useState(0);
-  // A thread a notification opens, with its note.
-  const [threadRequest, setThreadRequest] = useState<
-    { readonly thread: string; readonly key: number } | undefined
   >();
   // A note's menu, open at a point, and the dialog one of its items opened for a note.
   const [menu, setMenu] = useState<{ readonly id: NoteId; readonly at: MenuPoint } | undefined>();
@@ -297,15 +337,27 @@ export function VaultView(props: {
 
   const noteView = useNoteViewModule();
 
-  const openNote = useCallback((id: NoteId, part?: NotePart) => {
-    setGraphShown(false);
-    setSelected(id);
-    setFocus(
-      part !== undefined && (part.heading !== undefined || part.block !== undefined)
-        ? { ...part, key: Date.now() }
-        : undefined,
-    );
-  }, []);
+  /** Opens a note in the focused pane's tab, in a new tab, or in the pane to the right; returns that pane's key. */
+  const openNote = useCallback(
+    (id: NoteId, part?: NotePart, where: "here" | "tab" | "right" = "here"): number => {
+      setGraphShown(false);
+      const next = changeLayout((current) =>
+        where === "tab"
+          ? openInNewTab(current, id)
+          : where === "right"
+            ? openToTheRight(current, id)
+            : openHere(current, id),
+      );
+      const key = next.panes[next.focused]?.key ?? 0;
+      const focus =
+        part !== undefined && (part.heading !== undefined || part.block !== undefined)
+          ? { ...part, key: Date.now() }
+          : undefined;
+      ask(key, (current) => ({ ...current, focus }));
+      return key;
+    },
+    [changeLayout, ask],
+  );
 
   const showTag = useCallback((name: string) => {
     setTag(name);
@@ -371,7 +423,7 @@ export function VaultView(props: {
       const title = vault.note(id)?.title ?? "";
       vault.remove(id).then(
         (where) => {
-          setSelected((current) => (current === id ? undefined : current));
+          changeLayout((current) => closeNote(current, id));
           setNotice({ text: t("movedToTrash", { name: title }), restore: where });
         },
         (error: unknown) => {
@@ -447,7 +499,7 @@ export function VaultView(props: {
       const { mergeNote } = await loadMergeNote();
       await indexer.idle();
       await mergeNote(open, indexer.graph, id, into.id);
-      setSelected((current) => (current === id ? into.id : current));
+      changeLayout((current) => replaceNote(current, id, into.id));
       setNotice({ text: t("mergedNote", { name, into: into.title }) });
     },
     [state],
@@ -463,6 +515,12 @@ export function VaultView(props: {
     [vault, openNote],
   );
 
+  const openInTab = useCallback(
+    (id: NoteId) => {
+      openNote(id, undefined, "tab");
+    },
+    [openNote],
+  );
   const openMenu = useCallback((id: NoteId, at: MenuPoint) => {
     setMenu({ id, at });
   }, []);
@@ -508,6 +566,18 @@ export function VaultView(props: {
           label: t("menuOpen"),
           run: () => {
             openNote(id);
+          },
+        },
+        {
+          label: t("menuOpenNewTab"),
+          run: () => {
+            openNote(id, undefined, "tab");
+          },
+        },
+        {
+          label: t("menuOpenRight"),
+          run: () => {
+            openNote(id, undefined, "right");
           },
         },
         "separator",
@@ -686,13 +756,13 @@ export function VaultView(props: {
         note === undefined
           ? undefined
           : () => {
-              setSourceRequest((count) => count + 1);
+              ask(focusedKey, (current) => ({ ...current, source: current.source + 1 }));
             },
       rename:
         note === undefined
           ? undefined
           : () => {
-              setRenameRequest((count) => count + 1);
+              ask(focusedKey, (current) => ({ ...current, rename: current.rename + 1 }));
             },
       bookmark:
         note === undefined || !open
@@ -715,13 +785,39 @@ export function VaultView(props: {
         sync.levelOf?.(note) === "view"
           ? undefined
           : () => {
-              setCommentRequest((count) => count + 1);
+              ask(focusedKey, (current) => ({ ...current, comment: current.comment + 1 }));
             },
       export:
         note === undefined
           ? undefined
           : () => {
               setDialog("export");
+            },
+      splitRight:
+        note === undefined
+          ? undefined
+          : () => {
+              openNote(note, undefined, "right");
+            },
+      nextTab:
+        (layout.panes[layout.focused]?.tabs.length ?? 0) < 2
+          ? undefined
+          : () => {
+              changeLayout((current) => cycleTab(current, 1));
+            },
+      previousTab:
+        (layout.panes[layout.focused]?.tabs.length ?? 0) < 2
+          ? undefined
+          : () => {
+              changeLayout((current) => cycleTab(current, -1));
+            },
+      closeTab:
+        note === undefined
+          ? undefined
+          : () => {
+              changeLayout((current) =>
+                closeTab(current, current.focused, current.panes[current.focused]?.active ?? 0),
+              );
             },
       import: open
         ? () => {
@@ -815,6 +911,11 @@ export function VaultView(props: {
     sync.levelOf,
     mode,
     toggleBookmark,
+    ask,
+    focusedKey,
+    layout,
+    changeLayout,
+    openNote,
   ]);
 
   // Shortcuts run their commands, before the editors, which have their own uses for keys.
@@ -844,23 +945,39 @@ export function VaultView(props: {
     return keys === undefined ? undefined : ariaKeys(keys);
   };
 
-  // The note the app was started with opens first, or else the note open
-  // when the vault was last open, found by its path.
+  // The tabs open when the vault was last open come back, with the note the
+  // app was started with shown in the focused pane; with no tabs remembered,
+  // the note open last, found by its path.
   useEffect(() => {
     if (vault === undefined) return;
     let restored = false;
     try {
-      const path = startNote ?? localStorage.getItem(lastNoteKey);
+      const stored = localStorage.getItem(tabsKey);
+      let next =
+        stored === null
+          ? emptyLayout
+          : readLayout(JSON.parse(stored) as unknown, (id) => vault.note(id) !== undefined);
+      const path =
+        startNote ?? (activeNote(next) === undefined ? localStorage.getItem(lastNoteKey) : null);
       const note = path === null ? undefined : vault.noteAt(path);
-      if (note !== undefined) {
-        setSelected((current) => current ?? note.id);
+      if (note !== undefined) next = openHere(next, note.id);
+      if (activeNote(next) !== undefined) {
+        changeLayout((current) => (activeNote(current) === undefined ? next : current));
         restored = true;
       }
     } catch {
-      // Storage closed to the page: the vault opens to no note.
+      // Storage closed to the page, or what it kept unreadable: the vault opens to no note.
     }
     if (!restored) loadLinks();
-  }, [vault, startNote, lastNoteKey, loadLinks]);
+  }, [vault, startNote, lastNoteKey, tabsKey, loadLinks, changeLayout]);
+  useEffect(() => {
+    if (vault === undefined) return;
+    try {
+      localStorage.setItem(tabsKey, JSON.stringify(layout));
+    } catch {
+      // Not remembered: the vault opens to its last note next time.
+    }
+  }, [vault, layout, tabsKey]);
   const selectedPath = selected === undefined ? undefined : vault?.note(selected)?.path;
   useEffect(() => {
     if (selectedPath === undefined) return;
@@ -1074,6 +1191,7 @@ export function VaultView(props: {
                     selected={selected}
                     onSelect={openNote}
                     onMenu={openMenu}
+                    onOpenInNewTab={openInTab}
                     menuFor={menu?.id}
                     label={t("notes")}
                   />
@@ -1086,6 +1204,7 @@ export function VaultView(props: {
                     onMove={moveInTree}
                     onNewIn={newNoteIn}
                     onMenu={openMenu}
+                    onOpenInNewTab={openInTab}
                     menuFor={menu?.id}
                     label={t("notes")}
                     storageKey={`nether.tree.${info.id}.${notesView}`}
@@ -1240,9 +1359,12 @@ export function VaultView(props: {
             hasNote={(id) => state.vault.note(id as NoteId) !== undefined}
             onOpen={(id, thread) => {
               setDialog(undefined);
-              openNote(id as NoteId);
+              const key = openNote(id as NoteId);
               if (thread !== undefined) {
-                setThreadRequest((last) => ({ thread, key: (last?.key ?? 0) + 1 }));
+                ask(key, (current) => ({
+                  ...current,
+                  thread: { thread, key: (current.thread?.key ?? 0) + 1 },
+                }));
               }
             }}
             onClose={() => {
@@ -1432,56 +1554,110 @@ export function VaultView(props: {
               }}
             />
           </Suspense>
-        ) : state.status === "open" && selected !== undefined ? (
+        ) : state.status === "open" && layout.panes.some((pane) => pane.tabs.length > 0) ? (
           noteView === undefined ? null : (
-            <noteView.default
-              live={sync.live}
-              vault={state.vault}
-              media={state.media}
-              exporter={state.exporter}
-              graph={state.indexer.graph}
-              id={selected}
-              focus={focus}
-              onOpenNote={openNote}
-              onOpenTag={showTag}
-              mode={mode}
-              onMode={setMode}
-              onTrash={() => {
-                trashNote(selected);
-              }}
-              onExport={() => {
-                setDialog("export");
-              }}
-              onRename={(name) => renameCurrent(selected, name)}
-              sourceRequest={sourceRequest}
-              renameRequest={renameRequest}
-              sourceKeys={keysOf("toggleSource")}
-              me={sync.me}
-              canComment={sync.levelOf?.(selected) !== "view"}
-              commentRequest={commentRequest}
-              commentKeys={keysOf("comment")}
-              people={people}
-              onMention={(thread, mentioned, body) => {
-                const link = sync.link;
-                const note = state.vault.note(selected);
-                if (link === undefined || note === undefined) return;
-                // An encrypted workspace's server is told who, never what.
-                const text =
-                  link.encrypted === true
-                    ? {}
-                    : { title: note.title.slice(0, 200), excerpt: body.slice(0, 500) };
-                void queueMention(state.vault.settings, {
-                  server: link.server,
-                  workspaceId: link.workspaceId,
-                  note: selected,
-                  thread,
-                  people: mentioned.map((person) => person.id),
-                  ...text,
-                }).then(notifications.refresh);
-              }}
-              {...(threadRequest === undefined ? {} : { threadRequest })}
-              onShown={loadLinks}
-            />
+            <div className={`panes${layout.panes.length > 1 ? " split" : ""}`}>
+              {layout.panes.map((pane, index) => {
+                const id = shownIn(pane);
+                const paneAsks = asks[pane.key] ?? noAsks;
+                const split = layout.panes.length > 1;
+                const side = index === 0 ? "Left" : "Right";
+                const panelId = `pane-${String(pane.key)}`;
+                const tabId = (tab: number) => `pane-${String(pane.key)}-tab-${String(tab)}`;
+                const focusHere = () => {
+                  changeLayout((current) => focusPane(current, index));
+                };
+                return (
+                  <section
+                    key={pane.key}
+                    className={`note-pane${split && index === layout.focused ? " focused" : ""}`}
+                    aria-label={split ? t(`pane${side}`) : undefined}
+                    onFocusCapture={focusHere}
+                    onMouseDownCapture={focusHere}
+                  >
+                    <TabStrip
+                      pane={pane}
+                      label={split ? t(`openNotes${side}`) : t("openNotes")}
+                      panelId={panelId}
+                      tabId={tabId}
+                      titleOf={(note) => state.vault.note(note)?.title ?? ""}
+                      onChoose={(tab) => {
+                        changeLayout((current) => chooseTab(current, index, tab));
+                      }}
+                      onClose={(tab) => {
+                        changeLayout((current) => closeTab(current, index, tab));
+                      }}
+                      onMenu={openMenu}
+                    />
+                    <div
+                      className="pane-body"
+                      role="tabpanel"
+                      id={panelId}
+                      aria-labelledby={tabId(pane.active)}
+                    >
+                      {id === undefined ? (
+                        <p className="placeholder">{t("selectNote")}</p>
+                      ) : (
+                        <noteView.default
+                          live={sync.live}
+                          vault={state.vault}
+                          media={state.media}
+                          exporter={state.exporter}
+                          graph={state.indexer.graph}
+                          id={id}
+                          titleId={index === 0 ? "note-title" : "note-title-right"}
+                          focus={paneAsks.focus}
+                          onOpenNote={openNote}
+                          onOpenTag={showTag}
+                          mode={paneAsks.mode}
+                          onMode={(next) => {
+                            ask(pane.key, (current) => ({ ...current, mode: next }));
+                          }}
+                          onTrash={() => {
+                            trashNote(id);
+                          }}
+                          onExport={() => {
+                            focusHere();
+                            setDialog("export");
+                          }}
+                          onRename={(name) => renameCurrent(id, name)}
+                          sourceRequest={paneAsks.source}
+                          renameRequest={paneAsks.rename}
+                          sourceKeys={keysOf("toggleSource")}
+                          me={sync.me}
+                          canComment={sync.levelOf?.(id) !== "view"}
+                          commentRequest={paneAsks.comment}
+                          commentKeys={keysOf("comment")}
+                          people={people}
+                          onMention={(thread, mentioned, body) => {
+                            const link = sync.link;
+                            const note = state.vault.note(id);
+                            if (link === undefined || note === undefined) return;
+                            // An encrypted workspace's server is told who, never what.
+                            const text =
+                              link.encrypted === true
+                                ? {}
+                                : { title: note.title.slice(0, 200), excerpt: body.slice(0, 500) };
+                            void queueMention(state.vault.settings, {
+                              server: link.server,
+                              workspaceId: link.workspaceId,
+                              note: id,
+                              thread,
+                              people: mentioned.map((person) => person.id),
+                              ...text,
+                            }).then(notifications.refresh);
+                          }}
+                          {...(paneAsks.thread === undefined
+                            ? {}
+                            : { threadRequest: paneAsks.thread })}
+                          onShown={loadLinks}
+                        />
+                      )}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
           )
         ) : (
           <p className="placeholder">{t("selectNote")}</p>

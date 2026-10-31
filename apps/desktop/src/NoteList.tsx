@@ -16,11 +16,13 @@ export function NoteList(props: {
   readonly onSelect: (id: NoteId) => void;
   /** Opens a note's menu at a point. */
   readonly onMenu?: (id: NoteId, at: MenuPoint) => void;
+  /** Opens a note in a new tab: Ctrl or Cmd and a click, or a middle click. */
+  readonly onOpenInNewTab?: (id: NoteId) => void;
   /** The note whose menu is open, which shows so. */
   readonly menuFor?: NoteId | undefined;
   readonly label: string;
 }) {
-  const { notes, selected, onSelect, onMenu, menuFor, label } = props;
+  const { notes, selected, onSelect, onMenu, onOpenInNewTab, menuFor, label } = props;
   const scroller = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 600 });
 
@@ -107,8 +109,17 @@ export function NoteList(props: {
                 className={note.id === menuFor ? "menu-open" : undefined}
                 // One row is in the tab order: the selected one, or the first.
                 tabIndex={note.id === selected || (index === -1 && position === 0) ? 0 : -1}
-                onClick={() => {
+                onClick={(event) => {
+                  if (onOpenInNewTab !== undefined && (event.ctrlKey || event.metaKey)) {
+                    onOpenInNewTab(note.id);
+                    return;
+                  }
                   onSelect(note.id);
+                }}
+                onAuxClick={(event) => {
+                  if (event.button !== 1 || onOpenInNewTab === undefined) return;
+                  event.preventDefault();
+                  onOpenInNewTab(note.id);
                 }}
                 onContextMenu={(event) => {
                   if (onMenu === undefined) return;
