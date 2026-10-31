@@ -15,6 +15,7 @@ import { Hocuspocus } from "@hocuspocus/server";
 import type { FastifyInstance } from "fastify";
 import * as Y from "yjs";
 import { type Database, readBytes, readCount, readText } from "./db.ts";
+import { socketCookieToken } from "./cookies.ts";
 import { fail, uuidField } from "./http.ts";
 import { indexNote, indexPaths } from "./search.ts";
 import { sessionAccount, signedIn, accountOf } from "./sessions.ts";
@@ -163,9 +164,11 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
     debounce: 2000,
     maxDebounce: 10_000,
 
-    async onAuthenticate({ token, documentName, connectionConfig }) {
+    async onAuthenticate({ token, documentName, connectionConfig, requestHeaders }) {
       const name = parseDocumentName(documentName);
-      const account = token === "" ? undefined : await sessionAccount(db, token);
+      // The web app's page signs in with its cookie, from this server's own pages alone (ADR 0053).
+      const session = token === "" ? socketCookieToken(requestHeaders) : token;
+      const account = session === undefined ? undefined : await sessionAccount(db, session);
       const member =
         name === undefined || account === undefined
           ? undefined

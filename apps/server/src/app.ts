@@ -20,6 +20,7 @@ import { registerSync } from "./sync.ts";
 import { registerUnits } from "./units.ts";
 import { purgeVersions, registerVersions } from "./versions.ts";
 import { backfillSearch, registerSearch } from "./search.ts";
+import { setSessionCookies, signInRoutes, wantsCookie } from "./cookies.ts";
 import { backupIfDue, backupTarget, noBlobs } from "./backups.ts";
 import { registerWorkspaces } from "./workspaces.ts";
 
@@ -80,6 +81,31 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
     }),
   });
   const version = serverVersion();
+
+  // Signing in from the web app: the session's token goes in a cookie the
+  // page cannot read, not in the answer (ADR 0053).
+  app.addHook("onSend", (request, reply, payload) => {
+    if (
+      request.method !== "POST" ||
+      !signInRoutes.has(request.routeOptions.url ?? "") ||
+      !wantsCookie(request) ||
+      reply.statusCode >= 300 ||
+      typeof payload !== "string"
+    ) {
+      return Promise.resolve(payload);
+    }
+    let body: unknown;
+    try {
+      body = JSON.parse(payload);
+    } catch {
+      return Promise.resolve(payload);
+    }
+    if (typeof body !== "object" || body === null) return Promise.resolve(payload);
+    const { token, expiresAt, ...rest } = body as Record<string, unknown>;
+    if (typeof token !== "string" || typeof expiresAt !== "string") return Promise.resolve(payload);
+    setSessionCookies(reply, request, token, expiresAt);
+    return Promise.resolve(JSON.stringify({ ...rest, expiresAt }));
+  });
 
   app.get("/health", { schema: healthSchema }, () => ({
     status: "ok",
@@ -152,7 +178,9 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   };
   registerMembers(app, services.db, reconnect);
   registerUnits(app, services.db, reconnect, sync);
-  if (services.mailer !== undefined) registerCodes(app, services.db, services.mailer);
+  if (services.mailer !== undefined) {
+    registerCodes(app, services.db, services.mailer, config.publicUrl);
+  }
   const { oidc, publicUrl } = config;
   if (oidc !== null && publicUrl !== null) registerOidc(app, services.db, oidc, publicUrl);
   // How the app may offer to sign in on this server.

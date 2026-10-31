@@ -16,6 +16,7 @@
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
 import { type Database, readBytes, readCount } from "./db.ts";
+import { socketCookieToken } from "./cookies.ts";
 import { sessionAccount } from "./sessions.ts";
 import { parseDocumentName } from "./sync.ts";
 import { base64Bytes, membership, writes } from "./workspaces.ts";
@@ -201,8 +202,14 @@ export function registerRelay(app: FastifyInstance, db: Database): RelayControl 
     send(client, { type: "compacted", id });
   }
 
-  app.get("/api/relay", { websocket: true }, (socket) => {
+  app.get("/api/relay", { websocket: true }, (socket, request) => {
     const client: Client = { socket, userId: undefined, subscriptions: new Map() };
+    // The web app's page signs in with its cookie, from this server's own pages alone (ADR 0053).
+    const headers = new Headers();
+    for (const [name, value] of Object.entries(request.headers)) {
+      if (typeof value === "string") headers.set(name, value);
+    }
+    const cookieSession = socketCookieToken(headers);
     clients.add(client);
     // Messages are handled in order, one at a time.
     let queue = Promise.resolve();
@@ -217,10 +224,11 @@ export function registerRelay(app: FastifyInstance, db: Database): RelayControl 
             return;
           }
           if (message.type === "auth") {
-            const account =
-              typeof message.token === "string"
-                ? await sessionAccount(db, message.token)
-                : undefined;
+            const token =
+              typeof message.token === "string" && message.token !== ""
+                ? message.token
+                : cookieSession;
+            const account = token === undefined ? undefined : await sessionAccount(db, token);
             if (account === undefined) {
               socket.close(4401, "Sign in first");
               return;

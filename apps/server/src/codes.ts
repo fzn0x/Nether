@@ -60,7 +60,12 @@ const redeemBody = {
 const wrongCode = "That code is not this address's, or has been used or has expired.";
 
 /** Makes a code for an address that has an account, and emails it. */
-async function sendCode(db: Database, mailer: Mailer, email: string): Promise<void> {
+async function sendCode(
+  db: Database,
+  mailer: Mailer,
+  email: string,
+  publicUrl: string | null,
+): Promise<void> {
   const { rows } = await db.query("SELECT id, name, email FROM users WHERE email_key = $1", [
     emailKey(email),
   ]);
@@ -88,6 +93,15 @@ async function sendCode(db: Database, mailer: Mailer, email: string): Promise<vo
       "",
       `    ${shown}`,
       "",
+      // The web app signs in from the link (ADR 0053); the code is after #, never sent to the server's logs.
+      ...(publicUrl === null
+        ? []
+        : [
+            "or open this link:",
+            "",
+            `    ${publicUrl.replace(/\/+$/, "")}/sign-in#${new URLSearchParams({ email: readText(user, "email"), code }).toString()}`,
+            "",
+          ]),
       `It works once, within ${String(codeMinutes)} minutes. If you did not ask to sign in,`,
       "ignore this email: no one can sign in without the code.",
       "",
@@ -96,14 +110,19 @@ async function sendCode(db: Database, mailer: Mailer, email: string): Promise<vo
 }
 
 /** The routes of signing in by email, which a server has only when it can send email. */
-export function registerCodes(app: FastifyInstance, db: Database, mailer: Mailer): void {
+export function registerCodes(
+  app: FastifyInstance,
+  db: Database,
+  mailer: Mailer,
+  publicUrl: string | null = null,
+): void {
   const sending = new Set<Promise<void>>();
   app.addHook("onClose", async () => {
     await Promise.allSettled(sending);
   });
 
   function send(email: string, log: FastifyBaseLogger): void {
-    const sent = sendCode(db, mailer, email)
+    const sent = sendCode(db, mailer, email, publicUrl)
       .catch((error: unknown) => {
         log.error({ err: error }, "Could not email a sign-in code");
       })

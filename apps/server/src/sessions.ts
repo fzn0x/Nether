@@ -13,6 +13,7 @@ import {
   readTextOrNull,
   readTime,
 } from "./db.ts";
+import { clearSessionCookies, cookieToken, readCookies, sessionCookie } from "./cookies.ts";
 import { emailKey, fail, limitBy, newPasswordField, passwordField, uuidField } from "./http.ts";
 import { hashPassword, verifyPassword } from "./passwords.ts";
 
@@ -100,10 +101,21 @@ export async function sessionAccount(db: Database, token: string): Promise<Accou
 
 const accounts = new WeakMap<FastifyRequest, Account>();
 
-/** A route's check that its request is signed in; it answers 401 otherwise. */
+/**
+ * A route's check that its request is signed in, by a bearer token or, from
+ * the web app, the session's cookie with its CSRF value (ADR 0053); it
+ * answers 401 otherwise, and 403 to a cookie without the value.
+ */
 export function signedIn(db: Database) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    const token = bearerToken(request.headers.authorization);
+    let token = bearerToken(request.headers.authorization);
+    if (token === undefined) {
+      const fromCookie = cookieToken(request);
+      if (fromCookie === "csrf") {
+        return fail(reply, 403, "This request came without the page's CSRF value.");
+      }
+      token = fromCookie?.token;
+    }
     const account = token === undefined ? undefined : await sessionAccount(db, token);
     if (account === undefined) {
       return fail(reply.header("www-authenticate", "Bearer"), 401, "Sign in first.");
@@ -245,6 +257,7 @@ export function registerSessions(app: FastifyInstance, db: Database): void {
   // Signing out.
   app.delete("/api/sessions/current", { preHandler: account }, async (request, reply) => {
     await db.query("DELETE FROM sessions WHERE id = $1", [accountOf(request).sessionId]);
+    if (readCookies(request.headers.cookie).has(sessionCookie)) clearSessionCookies(reply);
     return reply.code(204).send();
   });
 
