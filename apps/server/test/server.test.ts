@@ -38,6 +38,8 @@ describe("readConfig", () => {
       databaseUrl: database.NETHER_DATABASE_URL,
       trustProxy: false,
       mail: null,
+      publicUrl: null,
+      oidc: null,
       enterprise: {
         sso: false,
         scim: false,
@@ -87,6 +89,33 @@ describe("readConfig", () => {
     ).toBe("nether@example.org");
   });
 
+  it("reads the server's address and its OpenID Connect provider", () => {
+    const oidc = {
+      NETHER_PUBLIC_URL: "https://nether.example.org/",
+      NETHER_OIDC_ISSUER: "https://login.example.org/realms/team",
+      NETHER_OIDC_CLIENT_ID: "nether",
+    };
+    expect(readConfig({ ...database, ...oidc })).toMatchObject({
+      publicUrl: "https://nether.example.org",
+      oidc: {
+        issuer: "https://login.example.org/realms/team",
+        clientId: "nether",
+        clientSecret: null,
+        name: "single sign-on",
+        signUp: false,
+      },
+    });
+    expect(
+      readConfig({
+        ...database,
+        ...oidc,
+        NETHER_OIDC_CLIENT_SECRET: "secret",
+        NETHER_OIDC_NAME: "Keycloak",
+        NETHER_OIDC_SIGN_UP: "on",
+      }).oidc,
+    ).toMatchObject({ clientSecret: "secret", name: "Keycloak", signUp: true });
+  });
+
   it.each([
     [{ NETHER_PORT: "80a" }, 'NETHER_PORT must be a port number from 0 to 65535, not "80a"'],
     [{ NETHER_PORT: "65536" }, "NETHER_PORT must be a port number"],
@@ -114,6 +143,26 @@ describe("readConfig", () => {
       "NETHER_SMTP_URL must be an smtp:// or smtps:// address",
     ],
     [{ NETHER_SMTP_URL: "smtp://mail.example.org" }, "NETHER_MAIL_FROM must be the address"],
+    [
+      { NETHER_PUBLIC_URL: "nether.example.org" },
+      'NETHER_PUBLIC_URL must be an http:// or https:// address, not "nether.example.org"',
+    ],
+    [{ NETHER_PUBLIC_URL: "https://nether.example.org/?a=1" }, "NETHER_PUBLIC_URL must be an"],
+    [
+      { NETHER_OIDC_CLIENT_ID: "nether" },
+      "NETHER_OIDC_CLIENT_ID is set without NETHER_OIDC_ISSUER",
+    ],
+    [
+      {
+        NETHER_OIDC_ISSUER: "https://login.example.org",
+        NETHER_PUBLIC_URL: "https://n.example.org",
+      },
+      "NETHER_OIDC_CLIENT_ID must be set with NETHER_OIDC_ISSUER",
+    ],
+    [
+      { NETHER_OIDC_ISSUER: "https://login.example.org", NETHER_OIDC_CLIENT_ID: "nether" },
+      "NETHER_PUBLIC_URL must be set with NETHER_OIDC_ISSUER",
+    ],
     [
       { NETHER_SMTP_URL: "smtp://mail.example.org", NETHER_MAIL_FROM: "Nether" },
       "NETHER_MAIL_FROM must be the address",

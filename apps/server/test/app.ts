@@ -15,10 +15,10 @@ export interface TestServer {
   close(): Promise<void>;
 }
 
-const config = readConfig({
+const baseEnv = {
   NETHER_DATABASE_URL: "postgres://nether@localhost:5432/nether",
   NETHER_LOG_LEVEL: "silent",
-});
+};
 
 /** A mailer that keeps what it is sent, for a test to read in order. */
 export class TestMailer implements Mailer {
@@ -46,11 +46,19 @@ export class TestMailer implements Mailer {
   }
 }
 
-export async function startServer(options: { mailer?: Mailer } = {}): Promise<TestServer> {
+/** Starts a server, configured by `env` beside what every test server has. */
+export async function startServer(
+  options: { mailer?: Mailer; env?: Record<string, string> } = {},
+): Promise<TestServer> {
   const db = await testDatabase();
   await migrate(db);
   const setupCode = newSetupCode();
-  const server = await buildApp(config, { db, setupCode, ...options });
+  const config = readConfig({ ...baseEnv, ...options.env });
+  const server = await buildApp(config, {
+    db,
+    setupCode,
+    ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
+  });
   return {
     server,
     db,

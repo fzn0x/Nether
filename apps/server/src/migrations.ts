@@ -99,6 +99,42 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX sign_in_codes_by_user ON sign_in_codes (user_id);
     `,
   },
+  {
+    version: 4,
+    name: "identities from OpenID Connect providers",
+    sql: `
+      -- Who an account is at an identity provider: its issuer and the subject it names.
+      CREATE TABLE identities (
+        issuer text NOT NULL,
+        subject text NOT NULL,
+        user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (issuer, subject)
+      );
+
+      CREATE INDEX identities_by_user ON identities (user_id);
+
+      -- A sign-in through the provider, from the app's start to the app's
+      -- redeeming it. Only hashes of the state and the handoff code are kept.
+      CREATE TABLE oidc_flows (
+        id uuid PRIMARY KEY,
+        state_hash text NOT NULL UNIQUE,
+        nonce text NOT NULL,
+        -- The server's PKCE verifier, for the provider.
+        verifier text NOT NULL,
+        -- Where the browser goes back to the app, and the app's own PKCE challenge.
+        redirect text NOT NULL,
+        challenge text NOT NULL,
+        invitation_hash text,
+        -- Set once the provider has answered.
+        handoff_hash text UNIQUE,
+        user_id uuid REFERENCES users (id) ON DELETE CASCADE,
+        workspace_id uuid REFERENCES workspaces (id) ON DELETE CASCADE,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL
+      );
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

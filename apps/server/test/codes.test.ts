@@ -128,12 +128,12 @@ describe("a server without email", () => {
   it("has no way to sign in by email, and says so", async () => {
     running = await startServer();
     const methods = await running.server.inject({ method: "GET", url: "/api/sign-in-methods" });
-    expect(methods.json()).toEqual({ password: true, emailCode: false });
+    expect(methods.json()).toEqual({ password: true, emailCode: false, oidc: null });
     expect((await ask(running, admin.email)).statusCode).toBe(404);
     await running.close();
 
     running = await startServer({ mailer: new TestMailer() });
     const withMail = await running.server.inject({ method: "GET", url: "/api/sign-in-methods" });
-    expect(withMail.json()).toEqual({ password: true, emailCode: true });
+    expect(withMail.json()).toEqual({ password: true, emailCode: true, oidc: null });
   });
 });

@@ -8,6 +8,7 @@ import { type EnterpriseModule, enterpriseFeatures, registerEnterprise } from ".
 import { tooManyTries } from "./http.ts";
 import { registerInvitations } from "./invitations.ts";
 import type { Mailer } from "./mail.ts";
+import { registerOidc } from "./oidc.ts";
 import { registerSessions } from "./sessions.ts";
 import { registerSetup } from "./setup.ts";
 
@@ -77,10 +78,13 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   registerSessions(app, services.db);
   registerInvitations(app, services.db);
   if (services.mailer !== undefined) registerCodes(app, services.db, services.mailer);
+  const { oidc, publicUrl } = config;
+  if (oidc !== null && publicUrl !== null) registerOidc(app, services.db, oidc, publicUrl);
   // How the app may offer to sign in on this server.
   app.get("/api/sign-in-methods", () => ({
     password: true,
     emailCode: services.mailer !== undefined,
+    oidc: oidc === null ? null : { name: oidc.name },
   }));
   await registerEnterprise(app, config.enterprise, services.enterpriseModules ?? []);
   return app;
