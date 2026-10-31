@@ -27,6 +27,10 @@ export interface Config {
   readonly publicUrl: string | null;
   /** The OpenID Connect provider to sign in with, if any. */
   readonly oidc: OidcConfig | null;
+  /** Where attachments' bytes are kept: a folder on the server's disk, or an S3-compatible bucket. */
+  readonly storage: StorageConfig;
+  /** The largest attachment the server takes, in bytes. */
+  readonly attachmentLimit: number;
   readonly enterprise: EnterpriseSwitches;
 }
 
@@ -36,6 +40,17 @@ export interface MailConfig {
   /** The sender, as `Nether <nether@example.org>`. */
   readonly from: string;
 }
+
+export type StorageConfig =
+  | { readonly kind: "disk"; readonly path: string }
+  | {
+      readonly kind: "s3";
+      readonly endpoint: string;
+      readonly bucket: string;
+      readonly region: string;
+      readonly accessKey: string;
+      readonly secretKey: string;
+    };
 
 export interface OidcConfig {
   /** The provider's issuer, whose discovery document is under `/.well-known/openid-configuration`. */
@@ -215,6 +230,47 @@ function readOidc(env: NodeJS.ProcessEnv, publicUrl: string | null): OidcConfig 
   };
 }
 
+function readStorage(env: NodeJS.ProcessEnv): StorageConfig {
+  const kind = (env.NETHER_STORAGE?.trim() ?? "").toLowerCase();
+  if (kind === "" || kind === "disk") {
+    const path = env.NETHER_STORAGE_PATH?.trim() ?? "";
+    return { kind: "disk", path: path === "" ? "data/attachments" : path };
+  }
+  if (kind !== "s3") {
+    throw new ConfigError("NETHER_STORAGE", `must be disk or s3, not "${kind}"`);
+  }
+  const endpoint = readHttpUrl(env, "NETHER_S3_ENDPOINT");
+  if (endpoint === null) {
+    throw new ConfigError("NETHER_S3_ENDPOINT", "must be set to the S3-compatible store's address");
+  }
+  const required = (variable: string): string => {
+    const value = env[variable]?.trim() ?? "";
+    if (value === "") throw new ConfigError(variable, "must be set when NETHER_STORAGE is s3");
+    return value;
+  };
+  const region = env.NETHER_S3_REGION?.trim() ?? "";
+  return {
+    kind: "s3",
+    endpoint,
+    bucket: required("NETHER_S3_BUCKET"),
+    region: region === "" ? "us-east-1" : region,
+    accessKey: required("NETHER_S3_ACCESS_KEY"),
+    secretKey: required("NETHER_S3_SECRET_KEY"),
+  };
+}
+
+function readAttachmentLimit(env: NodeJS.ProcessEnv): number {
+  const value = env.NETHER_ATTACHMENT_LIMIT?.trim() ?? "";
+  if (value === "") return 100 * 1024 * 1024;
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 4096) {
+    throw new ConfigError(
+      "NETHER_ATTACHMENT_LIMIT",
+      `must be a number of mebibytes from 1 to 4096, not "${value}"`,
+    );
+  }
+  return Number(value) * 1024 * 1024;
+}
+
 /** Reads the configuration, throwing a ConfigError that names the variable at fault. */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
   const enterprise = Object.fromEntries(
@@ -231,6 +287,8 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     mail: readMail(env),
     publicUrl,
     oidc: readOidc(env, publicUrl),
+    storage: readStorage(env),
+    attachmentLimit: readAttachmentLimit(env),
     enterprise,
   };
 }

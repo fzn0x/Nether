@@ -193,6 +193,21 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX encrypted_updates_by_seq ON encrypted_updates (workspace_id, seq);
     `,
   },
+  {
+    version: 7,
+    name: "attachments",
+    sql: `
+      -- A workspace's files, by the SHA-256 of their bytes, which the blob store keeps.
+      CREATE TABLE attachments (
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        hash text NOT NULL,
+        size bigint NOT NULL,
+        content_type text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (workspace_id, hash)
+      );
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

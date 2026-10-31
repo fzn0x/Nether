@@ -2,6 +2,7 @@
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { buildApp } from "../src/app.ts";
 import { readConfig } from "../src/config.ts";
+import type { BlobStore } from "../src/blobs.ts";
 import type { Database } from "../src/db.ts";
 import type { Mailer, Message } from "../src/mail.ts";
 import { migrate } from "../src/migrations.ts";
@@ -48,7 +49,7 @@ export class TestMailer implements Mailer {
 
 /** Starts a server, configured by `env` beside what every test server has. */
 export async function startServer(
-  options: { mailer?: Mailer; env?: Record<string, string> } = {},
+  options: { mailer?: Mailer; env?: Record<string, string>; blobs?: BlobStore } = {},
 ): Promise<TestServer> {
   const db = await testDatabase();
   await migrate(db);
@@ -58,6 +59,7 @@ export async function startServer(
     db,
     setupCode,
     ...(options.mailer === undefined ? {} : { mailer: options.mailer }),
+    ...(options.blobs === undefined ? {} : { blobs: options.blobs }),
   });
   return {
     server,

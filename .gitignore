@@ -38,3 +38,6 @@ perf-ui-report.json
 .DS_Store
 Thumbs.db
 *.swp
+
+# Attachments a server run from the repository keeps (NETHER_STORAGE_PATH).
+apps/server/data/

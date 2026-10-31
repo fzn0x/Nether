@@ -3,6 +3,7 @@
 // no account it writes the setup code to its log.
 import { buildApp } from "./app.ts";
 import { readConfig } from "./config.ts";
+import { DiskBlobs, S3Blobs } from "./blobs.ts";
 import { connectPostgres } from "./db.ts";
 import { smtpMailer } from "./mail.ts";
 import { migrate } from "./migrations.ts";
@@ -15,8 +16,13 @@ async function main(): Promise<void> {
     const migrated = await migrate(db);
     const setupCode = (await setupNeeded(db)) ? newSetupCode() : undefined;
     const mailer = config.mail === null ? undefined : smtpMailer(config.mail.url, config.mail.from);
+    const blobs =
+      config.storage.kind === "disk"
+        ? new DiskBlobs(config.storage.path)
+        : new S3Blobs(config.storage);
     const app = await buildApp(config, {
       db,
+      blobs,
       ...(setupCode === undefined ? {} : { setupCode }),
       ...(mailer === undefined ? {} : { mailer }),
     });

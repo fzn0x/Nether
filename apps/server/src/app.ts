@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerAttachments } from "./attachments.ts";
+import type { BlobStore } from "./blobs.ts";
 import { registerCodes } from "./codes.ts";
 import type { Config } from "./config.ts";
 import type { Database } from "./db.ts";
@@ -50,6 +52,8 @@ export interface Services {
   readonly setupCode?: string;
   /** What sends email, when the admin has named an SMTP server. */
   readonly mailer?: Mailer;
+  /** Where attachments' bytes are kept; without it, the server takes none. */
+  readonly blobs?: BlobStore;
   /** The modules of the enterprise features this build includes; none are written yet. */
   readonly enterpriseModules?: readonly EnterpriseModule[];
 }
@@ -81,6 +85,9 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   registerSessions(app, services.db);
   registerInvitations(app, services.db);
   registerWorkspaces(app, services.db);
+  if (services.blobs !== undefined) {
+    registerAttachments(app, services.db, services.blobs, config.attachmentLimit);
+  }
   // The relay's sockets come through the WebSocket plugin sync registers.
   await registerSync(app, services.db);
   registerRelay(app, services.db);

@@ -83,6 +83,9 @@ token as `Authorization: Bearer <token>`. Every error is
 | `GET /api/workspaces/:id/key` | member | The account's own sealed copy of an encrypted workspace's key, at its latest `version` |
 | `GET /api/workspaces/:id/keyless` | member | The members with keys and no copy of the latest version, for one who has it to seal |
 | `PUT /api/workspaces/:id/keys/:user` | keyholder | Seals the key for a member waiting; a copy kept is never replaced |
+| `PUT /api/workspaces/:id/attachments/:hash` | member | Keeps a file's bytes, sent as `application/octet-stream`, if they hash to `hash` (SHA-256); `x-content-type` names its media type |
+| `HEAD /api/workspaces/:id/attachments/:hash` | member | Whether the workspace has the file, before sending it |
+| `GET /api/workspaces/:id/attachments/:hash` | member | The file, served so it runs and loads nothing |
 | `GET /api/relay` | per message | The WebSocket encrypted workspaces sync over, below |
 | `GET /api/workspaces/:id/documents` | member | The documents stored since `since`, a number, in order, a thousand at a time with `more` |
 | `GET /api/sync` | per document | The WebSocket that Hocuspocus providers sync documents over, below |
@@ -147,6 +150,23 @@ then:
 | `{"type":"unsubscribe","name"}` | none |
 
 Data is base64. Guests may subscribe, not push or compact.
+
+## Attachments
+
+Files notes embed are kept by the SHA-256 of their bytes, once per
+workspace ([ADR 0039](../../docs/adr/0039-attachments-are-kept-by-their-hash-on-disk-or-in-an-s3-bucket.md)). By default they are files
+under `NETHER_STORAGE_PATH`; with `NETHER_STORAGE=s3` they are objects in an
+S3-compatible bucket, such as MinIO, Garage, Cloudflare R2 or Amazon S3:
+
+```sh
+NETHER_STORAGE=s3
+NETHER_S3_ENDPOINT=http://minio:9000
+NETHER_S3_BUCKET=nether
+NETHER_S3_ACCESS_KEY=…
+NETHER_S3_SECRET_KEY=…
+```
+
+Objects are addressed by path, as `<endpoint>/<bucket>/<workspace>/<hash>`.
 
 ## Email
 
@@ -213,6 +233,12 @@ refuses to start on a database a newer server has migrated.
 | `NETHER_OIDC_CLIENT_SECRET` | none | Its secret; without one, a public client using PKCE alone |
 | `NETHER_OIDC_NAME` | `single sign-on` | The provider's name on the app's button |
 | `NETHER_OIDC_SIGN_UP` | `off` | Whether anyone the provider signs in gets an account, not only the invited |
+| `NETHER_STORAGE` | `disk` | Where attachments are kept: `disk` or `s3` |
+| `NETHER_STORAGE_PATH` | `data/attachments` | The folder for `disk`, relative to where the server runs |
+| `NETHER_S3_ENDPOINT` | none, required for `s3` | The S3-compatible store's address |
+| `NETHER_S3_BUCKET`, `NETHER_S3_ACCESS_KEY`, `NETHER_S3_SECRET_KEY` | none, required for `s3` | The bucket and the keys to it |
+| `NETHER_S3_REGION` | `us-east-1` | The region requests are signed for |
+| `NETHER_ATTACHMENT_LIMIT` | `100` | The largest attachment taken, in MiB |
 | `NETHER_TRUST_PROXY` | `off` | Behind a reverse proxy, whose `X-Forwarded-For` to believe: `on` for any, or addresses and ranges such as `10.0.0.2, 172.16.0.0/12` or `uniquelocal` |
 | `NETHER_ENTERPRISE_SSO` | `off` | Single sign-on |
 | `NETHER_ENTERPRISE_SCIM` | `off` | Provisioning through SCIM and LDAP |

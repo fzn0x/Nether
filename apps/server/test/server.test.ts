@@ -40,6 +40,8 @@ describe("readConfig", () => {
       mail: null,
       publicUrl: null,
       oidc: null,
+      storage: { kind: "disk", path: "data/attachments" },
+      attachmentLimit: 100 * 1024 * 1024,
       enterprise: {
         sso: false,
         scim: false,
@@ -87,6 +89,36 @@ describe("readConfig", () => {
       readConfig({ ...database, NETHER_SMTP_URL: mail.url, NETHER_MAIL_FROM: "nether@example.org" })
         .mail?.from,
     ).toBe("nether@example.org");
+  });
+
+  it("reads where attachments are kept, and how large they may be", () => {
+    expect(
+      readConfig({
+        ...database,
+        NETHER_STORAGE_PATH: "/data/files",
+        NETHER_ATTACHMENT_LIMIT: "25",
+      }),
+    ).toMatchObject({
+      storage: { kind: "disk", path: "/data/files" },
+      attachmentLimit: 25 * 1024 * 1024,
+    });
+    expect(
+      readConfig({
+        ...database,
+        NETHER_STORAGE: "S3",
+        NETHER_S3_ENDPOINT: "http://minio:9000/",
+        NETHER_S3_BUCKET: "nether",
+        NETHER_S3_ACCESS_KEY: "access",
+        NETHER_S3_SECRET_KEY: "secret",
+      }).storage,
+    ).toEqual({
+      kind: "s3",
+      endpoint: "http://minio:9000",
+      bucket: "nether",
+      region: "us-east-1",
+      accessKey: "access",
+      secretKey: "secret",
+    });
   });
 
   it("reads the server's address and its OpenID Connect provider", () => {
@@ -148,6 +180,13 @@ describe("readConfig", () => {
       'NETHER_PUBLIC_URL must be an http:// or https:// address, not "nether.example.org"',
     ],
     [{ NETHER_PUBLIC_URL: "https://nether.example.org/?a=1" }, "NETHER_PUBLIC_URL must be an"],
+    [{ NETHER_STORAGE: "floppy" }, 'NETHER_STORAGE must be disk or s3, not "floppy"'],
+    [{ NETHER_STORAGE: "s3" }, "NETHER_S3_ENDPOINT must be set"],
+    [
+      { NETHER_STORAGE: "s3", NETHER_S3_ENDPOINT: "http://minio:9000" },
+      "NETHER_S3_BUCKET must be set when NETHER_STORAGE is s3",
+    ],
+    [{ NETHER_ATTACHMENT_LIMIT: "0" }, "NETHER_ATTACHMENT_LIMIT must be a number of mebibytes"],
     [
       { NETHER_OIDC_CLIENT_ID: "nether" },
       "NETHER_OIDC_CLIENT_ID is set without NETHER_OIDC_ISSUER",
