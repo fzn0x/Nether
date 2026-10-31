@@ -6,7 +6,7 @@ import { type KeyboardEvent, useCallback, useState } from "react";
 import { t } from "./messages.ts";
 
 const storageKey = "nether.sidebarWidth";
-export const defaultWidth = 288;
+export const defaultWidth = 336;
 const minWidth = 200;
 const step = 16;
 
