@@ -201,11 +201,11 @@ function readFilter(value: unknown, schema: DatabaseSchema): Filter | undefined 
   return join === "and" ? { and: filters } : { or: filters };
 }
 
-/** The keys of a schema's rollups, which only Nether works out. */
+/** The keys of a schema's rollups and formulas, which only Nether works out. */
 function rollupKeys(schema: DatabaseSchema): Set<string> {
   return new Set(
     schema.properties
-      .filter((property) => property.rollup !== undefined)
+      .filter((property) => property.rollup !== undefined || property.formula !== undefined)
       .map((property) => property.key),
   );
 }

@@ -1,4 +1,15 @@
 export { basePath, readBase, writeBase } from "./base.ts";
+export {
+  type FormulaContext,
+  FormulaError,
+  type FormulaNode,
+  type FormulaValue,
+  evaluateFormula,
+  formulaJson,
+  formulaText,
+  parseFormula,
+  withFormulas,
+} from "./formula.ts";
 export { type FindRow, rollupValue, withRollups } from "./rollups.ts";
 export {
   type Group,

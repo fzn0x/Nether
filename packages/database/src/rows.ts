@@ -11,6 +11,8 @@ export interface Row {
   readonly created?: number;
   readonly updated: number;
   readonly properties: readonly PropertyEntry[];
+  /** What each formula could not work out for the row, by its key. */
+  readonly errors?: ReadonlyMap<string, string>;
 }
 
 /** The folder a database's rows are in: its note's path without `.md`. */
