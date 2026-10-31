@@ -1,0 +1,36 @@
+/*
+ * Pixel grid, a theme built in (ADR 0049): a grid behind the app whose
+ * cells light up around the pointer, each in a color of its own, and
+ * scatter pixels as it moves. The sidebar and the notes sit on panels the
+ * grid shows through, so text keeps its contrast.
+ */
+:root[data-mode="dark"] {
+  --bg: #0a0c10;
+  --text: #e8ecf2;
+  --muted: #9aa3b2;
+  --accent: #5ee0c0;
+  --rule: #1f2530;
+  --panel-shadow: 0 8px 28px rgb(0 0 0 / 60%);
+  --sidebar-bg: rgb(16 19 25 / 78%);
+  --pane-bg: rgb(10 12 16 / 78%);
+  --mark-bg: color-mix(in srgb, #5ee0c0 28%, transparent);
+}
+
+:root[data-mode="light"] {
+  --bg: #f5f7fa;
+  --text: #141821;
+  --muted: #535c6b;
+  --accent: #0f7a63;
+  --rule: #dde2ea;
+  --panel-shadow: 0 8px 28px rgb(20 24 33 / 14%);
+  --sidebar-bg: rgb(236 240 245 / 80%);
+  --pane-bg: rgb(245 247 250 / 78%);
+  --mark-bg: color-mix(in srgb, #5ee0c0 40%, transparent);
+}
+
+/* The note on a panel, spread past its edges; the margins show what is behind. */
+.note-layout {
+  border-radius: 14px;
+  background: var(--pane-bg);
+  box-shadow: 0 0 0 1.25rem var(--pane-bg);
+}

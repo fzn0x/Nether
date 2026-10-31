@@ -1,0 +1,41 @@
+/*
+ * Anime, a theme built in (ADR 0049): a night of violet in the dark, a
+ * pastel morning in the light, with katakana and hiragana drifting up
+ * behind the app in rainbow colors. The sidebar and the notes sit on
+ * panels the kana show through faintly, so text keeps its contrast.
+ */
+:root[data-mode="dark"] {
+  --bg: #140f24;
+  --text: #f3eefc;
+  --muted: #b8acd0;
+  --accent: #ff7ac3;
+  --rule: #33284d;
+  --panel-shadow: 0 8px 28px rgb(6 2 16 / 60%);
+  --sidebar-bg: rgb(30 21 52 / 82%);
+  --pane-bg: rgb(20 15 36 / 86%);
+  --mark-bg: color-mix(in srgb, #ff7ac3 30%, transparent);
+}
+
+:root[data-mode="light"] {
+  --bg: #fff4fa;
+  --text: #2b1633;
+  --muted: #6e5577;
+  --accent: #c0187a;
+  --rule: #f0d4e6;
+  --panel-shadow: 0 8px 28px rgb(120 40 90 / 16%);
+  --sidebar-bg: rgb(252 230 243 / 84%);
+  --pane-bg: rgb(255 244 250 / 86%);
+  --mark-bg: color-mix(in srgb, #ff7ac3 35%, transparent);
+}
+
+/* The note on a panel, spread past its edges; the margins show what is behind. */
+.note-layout {
+  border-radius: 14px;
+  background: var(--pane-bg);
+  box-shadow: 0 0 0 1.25rem var(--pane-bg);
+}
+
+.menu-bar > button[aria-expanded="true"],
+.tab[aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
