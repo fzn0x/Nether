@@ -49,3 +49,4 @@ record supersedes it and says so. Start a new one from
 | [0039](0039-attachments-are-kept-by-their-hash-on-disk-or-in-an-s3-bucket.md) | Attachments are kept by their hash, on disk or in an S3-compatible bucket | Accepted |
 | [0040](0040-attachments-sync-by-path-and-hash-in-the-vault-document.md) | Attachments sync by path and hash in the vault document | Accepted |
 | [0041](0041-a-notes-history-is-its-earlier-texts-kept-before-each-spell-of-editing.md) | A note's history is its earlier texts, kept before each spell of editing | Accepted |
+| [0042](0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md) | Spaces and shared pages are sync units, each with its own vault document | Accepted |
