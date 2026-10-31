@@ -31,7 +31,7 @@ import { AssignedPanel } from "./AssignedPanel.tsx";
 import { TextPromptDialog } from "./TextPromptDialog.tsx";
 import { myName, setMyName } from "./people.ts";
 import { DeleteFolderDialog } from "./DeleteFolderDialog.tsx";
-import { commandShown, syncShown } from "./features.ts";
+import { commandShown, shownEntries, syncShown } from "./features.ts";
 import { SidebarResizer, useSidebarWidth } from "./SidebarResizer.tsx";
 import { builtInTheme } from "./appearance.ts";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
@@ -1307,7 +1307,10 @@ export function VaultView(props: {
         ? t("command_bookmarkRemove")
         : t(`command_${id}`);
 
-  /** The menus' items, each a command; one that cannot run now shows, but cannot be chosen. */
+  /**
+   * The menus' items, each a command; one that cannot run now shows, but
+   * cannot be chosen, and one this build leaves out does not show at all.
+   */
   const menuOf = (
     label: string,
     icon: Menu["icon"],
@@ -1315,7 +1318,7 @@ export function VaultView(props: {
   ): Menu => ({
     label,
     icon,
-    entries: ids.map((id) => {
+    entries: shownEntries(ids).map((id) => {
       if (id === "separator") return id;
       const command = run[id];
       const keys = keysOf(id);
