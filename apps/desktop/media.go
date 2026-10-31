@@ -158,44 +158,56 @@ func openMedia(root string, rel string) (*os.File, string, error) {
 	if !ok {
 		return nil, "", fs.ErrNotExist
 	}
-	for _, segment := range strings.Split(rel, "/") {
-		if hidden(segment) {
-			return nil, "", fs.ErrNotExist
-		}
-	}
-	full, err := resolve(root, rel)
-	if err != nil {
-		return nil, "", err
-	}
-	real, err := filepath.EvalSymlinks(full)
-	if err != nil {
-		return nil, "", err
-	}
-	realRoot, err := filepath.EvalSymlinks(root)
-	if err != nil {
-		return nil, "", err
-	}
-	if !inside(realRoot, real) {
-		return nil, "", fs.ErrNotExist
-	}
-	file, err := os.Open(real)
+	file, err := openInVault(root, rel)
 	if err != nil {
 		return nil, "", err
 	}
 	return file, kind, nil
 }
 
-// OpenFile opens a media file of the vault, such as a PDF, in the
-// system's app for it. Other files, which might be programs, it does not
-// open: ShowFile shows them in the file manager instead.
+// openInVault opens a file of the vault, refusing paths that leave it,
+// hidden files and folders such as .nether, and links that lead out of
+// the vault.
+func openInVault(root string, rel string) (*os.File, error) {
+	for _, segment := range strings.Split(rel, "/") {
+		if hidden(segment) {
+			return nil, fs.ErrNotExist
+		}
+	}
+	full, err := resolve(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	real, err := filepath.EvalSymlinks(full)
+	if err != nil {
+		return nil, err
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	if !inside(realRoot, real) {
+		return nil, fs.ErrNotExist
+	}
+	return os.Open(real)
+}
+
+// OpenFile opens a media file of the vault, such as a PDF, or a note, in
+// the system's app for it. Other files, which might be programs, it does
+// not open: ShowFile shows them in the file manager instead.
 func (v *Vaults) OpenFile(id string, rel string) error {
 	root, err := v.root(id)
 	if err != nil {
 		return err
 	}
-	file, _, err := openMedia(root, rel)
+	var file *os.File
+	if strings.EqualFold(path.Ext(rel), ".md") {
+		file, err = openInVault(root, rel)
+	} else {
+		file, _, err = openMedia(root, rel)
+	}
 	if err != nil {
-		return fmt.Errorf("%s is not a media file in the vault: %w", rel, err)
+		return fmt.Errorf("%s is not a media file or a note in the vault: %w", rel, err)
 	}
 	full := file.Name()
 	_ = file.Close()

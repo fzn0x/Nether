@@ -202,17 +202,22 @@ type shell struct{ opened, shown []string }
 func (s *shell) OpenPath(path string) error   { s.opened = append(s.opened, path); return nil }
 func (s *shell) ShowItemInFolder(path string) { s.shown = append(s.shown, path) }
 
-func TestOpenFileOpensOnlyMedia(t *testing.T) {
-	vaults, info := newVault(t, map[string]string{"doc.pdf": "pdf", "run.bat": "echo", "Note.md": "x"})
+func TestOpenFileOpensOnlyMediaAndNotes(t *testing.T) {
+	vaults, info := newVault(t, map[string]string{
+		"doc.pdf": "pdf", "run.bat": "echo", "Note.md": "x", ".nether/x.md": "x",
+	})
 	fake := &shell{}
 	vaults.shell = fake
-	if err := vaults.OpenFile(info.ID, "doc.pdf"); err != nil {
-		t.Fatal(err)
+	for _, rel := range []string{"doc.pdf", "Note.md"} {
+		if err := vaults.OpenFile(info.ID, rel); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if len(fake.opened) != 1 || filepath.Base(fake.opened[0]) != "doc.pdf" {
+	if len(fake.opened) != 2 || filepath.Base(fake.opened[0]) != "doc.pdf" ||
+		filepath.Base(fake.opened[1]) != "Note.md" {
 		t.Errorf("opened %v", fake.opened)
 	}
-	for _, rel := range []string{"run.bat", "Note.md", "missing.pdf", "../doc.pdf"} {
+	for _, rel := range []string{"run.bat", "missing.pdf", "../doc.pdf", "missing.md", ".nether/x.md", "../Note.md"} {
 		if err := vaults.OpenFile(info.ID, rel); err == nil {
 			t.Errorf("opened %s", rel)
 		}
@@ -225,7 +230,7 @@ func TestOpenFileOpensOnlyMedia(t *testing.T) {
 			t.Errorf("showed %s", rel)
 		}
 	}
-	if len(fake.opened) != 1 || len(fake.shown) != 1 {
+	if len(fake.opened) != 2 || len(fake.shown) != 1 {
 		t.Errorf("asked the system for more: %v, %v", fake.opened, fake.shown)
 	}
 }

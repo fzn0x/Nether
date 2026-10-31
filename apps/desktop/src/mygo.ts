@@ -259,9 +259,9 @@ export const Vaults = {
     return call("Vaults.Open", folder);
   },
   /**
-   * OpenFile opens a media file of the vault, such as a PDF, in the
-   * system's app for it. Other files, which might be programs, it does not
-   * open: ShowFile shows them in the file manager instead.
+   * OpenFile opens a media file of the vault, such as a PDF, or a note, in
+   * the system's app for it. Other files, which might be programs, it does
+   * not open: ShowFile shows them in the file manager instead.
    */
   openFile(id: string, rel: string): Promise<void> {
     return call("Vaults.OpenFile", id, rel);
