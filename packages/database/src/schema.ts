@@ -114,7 +114,7 @@ export function databaseOf(
 export function writeDatabase(schema: DatabaseSchema, linkTo: LinkTo): JsonValue {
   return {
     properties: schema.properties.map((property) => {
-      const { relation, options, ...rest } = property;
+      const { relation, options, rollup, ...rest } = property;
       return {
         ...rest,
         ...(options === undefined
@@ -132,6 +132,15 @@ export function writeDatabase(schema: DatabaseSchema, linkTo: LinkTo): JsonValue
               relation: {
                 database: linkTo(relation.database),
                 ...(relation.backlink === undefined ? {} : { backlink: relation.backlink }),
+              },
+            }),
+        ...(rollup === undefined
+          ? {}
+          : {
+              rollup: {
+                relation: rollup.relation,
+                property: rollup.property,
+                function: rollup.function,
               },
             }),
       };

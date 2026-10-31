@@ -201,16 +201,36 @@ function readFilter(value: unknown, schema: DatabaseSchema): Filter | undefined 
   return join === "and" ? { and: filters } : { or: filters };
 }
 
+/** The keys of a schema's rollups, which only Nether works out. */
+function rollupKeys(schema: DatabaseSchema): Set<string> {
+  return new Set(
+    schema.properties
+      .filter((property) => property.rollup !== undefined)
+      .map((property) => property.key),
+  );
+}
+
+/** Whether a filter names a rollup, which the base cannot. */
+function namesRollup(filter: Filter | undefined, rollups: ReadonlySet<string>): boolean {
+  if (filter === undefined) return false;
+  if ("and" in filter) return filter.and.some((part) => namesRollup(part, rollups));
+  if ("or" in filter) return filter.or.some((part) => namesRollup(part, rollups));
+  return rollups.has(filter.property);
+}
+
 /** What Nether writes of a view: its owned keys, the others Obsidian's. */
 function viewValue(view: View, schema: DatabaseSchema): Record<string, JsonValue> {
+  const rollups = rollupKeys(schema);
   return {
     type: typeOf[view.layout],
     name: view.name,
-    order: ["file.name", ...view.visible.map(column)],
+    order: ["file.name", ...view.visible.filter((key) => !rollups.has(key)).map(column)],
     ...(view.groupBy === undefined
       ? {}
       : { groupBy: { property: column(view.groupBy), direction: "ASC" } }),
-    ...(view.filter === undefined ? {} : { filters: filterValue(view.filter, schema) }),
+    ...(view.filter === undefined || namesRollup(view.filter, rollups)
+      ? {}
+      : { filters: filterValue(view.filter, schema) }),
   };
 }
 
@@ -285,6 +305,7 @@ export function readBase(text: string, schema: DatabaseSchema): DatabaseSchema {
   const listed: unknown = (value as { views?: unknown }).views;
   if (!Array.isArray(listed)) return schema;
   const keys = new Set(schema.properties.map((property) => property.key));
+  const rollups = rollupKeys(schema);
   const views: View[] = [];
   for (const item of listed) {
     if (typeof item !== "object" || item === null) continue;
@@ -294,18 +315,27 @@ export function readBase(text: string, schema: DatabaseSchema): DatabaseSchema {
     const layout = layoutOf(base.type, current);
     if (layout === undefined) continue;
     const visible = Array.isArray(base.order)
-      ? base.order
-          .map((entry: unknown) => (typeof entry === "string" ? keyOf(entry) : undefined))
-          .filter((key): key is string => key !== undefined && keys.has(key))
+      ? [
+          ...base.order
+            .map((entry: unknown) => (typeof entry === "string" ? keyOf(entry) : undefined))
+            .filter(
+              (key): key is string => key !== undefined && keys.has(key) && !rollups.has(key),
+            ),
+          // The rollup columns the base could not hold stay.
+          ...(current?.visible ?? []).filter((key) => rollups.has(key)),
+        ]
       : (current?.visible ?? []);
     const grouped =
       typeof base.groupBy === "object" && base.groupBy !== null
         ? (base.groupBy as { property?: unknown }).property
         : undefined;
     const groupBy = typeof grouped === "string" ? keyOf(grouped) : undefined;
+    // A filter of a rollup was left out of the base: the view keeps it.
     const filter =
       base.filters === undefined
-        ? undefined
+        ? namesRollup(current?.filter, rollups)
+          ? current?.filter
+          : undefined
         : (readFilter(base.filters, schema) ?? current?.filter);
     const sorts = current?.sorts;
     const date = current?.date;

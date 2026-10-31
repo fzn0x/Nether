@@ -20,7 +20,13 @@ type Kind = PropertyType | "timestamp";
 function kindOf(schema: DatabaseSchema, key: string): Kind | undefined {
   if (key === "$title") return "text";
   if (key === "$created" || key === "$updated") return "timestamp";
-  return schema.properties.find((property) => property.key === key)?.type;
+  const property = schema.properties.find((item) => item.key === key);
+  if (property?.rollup !== undefined) {
+    return property.rollup.function === "earliest" || property.rollup.function === "latest"
+      ? "date"
+      : "number";
+  }
+  return property?.type;
 }
 
 function isEmpty(value: JsonValue | undefined): boolean {

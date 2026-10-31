@@ -1,4 +1,5 @@
 export { basePath, readBase, writeBase } from "./base.ts";
+export { type FindRow, rollupValue, withRollups } from "./rollups.ts";
 export {
   type Group,
   type ViewResult,
