@@ -42,3 +42,4 @@ record supersedes it and says so. Start a new one from
 | [0032](0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md) | Sessions are bearer tokens kept as hashes, and accounts come by invitation | Accepted |
 | [0033](0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md) | Sign in by email with a code now, and with a link once the web app can open one | Accepted |
 | [0034](0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md) | Sign in with OpenID Connect through the server, and hand the session back to the app | Accepted |
+| [0035](0035-the-server-syncs-through-hocuspocus-beside-its-api-and-numbers-each-store.md) | The server syncs documents through Hocuspocus beside its API, and numbers each store | Accepted |

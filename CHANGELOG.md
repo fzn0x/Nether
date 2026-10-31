@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Sync on the server: Hocuspocus at `/api/sync`, on the API's port, syncs
+  each note's Yjs document and each vault's list of notes for the members
+  of their workspace, and read-only for its guests. Documents are kept in
+  PostgreSQL, numbered each time they are stored, so a client asks which
+  changed since it was last connected, and hears of each as it is stored
+  ([ADR 0035](docs/adr/0035-the-server-syncs-through-hocuspocus-beside-its-api-and-numbers-each-store.md)).
 - Signing in with an OpenID Connect provider, such as Keycloak, Okta or
   Microsoft Entra ID: the app opens the provider in the browser and gets a
   session through a code and its PKCE verifier, as RFC 8252 describes. The

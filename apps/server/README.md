@@ -7,13 +7,15 @@ sync and share. See [ADR 0005](../../docs/adr/0005-server-on-fastify.md).
 
 So far it answers `GET /health`, brings its PostgreSQL database to its
 schema as it starts, makes the first account through first-run setup, signs
-people in, invites others into workspaces, and holds the extension point
-through which the free [enterprise features](../../enterprise/) plug in.
+people in, invites others into workspaces, syncs their notes' Yjs
+documents, and holds the extension point through which the free
+[enterprise features](../../enterprise/) plug in.
 Sync, sharing and the rest arrive in Phase 3. See ADRs
 [0031](../../docs/adr/0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md),
 [0032](../../docs/adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md),
 [0033](../../docs/adr/0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md)
-and [0034](../../docs/adr/0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md).
+[0034](../../docs/adr/0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md)
+and [0035](../../docs/adr/0035-the-server-syncs-through-hocuspocus-beside-its-api-and-numbers-each-store.md).
 
 ## Run it
 
@@ -75,6 +77,8 @@ token as `Authorization: Bearer <token>`. Every error is
 | `POST /api/workspaces/:id/invitations` | owner, admin | Invites someone as `admin` or `member`, for one `email` or anyone; gives `token` |
 | `GET /api/workspaces/:id/invitations` | owner, admin | The invitations not yet accepted |
 | `DELETE /api/workspaces/:id/invitations/:invitation` | owner, admin | Withdraws one |
+| `GET /api/workspaces/:id/documents` | member | The documents stored since `since`, a number, in order, a thousand at a time with `more` |
+| `GET /api/sync` | per document | The WebSocket that Hocuspocus providers sync documents over, below |
 | `POST /api/invitations/lookup` | | The workspace and role a `token` invites to |
 | `POST /api/invitations/accept` | either | Accepts a `token`: signed in, into that account; or with `name`, `email` and `password`, as a new account, signed in |
 
@@ -89,6 +93,31 @@ in 15 minutes for one account from anywhere. One email address gets at
 most three codes in 15 minutes. Setup, invitations, ending sessions and
 changing passwords have limits of their own. Each answers `429` with
 `Retry-After`.
+
+## Sync
+
+Clients sync Yjs documents with Hocuspocus over one WebSocket at
+`/api/sync`, on the API's own port, so a reverse proxy needs only to pass
+WebSocket upgrades through. A document is named `<workspace id>/vault`, the
+vault's list of notes, or `<workspace id>/<note id>`. A provider signs each
+one in with its session's token as Hocuspocus's `token`: a workspace's
+members read and write its documents, and its guests only read them.
+
+```ts
+new HocuspocusProvider({
+  url: "wss://nether.example.org/api/sync",
+  name: `${workspaceId}/${noteId}`,
+  token: session.token,
+});
+```
+
+The server stores a document two seconds after it stops changing, and at
+least every ten seconds, as its merged state numbered from one sequence. A
+client back from being away asks
+`GET /api/workspaces/:id/documents?since=<the last number it saw>` and
+syncs only those. A client syncing the vault document hears of every note
+as it is stored, as the stateless message
+`{ "type": "stored", "document": "<note id>", "seq": 42 }`.
 
 ## Email
 
