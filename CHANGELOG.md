@@ -147,6 +147,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   carets and selections show, each in a color of their own with their
   name ([ADR 0043](docs/adr/0043-a-note-open-in-the-editor-syncs-live-with-awareness-for-carets.md)). An encrypted workspace's notes
   sync in rounds, for now.
+- Each note's comments are a document of their own beside it, kept in the
+  vault's index and synced with the note, through the relay in an
+  encrypted workspace; those who may comment write them, and never the
+  note's text
+  ([ADR 0044](docs/adr/0044-a-notes-comments-are-a-document-of-their-own-beside-it.md)).
+  `@nether/editor` reads and changes their threads.
 - Spaces and sharing in the desktop app: **Spaces** makes teamspaces,
   from a folder of the vault or anew, with their members and levels, and
   a private space; **Share this page** shares a page on its own with its
