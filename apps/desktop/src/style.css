@@ -2666,3 +2666,16 @@ kbd {
   margin: 0.5rem 0 0;
   font-size: 0.9375rem;
 }
+
+/* Spaces and sharing: who has access, then giving it. */
+.unit-people {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.unit-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.5rem 0.75rem;
+}

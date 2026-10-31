@@ -87,6 +87,12 @@ const ServersDialog = lazy(() =>
 const SyncDialog = lazy(() =>
   import("./SyncDialog.tsx").then(({ SyncDialog: dialog }) => ({ default: dialog })),
 );
+const SpacesDialog = lazy(() =>
+  import("./SpacesDialog.tsx").then(({ SpacesDialog: dialog }) => ({ default: dialog })),
+);
+const ShareDialog = lazy(() =>
+  import("./ShareDialog.tsx").then(({ ShareDialog: dialog }) => ({ default: dialog })),
+);
 const MembersDialog = lazy(() =>
   import("./MembersDialog.tsx").then(({ MembersDialog: dialog }) => ({ default: dialog })),
 );
@@ -225,6 +231,8 @@ export function VaultView(props: {
     | "servers"
     | "sync"
     | "members"
+    | "spaces"
+    | "share"
     | "history"
     | "export"
     | "import"
@@ -535,6 +543,19 @@ export function VaultView(props: {
         open && sync.link !== undefined
           ? () => {
               setDialog("members");
+            }
+          : undefined,
+      // An encrypted workspace has General alone (ADR 0042).
+      spaces:
+        open && sync.link !== undefined && sync.link.encrypted !== true
+          ? () => {
+              setDialog("spaces");
+            }
+          : undefined,
+      share:
+        note !== undefined && sync.link !== undefined && sync.link.encrypted !== true
+          ? () => {
+              setDialog("share");
             }
           : undefined,
       shortcuts: open
@@ -888,6 +909,44 @@ export function VaultView(props: {
           />
         </Suspense>
       ) : null}
+      {dialog === "spaces" && sync.link !== undefined && state.status === "open" ? (
+        <Suspense fallback={null}>
+          <SpacesDialog
+            link={sync.link}
+            folders={[
+              ...new Set(
+                state.vault
+                  .notes()
+                  .flatMap((entry) =>
+                    entry.path.includes("/") ? [entry.path.slice(0, entry.path.indexOf("/"))] : [],
+                  ),
+              ),
+            ].sort()}
+            onClose={() => {
+              setDialog(undefined);
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {dialog === "share" &&
+      sync.link !== undefined &&
+      state.status === "open" &&
+      selected !== undefined
+        ? (() => {
+            const note = state.vault.note(selected);
+            return note === undefined ? null : (
+              <Suspense fallback={null}>
+                <ShareDialog
+                  link={sync.link}
+                  note={note}
+                  onClose={() => {
+                    setDialog(undefined);
+                  }}
+                />
+              </Suspense>
+            );
+          })()
+        : null}
       {dialog === "members" && sync.link !== undefined ? (
         <Suspense fallback={null}>
           <MembersDialog

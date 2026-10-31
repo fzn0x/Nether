@@ -646,3 +646,255 @@ export function roleName(role: string): string {
       return role;
   }
 }
+
+/** A unit the account opens (ADR 0042): General, a teamspace, its private space or a shared page. */
+export interface ServerUnit {
+  readonly id: string;
+  readonly kind: "general" | "team" | "private" | "page";
+  readonly level: string;
+  readonly name: string | null;
+  readonly rootNote: string | null;
+  readonly restricted: boolean;
+}
+
+/** The units the account opens in a workspace. */
+export async function units(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+): Promise<ServerUnit[]> {
+  const answer = record(
+    await request(fetcher, base, `/api/workspaces/${workspaceId}/units`, { token }),
+  );
+  const list = Array.isArray(answer.units) ? (answer.units as unknown[]) : [];
+  return list.map((item) => {
+    const unit = record(item);
+    const kind = text(unit.kind, base);
+    return {
+      id: text(unit.id, base),
+      kind: kind === "team" || kind === "private" || kind === "page" ? kind : "general",
+      level: text(unit.level, base),
+      name: typeof unit.name === "string" ? unit.name : null,
+      rootNote: typeof unit.rootNote === "string" ? unit.rootNote : null,
+      restricted: unit.restricted === true,
+    };
+  });
+}
+
+/** Who opens a unit by a grant of their own, and the invitations to it still waiting. */
+export interface UnitAccess {
+  readonly restricted: boolean;
+  readonly grants: readonly {
+    readonly user: string;
+    readonly name: string;
+    readonly email: string;
+    readonly level: string;
+  }[];
+  readonly invitations: readonly Invitation[];
+}
+
+export async function unitAccess(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+): Promise<UnitAccess> {
+  const answer = record(
+    await request(fetcher, base, `/api/workspaces/${workspaceId}/units/${unit}/grants`, { token }),
+  );
+  const grants = Array.isArray(answer.grants) ? (answer.grants as unknown[]) : [];
+  const waiting = Array.isArray(answer.invitations) ? (answer.invitations as unknown[]) : [];
+  return {
+    restricted: answer.restricted === true,
+    grants: grants.map((item) => {
+      const grant = record(item);
+      return {
+        user: text(grant.user, base),
+        name: text(grant.name, base),
+        email: text(grant.email, base),
+        level: text(grant.level, base),
+      };
+    }),
+    invitations: waiting.map((item) => {
+      const invitation = record(item);
+      return {
+        id: text(invitation.id, base),
+        role: "guest",
+        email: typeof invitation.email === "string" ? invitation.email : null,
+        expiresAt: text(invitation.expiresAt, base),
+      };
+    }),
+  };
+}
+
+/** Sends a request to a workspace's API, as `request` does, with its path after the workspace. */
+function workspaceRequest(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  path: string,
+  options: { readonly method?: string; readonly body?: unknown } = {},
+): Promise<unknown> {
+  return request(fetcher, base, `/api/workspaces/${workspaceId}${path}`, { ...options, token });
+}
+
+/** Makes a teamspace; its folder takes its name. */
+export async function makeTeamspace(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  name: string,
+): Promise<string> {
+  const answer = record(
+    await workspaceRequest(fetcher, base, token, workspaceId, "/teamspaces", { body: { name } }),
+  );
+  return text(answer.id, base);
+}
+
+export async function renameTeamspace(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+  name: string,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, `/teamspaces/${unit}`, {
+    method: "PATCH",
+    body: { name },
+  });
+}
+
+export async function deleteTeamspace(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, `/teamspaces/${unit}`, {
+    method: "DELETE",
+  });
+}
+
+/** Makes the account's private space, the first time. */
+export async function makePrivateSpace(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, "/private", { method: "PUT" });
+}
+
+/** Gives a member a level in a unit, or a new one. */
+export async function setGrant(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+  user: string,
+  level: string,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, `/units/${unit}/grants/${user}`, {
+    method: "PUT",
+    body: { level },
+  });
+}
+
+export async function removeGrant(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+  user: string,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, `/units/${unit}/grants/${user}`, {
+    method: "DELETE",
+  });
+}
+
+/** Shares a page on its own, with its subpages; gives its unit. */
+export async function sharePage(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  note: string,
+): Promise<string> {
+  const answer = record(
+    await workspaceRequest(fetcher, base, token, workspaceId, "/pages", { body: { note } }),
+  );
+  return text(answer.id, base);
+}
+
+export async function restrictPage(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+  restricted: boolean,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, `/pages/${unit}`, {
+    method: "PATCH",
+    body: { restricted },
+  });
+}
+
+export async function stopSharingPage(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, `/pages/${unit}`, {
+    method: "DELETE",
+  });
+}
+
+/** Invites a guest to a shared page at a level; gives the token its link carries. */
+export async function inviteGuest(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  unit: string,
+  level: string,
+  email: string,
+): Promise<string> {
+  const answer = record(
+    await workspaceRequest(fetcher, base, token, workspaceId, "/invitations", {
+      body: {
+        role: "guest",
+        unit,
+        level,
+        ...(email.trim() === "" ? {} : { email: email.trim() }),
+      },
+    }),
+  );
+  return text(answer.token, base);
+}
+
+/** A level's name as people read it; one this app does not know, as the server gave it. */
+export function levelName(level: string): string {
+  switch (level) {
+    case "full":
+      return t("level_full");
+    case "edit":
+      return t("level_edit");
+    case "comment":
+      return t("level_comment");
+    case "view":
+      return t("level_view");
+    default:
+      return level;
+  }
+}

@@ -27,6 +27,8 @@ export const commandIds = [
   "servers",
   "sync",
   "members",
+  "spaces",
+  "share",
   "shortcuts",
   "checkUpdates",
   "updateChecks",
