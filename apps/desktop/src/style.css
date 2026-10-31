@@ -3531,6 +3531,9 @@ kbd {
 }
 
 .canvas-node {
+  /* Links on a card: the accent, toward the text, so a card's tint keeps them readable. */
+  --canvas-link: color-mix(in srgb, var(--accent) 78%, var(--text));
+
   position: absolute;
   padding: 0.6rem 0.8rem;
   overflow: hidden;
@@ -3565,15 +3568,93 @@ kbd {
 }
 
 .canvas-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   color: var(--accent);
   overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.canvas-link-host {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.canvas-link-url {
+  color: var(--canvas-link);
+  font-size: 0.8125rem;
+  text-decoration: underline;
+}
+
+/* Markdown in a card: a note's spacing, closer. */
+.canvas-markdown {
+  white-space: normal;
+}
+
+.canvas-markdown > :first-child {
+  margin-block-start: 0;
+}
+
+.canvas-markdown > :last-child {
+  margin-block-end: 0;
+}
+
+.canvas-markdown :is(h1, h2, h3, h4, h5, h6) {
+  margin: 0.6em 0 0.3em;
+  line-height: 1.25;
+}
+
+.canvas-markdown h1 {
+  font-size: 1.5rem;
+}
+
+.canvas-markdown h2 {
+  font-size: 1.25rem;
+}
+
+.canvas-markdown :is(h3, h4, h5, h6) {
+  font-size: 1.05rem;
+}
+
+.canvas-markdown :is(p, ul, ol, blockquote, pre) {
+  margin: 0.4em 0;
+}
+
+/* A line break in a card's text shows as one, as Obsidian shows it. */
+.canvas-text.canvas-markdown p {
+  white-space: pre-line;
+}
+
+.canvas-markdown :is(ul, ol) {
+  padding-inline-start: 1.4em;
+}
+
+.canvas-markdown img {
+  max-width: 100%;
+}
+
+.canvas-markdown a {
+  color: var(--canvas-link);
+}
+
+.canvas-note-body {
+  margin-block-start: 0.5rem;
+  color: var(--text);
+  font-size: 0.875rem;
+}
+
+.canvas-file:has(.canvas-note) {
+  display: flex;
+  flex-direction: column;
 }
 
 .canvas-note {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--canvas-link);
   font: inherit;
   font-weight: 600;
   text-align: start;

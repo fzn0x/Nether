@@ -2083,7 +2083,10 @@ export function VaultView(props: {
                             graph={state.indexer.graph}
                             media={state.media}
                             path={canvas}
-                            onOpenNote={openNote}
+                            // A note opened from a canvas opens beside it, keeping the canvas open.
+                            onOpenNote={(note) => {
+                              openNote(note, undefined, "tab");
+                            }}
                           />
                         </Suspense>
                       ) : id === undefined ? (

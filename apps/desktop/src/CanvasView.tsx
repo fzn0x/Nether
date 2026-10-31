@@ -37,6 +37,7 @@ import {
   setLabel,
   setText,
   sidePoint,
+  updateNode,
   snap,
   startHistory,
   undo,
@@ -47,6 +48,7 @@ import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
 import {
   type CSSProperties,
+  type DragEvent,
   type KeyboardEvent,
   type PointerEvent,
   useCallback,
@@ -56,6 +58,7 @@ import {
   useState,
 } from "react";
 import type { VaultMedia } from "./backend.ts";
+import { CardBody, isImagePath } from "./CanvasCards.tsx";
 import {
   ContextMenu,
   type MenuEntry,
@@ -66,6 +69,7 @@ import {
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
 import { TextPromptDialog } from "./TextPromptDialog.tsx";
 import { t } from "./messages.ts";
+import { attachmentName, attachmentsFolder } from "./noteFiles.ts";
 
 interface View {
   /** Where the canvas's origin is in the pane, in pixels, and how much it is scaled. */
@@ -104,7 +108,6 @@ function fitting(bounds: Box | undefined, width: number, height: number): View {
   };
 }
 
-const imageFile = /\.(?:png|jpe?g|gif|webp|svg|avif|bmp)$/i;
 const sides: readonly Side[] = ["top", "right", "bottom", "left"];
 const colors = ["1", "2", "3", "4", "5", "6"] as const;
 
@@ -143,56 +146,6 @@ function nearestSide(box: Box, point: Point): Side {
     }
   }
   return best;
-}
-
-/** What a node shows: a text's words, a file's name or image, a link's address, a group's label. */
-function NodeBody(props: {
-  readonly node: CanvasNode;
-  readonly vault: Vault;
-  readonly media: VaultMedia;
-  readonly onOpenNote: (id: NoteId) => void;
-}) {
-  const { node, vault, media, onOpenNote } = props;
-  if (node.type === "text") return <div className="canvas-text">{node.text}</div>;
-  if (node.type === "link") {
-    return (
-      <a
-        className="canvas-link"
-        href={node.url}
-        target="_blank"
-        rel="noreferrer noopener"
-        tabIndex={-1}
-      >
-        {node.url}
-      </a>
-    );
-  }
-  if (node.type === "group") return null;
-  if (imageFile.test(node.file)) {
-    const url = media.url(node.file);
-    return url === undefined ? (
-      <p className="canvas-missing">{t("canvasFileMissing", { name: node.file })}</p>
-    ) : (
-      <img className="canvas-image" src={url} alt={nameOf(node.file)} draggable={false} />
-    );
-  }
-  const note = vault.noteAt(node.file);
-  if (note === undefined) {
-    return <p className="canvas-missing">{t("canvasFileMissing", { name: node.file })}</p>;
-  }
-  return (
-    <button
-      type="button"
-      className="canvas-note"
-      tabIndex={-1}
-      onClick={() => {
-        onOpenNote(note.id);
-      }}
-    >
-      {note.title}
-      {node.subpath === undefined ? null : <span className="canvas-subpath">{node.subpath}</span>}
-    </button>
-  );
 }
 
 /** An edge's line, its arrows, its label, and a wider line beneath to take hold of it by. */
@@ -283,6 +236,8 @@ export default function CanvasView(props: {
   const [menu, setMenu] = useState<{ readonly id: string; readonly at: MenuPoint } | undefined>();
   const [connecting, setConnecting] = useState<{ readonly from: string; readonly at: MenuPoint }>();
   const [labelling, setLabelling] = useState<string | undefined>();
+  const [naming, setNaming] = useState<string | undefined>();
+  const [linking, setLinking] = useState(false);
   const [pickingNote, setPickingNote] = useState(false);
   const [notice, setNotice] = useState<string | undefined>();
   // The hash of the text the file has, as last read or written, and whether a change waits to be written.
@@ -678,6 +633,74 @@ export default function CanvasView(props: {
     });
   };
 
+  /** A group around the cards selected, or, with none, an empty one in the middle. */
+  const addGroup = () => {
+    if (saved === undefined) return;
+    const inside = saved.nodes.filter((node) => selected.has(node.id));
+    const around = canvasBounds(inside);
+    const margin = 40;
+    const at = middle();
+    const box =
+      around === undefined
+        ? { x: snap(at.x - 200, 10), y: snap(at.y - 150, 10), width: 400, height: 300 }
+        : {
+            x: around.x - margin,
+            y: around.y - margin,
+            width: around.width + margin * 2,
+            height: around.height + margin * 2,
+          };
+    add({ type: "group", label: t("canvasGroup"), ...box });
+  };
+
+  /** Puts files dropped from elsewhere on the board: images kept in the vault, notes and canvases by path. */
+  const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!editable) return;
+    const at = toCanvas(event.clientX, event.clientY);
+    const dragged = event.dataTransfer.getData("application/x-nether-path");
+    if (dragged !== "") {
+      event.preventDefault();
+      try {
+        const { kind, path: file } = JSON.parse(dragged) as { kind?: unknown; path?: unknown };
+        if ((kind === "note" || kind === "file") && typeof file === "string") {
+          add({
+            type: "file",
+            file,
+            x: snap(at.x - 200, 10),
+            y: snap(at.y - 150, 10),
+            width: 400,
+            height: 300,
+          });
+        }
+      } catch {
+        // Not a drag Nether made.
+      }
+      return;
+    }
+    const images = [...event.dataTransfer.files].filter((file) => isImagePath(file.name));
+    if (images.length === 0) return;
+    event.preventDefault();
+    void (async () => {
+      let offset = 0;
+      for (const image of images) {
+        const kept = await vault.attach(
+          `${attachmentsFolder}/${attachmentName(image, false, new Date())}`,
+          new Uint8Array(await image.arrayBuffer()),
+        );
+        add({
+          type: "file",
+          file: kept,
+          x: snap(at.x + offset, 10),
+          y: snap(at.y + offset, 10),
+          width: 400,
+          height: 300,
+        });
+        offset += 40;
+      }
+    })().catch((error: unknown) => {
+      setNotice(error instanceof Error ? error.message : String(error));
+    });
+  };
+
   const remove = (ids: Iterable<string>) => {
     const list = [...ids];
     if (list.length === 0) return;
@@ -792,6 +815,16 @@ export default function CanvasView(props: {
     }
     if (node === undefined) return [];
     return [
+      ...(node.type === "group"
+        ? [
+            {
+              label: t("canvasRenameGroup"),
+              run: () => {
+                setNaming(id);
+              },
+            },
+          ]
+        : []),
       ...(node.type === "text"
         ? [
             {
@@ -868,6 +901,19 @@ export default function CanvasView(props: {
             <button
               type="button"
               className="quiet"
+              aria-haspopup="dialog"
+              onClick={() => {
+                setLinking(true);
+              }}
+            >
+              {t("canvasAddLink")}
+            </button>
+            <button type="button" className="quiet" onClick={addGroup}>
+              {t("canvasAddGroup")}
+            </button>
+            <button
+              type="button"
+              className="quiet"
               disabled={history === undefined || history.past.length === 0}
               aria-keyshortcuts="Control+Z Meta+Z"
               onClick={() => {
@@ -930,6 +976,15 @@ export default function CanvasView(props: {
         className="canvas-pane"
         ref={pane}
         onPointerDown={onPanePointerDown}
+        onDragOver={(event) => {
+          if (!editable) return;
+          const types = event.dataTransfer.types;
+          if (types.includes("Files") || types.includes("application/x-nether-path")) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+          }
+        }}
+        onDrop={onDrop}
         onDoubleClick={(event) => {
           if (
             !editable ||
@@ -1045,7 +1100,14 @@ export default function CanvasView(props: {
                         }}
                       />
                     ) : (
-                      <NodeBody node={node} vault={vault} media={media} onOpenNote={onOpenNote} />
+                      <CardBody
+                        node={node}
+                        vault={vault}
+                        graph={graph}
+                        media={media}
+                        from={path}
+                        onOpenNote={onOpenNote}
+                      />
                     )}
                     {isSelected && editable && editing !== node.id ? (
                       <>
@@ -1151,6 +1213,60 @@ export default function CanvasView(props: {
           }}
         />
       )}
+      {naming === undefined ? null : (
+        <TextPromptDialog
+          title={t("canvasRenameGroup")}
+          label={t("canvasGroupName")}
+          value={(() => {
+            const group = saved?.nodes.find((node) => node.id === naming);
+            return group?.type === "group" ? (group.label ?? "") : "";
+          })()}
+          onSubmit={(label) => {
+            change((canvas) =>
+              updateNode(canvas, naming, (node) => {
+                if (node.type !== "group") return node;
+                if (label !== "") return { ...node, label };
+                const rest: { -readonly [Key in keyof typeof node]: (typeof node)[Key] } = {
+                  ...node,
+                };
+                delete rest.label;
+                return rest;
+              }),
+            );
+          }}
+          onClose={() => {
+            setNaming(undefined);
+          }}
+        />
+      )}
+      {linking ? (
+        <TextPromptDialog
+          title={t("canvasAddLink")}
+          label={t("canvasLinkAddress")}
+          value="https://"
+          check={(value) => {
+            try {
+              return /^https?:$/.test(new URL(value).protocol) ? undefined : t("canvasLinkInvalid");
+            } catch {
+              return t("canvasLinkInvalid");
+            }
+          }}
+          onSubmit={(url) => {
+            const at = middle();
+            add({
+              type: "link",
+              url,
+              x: snap(at.x - 200, 10),
+              y: snap(at.y - 60, 10),
+              width: 400,
+              height: 120,
+            });
+          }}
+          onClose={() => {
+            setLinking(false);
+          }}
+        />
+      ) : null}
       {pickingNote ? (
         <QuickSwitcher
           vault={vault}
