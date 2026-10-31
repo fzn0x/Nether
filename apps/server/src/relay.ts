@@ -81,7 +81,12 @@ export function registerRelay(app: FastifyInstance, db: Database): void {
     const after = typeof message.after === "number" && message.after >= 0 ? message.after : 0;
     const found = await place(client, name);
     if (found === undefined || typeof name !== "string") {
-      refuse(client, undefined, refused);
+      // Named, so the client knows which of its subscriptions failed.
+      send(client, {
+        type: "error",
+        ...(typeof name === "string" ? { name } : {}),
+        message: refused,
+      });
       return;
     }
     // Subscribed first, so nothing pushed while the stored updates are read is lost.

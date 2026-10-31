@@ -336,8 +336,11 @@ describe("the relay", () => {
 
     // Not a member, a workspace not encrypted, and a socket not signed in.
     const outsider = await relay(test, test.token);
-    outsider.send({ type: "subscribe", name: `${randomUUID()}/vault`, after: 0 });
-    expect(await outsider.next((message) => message.type === "error")).toMatchObject({
+    const elsewhere = `${randomUUID()}/vault`;
+    outsider.send({ type: "subscribe", name: elsewhere, after: 0 });
+    expect(await outsider.next((message) => message.type === "error")).toEqual({
+      type: "error",
+      name: elsewhere,
       message: "Sign in, as a member of this document's encrypted workspace.",
     });
     outsider.send({ type: "push", id: "x", name: `${test.workspaceId}/vault`, data: "AAAA" });
