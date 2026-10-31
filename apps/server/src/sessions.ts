@@ -101,6 +101,20 @@ export async function sessionAccount(db: Database, token: string): Promise<Accou
 
 const accounts = new WeakMap<FastifyRequest, Account>();
 
+export const csrfMissing = "This request came without the page's CSRF value.";
+
+/**
+ * The session token a request brings: its bearer token or, from the web
+ * app, its session's cookie, with the CSRF value a request that changes
+ * anything must send back (ADR 0053); "csrf" when that is missing.
+ */
+export function requestToken(
+  request: FastifyRequest,
+): { readonly token: string } | "csrf" | undefined {
+  const bearer = bearerToken(request.headers.authorization);
+  return bearer === undefined ? cookieToken(request) : { token: bearer };
+}
+
 /**
  * A route's check that its request is signed in, by a bearer token or, from
  * the web app, the session's cookie with its CSRF value (ADR 0053); it
@@ -108,15 +122,9 @@ const accounts = new WeakMap<FastifyRequest, Account>();
  */
 export function signedIn(db: Database) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    let token = bearerToken(request.headers.authorization);
-    if (token === undefined) {
-      const fromCookie = cookieToken(request);
-      if (fromCookie === "csrf") {
-        return fail(reply, 403, "This request came without the page's CSRF value.");
-      }
-      token = fromCookie?.token;
-    }
-    const account = token === undefined ? undefined : await sessionAccount(db, token);
+    const found = requestToken(request);
+    if (found === "csrf") return fail(reply, 403, csrfMissing);
+    const account = found === undefined ? undefined : await sessionAccount(db, found.token);
     if (account === undefined) {
       return fail(reply.header("www-authenticate", "Bearer"), 401, "Sign in first.");
     }

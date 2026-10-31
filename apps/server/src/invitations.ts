@@ -20,8 +20,9 @@ import { hashPassword } from "./passwords.ts";
 import { type Level, accessible } from "./units.ts";
 import {
   accountOf,
-  bearerToken,
+  csrfMissing,
   newToken,
+  requestToken,
   sessionAccount,
   signedIn,
   startSession,
@@ -353,9 +354,10 @@ export function registerInvitations(app: FastifyInstance, db: Database): void {
       const { body } = request;
       // A request with a token accepts into its account; one whose token has
       // ended is refused, rather than making a second account.
-      const sessionToken = bearerToken(request.headers.authorization);
-      const me = sessionToken === undefined ? undefined : await sessionAccount(db, sessionToken);
-      if (sessionToken !== undefined && me === undefined) {
+      const session = requestToken(request);
+      if (session === "csrf") return fail(reply, 403, csrfMissing);
+      const me = session === undefined ? undefined : await sessionAccount(db, session.token);
+      if (session !== undefined && me === undefined) {
         return fail(reply.header("www-authenticate", "Bearer"), 401, "Sign in again.");
       }
       if (
