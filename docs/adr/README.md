@@ -37,3 +37,4 @@ record supersedes it and says so. Start a new one from
 | [0027](0027-imports-are-plans-made-from-sources-read-only.md) | Imports are plans, made from sources only read | Accepted |
 | [0028](0028-a-notion-export-becomes-pages-and-databases-without-ids.md) | A Notion export becomes pages and databases without their IDs | Accepted |
 | [0029](0029-a-logseq-graph-keeps-its-folders-and-is-written-as-obsidian-writes.md) | A Logseq graph keeps its folders, and is written as Obsidian writes | Accepted |
+| [0030](0030-web-pages-import-through-the-syntax-tree-tools.md) | Web pages import through the syntax-tree project's HTML tools | Accepted |

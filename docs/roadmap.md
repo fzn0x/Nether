@@ -99,4 +99,4 @@ The Notion core, one feature per pull request, in this order:
 - [x] Importers: Obsidian vaults, plain Markdown and CSV ([ADR 0027](adr/0027-imports-are-plans-made-from-sources-read-only.md))
 - [x] Importers: Notion exports ([ADR 0028](adr/0028-a-notion-export-becomes-pages-and-databases-without-ids.md))
 - [x] Importers: Logseq graphs ([ADR 0029](adr/0029-a-logseq-graph-keeps-its-folders-and-is-written-as-obsidian-writes.md))
-- [ ] Importers: HTML
+- [x] Importers: HTML ([ADR 0030](adr/0030-web-pages-import-through-the-syntax-tree-tools.md))

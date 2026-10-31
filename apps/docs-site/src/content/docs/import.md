@@ -1,6 +1,6 @@
 ---
 title: Importing
-description: How to bring an Obsidian vault, a folder of Markdown, a Notion export, a Logseq graph, Markdown files or CSV tables into your vault, and what each import makes.
+description: How to bring an Obsidian vault, a folder of Markdown, a Notion export, a Logseq graph, Markdown files, web pages or CSV tables into your vault, and what each import makes.
 ---
 
 Run **Import…** from the command palette (Ctrl+P, or Cmd+P on macOS),
@@ -75,6 +75,15 @@ still find their files in `assets`. Logseq's settings stay behind.
 Choose one or more `.md` files. Each becomes a note, as it is written, in a
 folder named **Imported**.
 
+## Web pages
+
+Choose one or more `.html` files, as articles you saved. Each becomes a
+note in a folder named **Imported**, named by the page's title, or its first
+heading, with its text as Markdown: headings, paragraphs, lists, quotes,
+tables, links, images and code. The page's styles and scripts stay behind,
+and its images keep their addresses. A title a file's name cannot hold is
+kept as the note's alias.
+
 ## CSV tables
 
 Choose one or more `.csv` files. Each becomes a [database](../databases/),
@@ -91,5 +100,3 @@ first cell, in the folder beside it:
   become `Name` and `Name 2`.
 - Cells past the header's columns get columns of their own, named
   `Column 7` and so on, and the import says so.
-
-Web pages come next.

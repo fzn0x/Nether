@@ -142,6 +142,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Web pages import as notes named by their titles, their text as
+  Markdown, their styles and scripts left behind; the HTML parser loads
+  only to import
+  ([ADR 0030](docs/adr/0030-web-pages-import-through-the-syntax-tree-tools.md)).
 - A Logseq graph imports with its folders, its page properties as
   frontmatter, namespaces as folders, journals named by their dates with
   Logseq's titles as aliases, block IDs and references, embeds and tasks
