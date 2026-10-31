@@ -657,6 +657,36 @@ export function* walkBlocks(blocks: readonly Block[]): Generator<Block> {
   }
 }
 
+function replaceIn(
+  blocks: readonly Block[],
+  id: BlockId,
+  replacement: ContentBlock,
+): Block[] | undefined {
+  for (const [index, block] of blocks.entries()) {
+    // Rows, cells and columns stand only in their parents: what they hold is replaced, not them.
+    const container =
+      block.type === "tableRow" || block.type === "tableCell" || block.type === "column";
+    if (block.id === id && !container) return blocks.with(index, replacement);
+    if ("children" in block) {
+      const children = replaceIn(block.children, id, replacement);
+      if (children !== undefined) return blocks.with(index, { ...block, children } as Block);
+    }
+  }
+  return undefined;
+}
+
+/**
+ * A note's blocks with the one whose ID is `id`, at any depth, replaced, as
+ * a synced block's edits go back to its note; undefined when it has none.
+ */
+export function replaceBlock(
+  blocks: readonly ContentBlock[],
+  id: BlockId,
+  replacement: ContentBlock,
+): ContentBlock[] | undefined {
+  return replaceIn(blocks, id, replacement) as ContentBlock[] | undefined;
+}
+
 /** The inline content of a block, or an empty list for blocks without it. */
 export function inlineContent(block: Block): readonly Inline[] {
   return "content" in block ? block.content : [];

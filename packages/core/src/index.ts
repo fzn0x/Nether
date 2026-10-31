@@ -34,6 +34,7 @@ export {
   isTagName,
   markTypes,
   readContent,
+  replaceBlock,
   walkBlocks,
 } from "./blocks.ts";
 export {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type BlockId,
+  type ContentBlock,
   ModelError,
   type Note,
   createNote,
@@ -9,6 +10,7 @@ import {
   noteFromJson,
   parseNote,
   serializeNote,
+  replaceBlock,
   walkBlocks,
 } from "../src/index.ts";
 import { at, databaseNote, edit, ids, richNote } from "./fixtures.ts";
@@ -410,6 +412,34 @@ describe("createNote", () => {
     const schema = noteFromJson(databaseNote()).database;
     if (schema === undefined) throw new Error("the fixture is a database");
     expect(createNote({ title: "Copy", database: schema }).database).toEqual(schema);
+  });
+});
+
+describe("replaceBlock", () => {
+  const content = () => noteFromJson(richNote()).content;
+  const replacement = (id: string): ContentBlock => ({
+    id: id as BlockId,
+    type: "paragraph",
+    content: [{ type: "text", text: "Synced" }],
+  });
+
+  it("replaces a block at the top, or deep in a list, a quote or a column", () => {
+    for (const id of ["p1", "b2", "q2", "col1p"]) {
+      const replaced = replaceBlock(content(), id as BlockId, replacement(id));
+      const found = [...walkBlocks(replaced ?? [])].find((item) => item.id === id);
+      expect(found).toEqual(replacement(id));
+      // Every other block is as it was.
+      expect([...walkBlocks(replaced ?? [])].map((item) => item.id)).toEqual(
+        [...walkBlocks(content())].map((item) => item.id),
+      );
+    }
+  });
+
+  it("leaves the note as it was when no block has the ID, or only a row or cell does", () => {
+    const before = content();
+    expect(replaceBlock(before, "nothing" as BlockId, replacement("nothing"))).toBeUndefined();
+    expect(replaceBlock(before, "cell-4" as BlockId, replacement("cell-4"))).toBeUndefined();
+    expect(before).toEqual(content());
   });
 });
 
