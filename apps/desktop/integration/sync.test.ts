@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { noteDocuments, whenLoaded } from "../src/noteDocuments.ts";
 import { settingsStore } from "../src/sync.ts";
 import { DesktopSyncVault } from "../src/syncVault.ts";
+import { freePort } from "@nether/server/test/ports.ts";
 
 const password = "a long password";
 const config = readConfig({
@@ -46,7 +47,7 @@ async function startServer() {
   const setupCode = newSetupCode();
   attachments = await mkdtemp(join(tmpdir(), "nether-attachments-"));
   server = await buildApp(config, { db, setupCode, blobs: new DiskBlobs(attachments) });
-  await server.listen({ host: "127.0.0.1", port: 0 });
+  await server.listen({ host: "127.0.0.1", port: await freePort() });
   const url = `http://127.0.0.1:${String((server.server.address() as AddressInfo).port)}`;
   const response = await fetch(`${url}/api/setup`, {
     method: "POST",
@@ -108,6 +109,15 @@ async function device(served: { url: string; workspaceId: string }, files: Recor
     return { hold, live };
   };
   return { memory, vault, engine, text, openLive };
+}
+
+/** Waits until `check` holds, as `until` does, saying which step it waited for when it times out. */
+async function step(name: string, check: () => boolean | Promise<boolean>): Promise<void> {
+  await until(check).catch((error: unknown) => {
+    throw new Error(
+      `Waiting for ${name}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  });
 }
 
 /** Waits until `check` holds, letting servers store and devices write, 45 seconds at most, for slow runners. */
@@ -204,11 +214,18 @@ describe("syncing desktop vaults", () => {
 
     const here = await laptop.openLive("Ideas.md", "Ada");
     const there = await phone.openLive("Ideas.md", "Ada on the phone");
-    await until(() => [...here.live.awareness.getStates().keys()].length === 2);
-    // Typed on the laptop, as source mode types: it reaches the phone's file.
+    await step("both live", () => [...here.live.awareness.getStates().keys()].length === 2);
+    // Typed on the laptop, as source mode types: it reaches the phone's
+    // document as it is made, then its file, as any edit there does.
     here.hold.note.editText("# Ideas\n\nFirst thought, and a second.\n");
     await here.hold.note.refresh();
-    await until(
+    const { state } = there.hold.note.snapshot;
+    if (state.status !== "ready") throw new Error("The phone's note is not open");
+    await step("the phone's document", () =>
+      state.document.getXmlFragment("content").toJSON().includes("and a second"),
+    );
+    await step(
+      "the phone's file",
       async () => (await phone.text("Ideas.md")) === "# Ideas\n\nFirst thought, and a second.\n",
     );
     expect(there.live.editor.name).toBe("Ada on the phone");
