@@ -799,7 +799,7 @@ export function VaultView(props: {
                     setDialog("sync");
                   }}
                 >
-                  {syncSummary(sync.link, sync.status, sync.signedOut)}
+                  {syncSummary(sync.link, sync.status, sync.signedOut, sync.problem)}
                 </button>
               </p>
             )}

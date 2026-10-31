@@ -144,8 +144,41 @@ func (s *Servers) Token(address string) (string, error) {
 	return string(token), err
 }
 
-// Forget signs out of a server on this device: its token leaves the
-// keychain and the server leaves the list.
+// keyName is where the keychain keeps an account's private key for a
+// server's encrypted workspaces (ADR 0038), beside its session's token.
+func keyName(address string) string {
+	return "key " + address
+}
+
+// SaveKey keeps the account's private key for a server's encrypted
+// workspaces in the keychain, as base64.
+func (s *Servers) SaveKey(address string, key string) error {
+	address, err := serverURL(address)
+	if err != nil {
+		return err
+	}
+	if key == "" || len(key) > mygo.MaxSecretSize {
+		return errors.New("a private key is missing or too long")
+	}
+	return s.secrets.Set(keyName(address), []byte(key))
+}
+
+// Key returns the account's private key for a server, as base64; empty
+// when this device has none.
+func (s *Servers) Key(address string) (string, error) {
+	address, err := serverURL(address)
+	if err != nil {
+		return "", err
+	}
+	key, err := s.secrets.Get(keyName(address))
+	if errors.Is(err, mygo.ErrSecretNotFound) {
+		return "", nil
+	}
+	return string(key), err
+}
+
+// Forget signs out of a server on this device: its token and private key
+// leave the keychain and the server leaves the list.
 func (s *Servers) Forget(address string) error {
 	address, err := serverURL(address)
 	if err != nil {
@@ -153,8 +186,10 @@ func (s *Servers) Forget(address string) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.secrets.Delete(address); err != nil && !errors.Is(err, mygo.ErrSecretNotFound) {
-		return err
+	for _, name := range []string{address, keyName(address)} {
+		if err := s.secrets.Delete(name); err != nil && !errors.Is(err, mygo.ErrSecretNotFound) {
+			return err
+		}
 	}
 	list, err := s.read()
 	if err != nil {

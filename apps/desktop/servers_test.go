@@ -69,8 +69,21 @@ func TestServersKeepTokensInTheKeychainOnly(t *testing.T) {
 		t.Fatalf("servers.json holds a token: %s", file)
 	}
 
+	if err := servers.SaveKey("https://nether.example.org", "private-key"); err != nil {
+		t.Fatal(err)
+	}
+	key, err := servers.Key("https://nether.example.org/")
+	if err != nil || key != "private-key" {
+		t.Fatalf("key = %q, %v", key, err)
+	}
 	if err := servers.Forget("https://nether.example.org"); err != nil {
 		t.Fatal(err)
+	}
+	if key, _ := servers.Key("https://nether.example.org"); key != "" {
+		t.Fatalf("key after forgetting = %q", key)
+	}
+	if _, ok := secrets["key https://nether.example.org"]; ok {
+		t.Fatal("the private key stayed in the keychain")
 	}
 	token, err = servers.Token("https://nether.example.org")
 	if err != nil || token != "" {

@@ -147,6 +147,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (MinIO, Garage, R2, S3), checked against their hash when sent, and
   served so they cannot run scripts
   ([ADR 0039](docs/adr/0039-attachments-are-kept-by-their-hash-on-disk-or-in-an-s3-bucket.md)).
+- End-to-end encryption in the desktop app: an account turns it on in
+  Servers and signing in, writing down the recovery phrase it shows once,
+  and unlocks it on another computer with the phrase; Sync this vault makes
+  encrypted workspaces and syncs them, and a member's app seals a
+  workspace's key for the members waiting for it. The account's private
+  key stays in the system's keychain.
 - End-to-end encryption in `@nether/sync-client`: a 24-word recovery
   phrase that opens an account's private key, workspace keys sealed to
   each member, and every update of an encrypted workspace encrypted with

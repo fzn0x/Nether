@@ -408,6 +408,13 @@ export const messages = {
   syncStart: "Sync this vault",
   syncStop: "Stop syncing",
   syncLinked: "This vault syncs with {workspace} on {server}.",
+  workspaceEncrypted: "{name}, encrypted",
+  syncNewWorkspace: "A new workspace",
+  syncNewWorkspaceName: "Name of the new workspace",
+  syncMakeEncrypted: "Make it encrypted",
+  syncMakePlain: "Make it",
+  syncEncryptedHint:
+    "An encrypted workspace's notes are encrypted on its members' devices: the server keeps only what it cannot read, and cannot search or publish them.",
   syncBothHaveNotes:
     "{workspace} has notes already, and so does this vault. Open {workspace} in an empty folder to sync it there.",
   syncSignedOut: "Sign in to {server} again to sync.",
@@ -417,6 +424,27 @@ export const messages = {
   syncSyncing: "Syncing with {workspace}…",
   syncPending: "Syncing with {workspace}: {count} to send.",
   syncSynced: "Synced with {workspace}.",
+  encryptionOffHint: "End-to-end encryption is off.",
+  encryptionLockedHint: "Encrypted workspaces are locked on this device.",
+  encryptionOnHint: "End-to-end encryption is on.",
+  encryptionTurnOn: "Turn on end-to-end encryption",
+  encryptionUnlock: "Unlock with the recovery phrase",
+  encryptionTurnedOn: "End-to-end encryption is on for {server}.",
+  encryptionUnlocked: "Encrypted workspaces on {server} are unlocked on this device.",
+  recoveryPhrase: "Recovery phrase",
+  recoveryPhraseIntro:
+    "Write these 24 words down, in order, and keep them somewhere safe. With them you open your encrypted workspaces on a new device.",
+  recoveryPhraseWarning:
+    "Nether shows them only now, and no one can recover them for you: if you lose every device and these words, your encrypted notes are lost, unless another member shares the workspace's key with you again.",
+  recoveryPhraseWritten: "I have written these 24 words down",
+  recoveryPhraseUnlockHint: "The 24 words you wrote down when you turned encryption on.",
+  recoveryPhraseInvalid:
+    "That is not a recovery phrase: it has the 24 words Nether showed, in their order.",
+  recoveryPhraseWrong: "That recovery phrase does not open this account's key.",
+  encryptionOff: "This account has not turned end-to-end encryption on.",
+  encryptionLocked: "Unlock encrypted workspaces on this device first, with the recovery phrase.",
+  encryptionWaiting:
+    "No member has shared this workspace's key with you yet: it comes when a member who has it opens Nether.",
   errorTitle: "Something went wrong",
   dismiss: "Dismiss",
 } as const;

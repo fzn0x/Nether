@@ -29,6 +29,8 @@ export interface Workspace {
   readonly id: string;
   readonly name: string;
   readonly role: string;
+  /** Whether its members' apps encrypt it, so the server cannot read it (ADR 0038). */
+  readonly encrypted: boolean;
 }
 
 /** Where the browser comes back to after a provider, and the wait for it. */
@@ -258,6 +260,7 @@ export async function account(
         id: text(workspace.id, base),
         name: text(workspace.name, base),
         role: text(workspace.role, base),
+        encrypted: workspace.encryption === "end-to-end",
       };
     }),
   };
@@ -266,4 +269,114 @@ export async function account(
 /** Signs a session out on the server; the app forgets its token either way. */
 export async function signOut(fetcher: Fetch, base: string, token: string): Promise<void> {
   await request(fetcher, base, "/api/sessions/current", { method: "DELETE", token });
+}
+
+/** An account's keys for encrypted workspaces, as the server keeps them, in base64. */
+export interface AccountKeys {
+  readonly publicKey: string;
+  /** The private key, in a box only the account's recovery phrase opens. */
+  readonly recoveryBox: string;
+}
+
+/** The account's keys on the server; undefined when it has none yet. */
+export async function accountKeys(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+): Promise<AccountKeys | undefined> {
+  try {
+    const answer = record(await request(fetcher, base, "/api/me/keys", { token }));
+    return { publicKey: text(answer.publicKey, base), recoveryBox: text(answer.recoveryBox, base) };
+  } catch (error) {
+    if (error instanceof ServerError && error.status === 404) return undefined;
+    throw error;
+  }
+}
+
+export async function saveAccountKeys(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  keys: AccountKeys,
+): Promise<void> {
+  await request(fetcher, base, "/api/me/keys", { method: "PUT", token, body: keys });
+}
+
+/** Makes a workspace the account owns: encrypted when given its key sealed to its maker. */
+export async function makeWorkspace(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  name: string,
+  sealedKey?: string,
+): Promise<Workspace> {
+  const answer = record(
+    await request(fetcher, base, "/api/workspaces", {
+      token,
+      body: sealedKey === undefined ? { name } : { name, encryption: "end-to-end", sealedKey },
+    }),
+  );
+  return {
+    id: text(answer.id, base),
+    name: text(answer.name, base),
+    role: text(answer.role, base),
+    encrypted: answer.encryption === "end-to-end",
+  };
+}
+
+/** The account's sealed copy of an encrypted workspace's key; undefined while no member has sealed one. */
+export async function sealedWorkspaceKey(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+): Promise<{ version: number; sealedKey: string } | undefined> {
+  try {
+    const answer = record(
+      await request(fetcher, base, `/api/workspaces/${workspaceId}/key`, { token }),
+    );
+    const version = answer.version;
+    if (typeof version !== "number") return undefined;
+    return { version, sealedKey: text(answer.sealedKey, base) };
+  } catch (error) {
+    if (error instanceof ServerError && error.status === 404) return undefined;
+    throw error;
+  }
+}
+
+/** The members of an encrypted workspace waiting for its key, with their public keys. */
+export async function keylessMembers(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+): Promise<{ userId: string; publicKey: string; version: number }[]> {
+  const answer = record(
+    await request(fetcher, base, `/api/workspaces/${workspaceId}/keyless`, { token }),
+  );
+  const members = Array.isArray(answer.members) ? (answer.members as unknown[]) : [];
+  return members.map((item) => {
+    const member = record(item);
+    return {
+      userId: text(member.userId, base),
+      publicKey: text(member.publicKey, base),
+      version: typeof member.version === "number" ? member.version : 1,
+    };
+  });
+}
+
+/** Gives a member the workspace's key, sealed to their public key. */
+export async function sealForMember(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  userId: string,
+  sealed: { version: number; sealedKey: string },
+): Promise<void> {
+  await request(fetcher, base, `/api/workspaces/${workspaceId}/keys/${userId}`, {
+    method: "PUT",
+    token,
+    body: sealed,
+  });
 }

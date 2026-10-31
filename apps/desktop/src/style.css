@@ -394,6 +394,23 @@ button {
   font-size: 0.75rem;
 }
 
+/* A recovery phrase, numbered, in columns, to write down in order. */
+.recovery-phrase {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+  padding-inline-start: 2rem;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+  font-size: 0.9375rem;
+}
+
+.field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 /* How the vault's sync is going, at the foot of the sidebar; it opens the sync dialog. */
 .sync-line {
   margin: 0;

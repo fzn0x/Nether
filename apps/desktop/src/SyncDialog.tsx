@@ -7,7 +7,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { backend } from "./backend.ts";
 import { t } from "./messages.ts";
 import type { ServerAccount } from "./mygo.ts";
-import { type Workspace, account, request } from "./server.ts";
+import { type Workspace, account, makeWorkspace, request } from "./server.ts";
 import { type VaultLink, hostOf, syncSummary } from "./sync.ts";
 import { useModal } from "./useModal.ts";
 import type { VaultSyncState } from "./useSync.ts";
@@ -24,6 +24,7 @@ export function SyncDialog(props: {
   const [workspaces, setWorkspaces] = useState<readonly Workspace[] | undefined>();
   const [workspace, setWorkspace] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  const [newName, setNewName] = useState("");
   const [error, setError] = useState<string | undefined>();
   const dialog = useRef<HTMLFormElement>(null);
   useModal(dialog);
@@ -85,8 +86,40 @@ export function SyncDialog(props: {
       if (hasNotes && vault.notes().length > 0) {
         throw new Error(t("syncBothHaveNotes", { workspace: chosen.name }));
       }
-      const link: VaultLink = { server, workspaceId: chosen.id, workspaceName: chosen.name };
+      if (chosen.encrypted) {
+        // Its key must open on this device before it can sync here.
+        const { workspaceEncryption } = await import("./encryption.ts");
+        await workspaceEncryption(server, token, chosen.id);
+      }
+      const link: VaultLink = {
+        server,
+        workspaceId: chosen.id,
+        workspaceName: chosen.name,
+        ...(chosen.encrypted ? { encrypted: true } : {}),
+      };
       await sync.linkTo(link);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Makes a workspace for this vault: encrypted from the start, or not. */
+  const make = async (encrypted: boolean) => {
+    const name = newName.trim();
+    if (server === undefined || name === "") return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const token = await backend.serverToken(server);
+      if (token === undefined) throw new Error(t("syncSignedOut", { server: hostOf(server) }));
+      const made = encrypted
+        ? await (await import("./encryption.ts")).makeEncryptedWorkspace(server, token, name)
+        : await makeWorkspace(backend.serverFetch, server, token, name);
+      setWorkspaces([...(workspaces ?? []), made]);
+      setWorkspace(made.id);
+      setNewName("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -116,7 +149,7 @@ export function SyncDialog(props: {
     body = (
       <>
         <p>{t("syncLinked", { workspace: linked.workspaceName, server: hostOf(linked.server) })}</p>
-        <p role="status">{syncSummary(linked, sync.status, sync.signedOut)}</p>
+        <p role="status">{syncSummary(linked, sync.status, sync.signedOut, sync.problem)}</p>
         {sync.signedOut ? (
           <button type="button" className="quiet" onClick={onServers}>
             {t("command_servers")}
@@ -171,11 +204,49 @@ export function SyncDialog(props: {
             >
               {workspaces.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name}
+                  {item.encrypted ? t("workspaceEncrypted", { name: item.name }) : item.name}
                 </option>
               ))}
             </select>
           </label>
+        )}
+        {workspaces === undefined ? null : (
+          <fieldset>
+            <legend>{t("syncNewWorkspace")}</legend>
+            <label className="field">
+              {t("syncNewWorkspaceName")}
+              <input
+                type="text"
+                value={newName}
+                onChange={(event) => {
+                  setNewName(event.target.value);
+                }}
+              />
+            </label>
+            <div className="field-actions">
+              <button
+                type="button"
+                className="quiet"
+                disabled={busy || newName.trim() === ""}
+                onClick={() => {
+                  void make(true);
+                }}
+              >
+                {t("syncMakeEncrypted")}
+              </button>
+              <button
+                type="button"
+                className="quiet"
+                disabled={busy || newName.trim() === ""}
+                onClick={() => {
+                  void make(false);
+                }}
+              >
+                {t("syncMakePlain")}
+              </button>
+            </div>
+            <p className="hint">{t("syncEncryptedHint")}</p>
+          </fieldset>
         )}
       </>
     );

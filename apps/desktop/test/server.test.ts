@@ -105,11 +105,20 @@ describe("request", () => {
   it("reads the account and its workspaces, and refuses an answer it cannot read", async () => {
     const { fetcher } = fakeFetch({
       "GET /api/me": () =>
-        json(200, { user, workspaces: [{ id: "w1", name: "Team", role: "owner" }] }),
+        json(200, {
+          user,
+          workspaces: [
+            { id: "w1", name: "Team", role: "owner", encryption: "none" },
+            { id: "w2", name: "Secret", role: "member", encryption: "end-to-end" },
+          ],
+        }),
     });
     await expect(account(fetcher, base, "t0k")).resolves.toEqual({
       user,
-      workspaces: [{ id: "w1", name: "Team", role: "owner" }],
+      workspaces: [
+        { id: "w1", name: "Team", role: "owner", encrypted: false },
+        { id: "w2", name: "Secret", role: "member", encrypted: true },
+      ],
     });
     const odd = fakeFetch({ "GET /api/me": () => json(200, { user: { id: 7 } }) });
     await expect(account(odd.fetcher, base, "t0k")).rejects.toThrow(

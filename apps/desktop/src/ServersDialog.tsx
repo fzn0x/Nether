@@ -2,15 +2,19 @@
 // 0036): its address, then a password, a code it emails, or its OpenID
 // Connect provider in the system's browser, as the server offers. A
 // session's token goes to the system's keychain; signing out ends the
-// session on the server, and forgets it here either way.
+// session on the server, and forgets it here either way. Each account's
+// end-to-end encryption (ADR 0038) is turned on here, showing its recovery
+// phrase once, or unlocked on a new device with the phrase.
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { backend } from "./backend.ts";
+import type { PreparedKeys } from "./encryption.ts";
 import { t } from "./messages.ts";
 import type { ServerAccount } from "./mygo.ts";
 import {
   type LoopbackWait,
   type SignInMethods,
   type SignedIn,
+  accountKeys,
   askForCode,
   redeemCode,
   serverAddress,
@@ -30,7 +34,34 @@ type Step =
       readonly url: string;
       readonly methods: SignInMethods;
       readonly email: string;
-    };
+    }
+  | { readonly kind: "keys"; readonly account: ServerAccount; readonly keys: PreparedKeys }
+  | { readonly kind: "unlock"; readonly account: ServerAccount };
+
+/** An account's end-to-end encryption: not turned on, on but not on this device, or on here. */
+type Encryption = "off" | "locked" | "on";
+
+/** Each account's encryption, as the server and this device's keychain tell it. */
+async function encryptionOf(
+  accounts: readonly ServerAccount[],
+): Promise<ReadonlyMap<string, Encryption>> {
+  const found = new Map<string, Encryption>();
+  for (const account of accounts) {
+    try {
+      if ((await backend.serverKey(account.url)) !== undefined) {
+        found.set(account.url, "on");
+        continue;
+      }
+      const token = await backend.serverToken(account.url);
+      if (token === undefined) continue;
+      const keys = await accountKeys(backend.serverFetch, account.url, token);
+      found.set(account.url, keys === undefined ? "off" : "locked");
+    } catch {
+      // A server that cannot be reached shows no encryption until it can.
+    }
+  }
+  return found;
+}
 
 /** A server's address as the dialog shows it: its host, and port if any. */
 function hostOf(url: string): string {
@@ -49,6 +80,9 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  const [phrase, setPhrase] = useState("");
+  const [written, setWritten] = useState(false);
+  const [encryption, setEncryption] = useState<ReadonlyMap<string, Encryption>>(new Map());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [status, setStatus] = useState<string | undefined>();
@@ -68,11 +102,15 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
 
   useEffect(() => {
     let current = true;
-    void backend.servers().then((list) => {
-      if (!current) return;
+    // Read through a function: the cleanup changes it during the waits.
+    const live = () => current;
+    void backend.servers().then(async (list) => {
+      if (!live()) return;
       setAccounts(list);
       // With no server yet, the dialog starts at the address.
       if (list.length === 0) setStep({ kind: "address" });
+      const found = await encryptionOf(list);
+      if (live()) setEncryption(found);
     });
     return () => {
       current = false;
@@ -95,9 +133,15 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
     }
   };
 
+  const refresh = async () => {
+    const list = await backend.servers();
+    setAccounts(list);
+    setEncryption(await encryptionOf(list));
+  };
+
   const finish = async (url: string, signedIn: SignedIn) => {
     await backend.saveServer({ url, user: signedIn.user }, signedIn.token);
-    setAccounts(await backend.servers());
+    await refresh();
     setPassword("");
     setCode("");
     setStep({ kind: "list" });
@@ -124,11 +168,44 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
           await signInWithPassword(backend.serverFetch, step.url, email, password),
         );
       });
-    } else {
+    } else if (step.kind === "code") {
       void act(async () => {
         await finish(step.url, await redeemCode(backend.serverFetch, step.url, step.email, code));
       });
+    } else if (step.kind === "keys") {
+      if (!written) return;
+      void act(async () => {
+        const server = step.account.url;
+        const token = await backend.serverToken(server);
+        if (token === undefined) throw new Error(t("syncSignedOut", { server: hostOf(server) }));
+        const { keepKeys } = await import("./encryption.ts");
+        await keepKeys(server, token, step.keys);
+        await refresh();
+        setStep({ kind: "list" });
+        setStatus(t("encryptionTurnedOn", { server: hostOf(server) }));
+      });
+    } else {
+      void act(async () => {
+        const server = step.account.url;
+        const token = await backend.serverToken(server);
+        if (token === undefined) throw new Error(t("syncSignedOut", { server: hostOf(server) }));
+        const { unlockKeys } = await import("./encryption.ts");
+        await unlockKeys(server, token, step.account.user.id, phrase);
+        setPhrase("");
+        await refresh();
+        setStep({ kind: "list" });
+        setStatus(t("encryptionUnlocked", { server: hostOf(server) }));
+      });
     }
+  };
+
+  const turnOn = (account: ServerAccount) => {
+    void act(async () => {
+      // The keys are made here, and kept only once the phrase is written down.
+      const { prepareKeys } = await import("./encryption.ts");
+      setWritten(false);
+      setStep({ kind: "keys", account, keys: await prepareKeys(account.user.id) });
+    });
   };
 
   const signOutOf = (account: ServerAccount) => {
@@ -138,7 +215,7 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
       if (token !== undefined)
         await signOut(backend.serverFetch, account.url, token).catch(() => undefined);
       await backend.forgetServer(account.url);
-      setAccounts(await backend.servers());
+      await refresh();
       setStatus(t("signedOutOf", { server: hostOf(account.url) }));
     });
   };
@@ -175,6 +252,48 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
     });
   };
 
+  /** An account's encryption, and the way to turn it on or unlock it here. */
+  const encryptionLine = (account: ServerAccount) => {
+    const state = encryption.get(account.url);
+    if (state === undefined) return null;
+    const hint =
+      state === "on"
+        ? t("encryptionOnHint")
+        : state === "locked"
+          ? t("encryptionLockedHint")
+          : t("encryptionOffHint");
+    return (
+      <>
+        <span className="hint">{hint}</span>
+        {state === "off" ? (
+          <button
+            type="button"
+            className="quiet"
+            disabled={busy}
+            onClick={() => {
+              turnOn(account);
+            }}
+          >
+            {t("encryptionTurnOn")}
+          </button>
+        ) : state === "locked" ? (
+          <button
+            type="button"
+            className="quiet"
+            disabled={busy}
+            onClick={() => {
+              setError(undefined);
+              setPhrase("");
+              setStep({ kind: "unlock", account });
+            }}
+          >
+            {t("encryptionUnlock")}
+          </button>
+        ) : null}
+      </>
+    );
+  };
+
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -199,6 +318,7 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
                   <strong>{hostOf(account.url)}</strong>{" "}
                   {t("serverAccount", { name: account.user.name, email: account.user.email })}
                 </span>
+                {encryptionLine(account)}
                 <button
                   type="button"
                   className="quiet"
@@ -226,6 +346,55 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
           {t("connectServer")}
         </button>
       </>
+    );
+  } else if (step.kind === "keys") {
+    primary = t("encryptionTurnOn");
+    back = { kind: "list" };
+    body = (
+      <>
+        <p>{t("recoveryPhraseIntro")}</p>
+        <ol className="recovery-phrase" aria-label={t("recoveryPhrase")}>
+          {step.keys.phrase.split(" ").map((word, index) => (
+            <li key={index}>{word}</li>
+          ))}
+        </ol>
+        <p className="hint">{t("recoveryPhraseWarning")}</p>
+        <label className="field-check">
+          <input
+            type="checkbox"
+            data-autofocus
+            checked={written}
+            onChange={(event) => {
+              setWritten(event.target.checked);
+            }}
+          />
+          {t("recoveryPhraseWritten")}
+        </label>
+      </>
+    );
+  } else if (step.kind === "unlock") {
+    primary = t("encryptionUnlock");
+    back = { kind: "list" };
+    body = (
+      <label className="field">
+        {t("recoveryPhrase")}
+        <textarea
+          rows={4}
+          spellCheck={false}
+          autoComplete="off"
+          autoCapitalize="none"
+          required
+          data-autofocus
+          value={phrase}
+          aria-describedby="recovery-phrase-hint"
+          onChange={(event) => {
+            setPhrase(event.target.value);
+          }}
+        />
+        <span id="recovery-phrase-hint" className="hint">
+          {t("recoveryPhraseUnlockHint")}
+        </span>
+      </label>
     );
   } else if (step.kind === "address") {
     primary = t("continueStep");
@@ -397,7 +566,7 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
             <button
               type="submit"
               className="primary"
-              disabled={busy}
+              disabled={busy || (step.kind === "keys" && !written)}
               {...(step.kind === "list" ? { "data-autofocus": true } : {})}
             >
               {primary}
