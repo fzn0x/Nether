@@ -36,6 +36,9 @@ export default defineConfig({
     // `new Worker(…)`, so a package only a worker uses was found when the
     // worker first loaded, and the dev server reloaded the page for it.
     entries: ["index.html", "src/*.worker.ts"],
+    // SQLite's WebAssembly build finds its .wasm beside itself, which
+    // bundling ahead would move (ADR 0053).
+    exclude: ["@sqlite.org/sqlite-wasm"],
   },
   server: {
     // `mygo dev` loads this address (devUrl in mygo.json).
