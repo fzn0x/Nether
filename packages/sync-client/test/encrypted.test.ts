@@ -172,6 +172,65 @@ describe("an encrypted workspace", () => {
     expect(rows[0]?.n).toBe(55);
   });
 
+  it("says when its session is refused, and syncs nothing before it is connected", async () => {
+    const served = await encryptedServer();
+    const keys = { key: { version: 1, key: served.key }, keys: new Map([[1, served.key]]) };
+    const offline: (string | undefined)[] = [];
+    const events = {
+      onSynced: () => undefined,
+      onStored: () => undefined,
+      onOffline: (error?: string) => {
+        offline.push(error);
+      },
+    };
+    const where = {
+      server: served.url,
+      token: "not-a-token",
+      workspaceId: served.workspaceId,
+      ...keys,
+    };
+    const refused = new RelayChannel(where, new Y.Doc(), events, undefined);
+    await expect(refused.sync(randomUUID(), new Y.Doc())).rejects.toThrow(
+      "Not connected to the server.",
+    );
+    await until(() => offline.includes("Sign in again."));
+    expect(refused.synced).toBe(false);
+    refused.close();
+
+    // A workspace the account is not in: its vault document is refused, by name.
+    const elsewhere = new RelayChannel(
+      { ...where, token: served.token, workspaceId: randomUUID() },
+      new Y.Doc(),
+      events,
+      undefined,
+    );
+    await until(() =>
+      offline.includes("Sign in, as a member of this document's encrypted workspace."),
+    );
+    expect(elsewhere.synced).toBe(false);
+    elsewhere.close();
+
+    // Kept between runs: a channel that starts from its state asks only for what came since.
+    const writer = new RelayChannel(
+      { ...where, token: served.token },
+      new Y.Doc(),
+      events,
+      undefined,
+    );
+    await until(() => writer.synced);
+    const id = randomUUID();
+    const note = new Y.Doc();
+    note.getText("content").insert(0, "kept");
+    await writer.sync(id, note);
+    const state = writer.state();
+    writer.close();
+    const again = new RelayChannel({ ...where, token: served.token }, new Y.Doc(), events, state);
+    await until(() => again.synced);
+    await again.sync(id, note);
+    expect(again.state()).toEqual(state);
+    again.close();
+  });
+
   it("sends an edit made while the document was syncing, the next time", async () => {
     const served = await encryptedServer();
     const keys = { key: { version: 1, key: served.key }, keys: new Map([[1, served.key]]) };
