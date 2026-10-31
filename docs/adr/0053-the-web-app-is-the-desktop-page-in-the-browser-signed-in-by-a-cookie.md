@@ -87,3 +87,8 @@ files, so it opens offline.
   page waits for the old one to let go, and a second tab is told at once.
 - The desktop app's build leaves the web backend, its worker and SQLite's
   WebAssembly out: the target is fixed as the page is built.
+- The service worker keeps every file of the build, about 11 MB, once the
+  app is opened, so every part of it works offline, not only those opened
+  before. A new version waits for the old one's pages to close, so none of
+  them misses its files. The account's workspaces are kept in the browser
+  too, so they are listed offline.

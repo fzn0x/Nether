@@ -15,7 +15,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   server and open offline once opened. Invitation links, sign-in email
   links and single sign-on come back to it; exports download, and
   imports come from the browser's file and folder pickers, ZIP files
-  read in the page. The server serving it comes next
+  read in the page. The server serves it at `/` (`NETHER_WEB_APP`), with
+  its content security policy; it installs as an app, and its service
+  worker keeps its files, so it opens offline, the workspaces this browser
+  keeps listed when the server cannot be reached
   ([ADR 0053](docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)).
 - A signed-in browser accepts an invitation into its account with its
   cookie, as the desktop app does with its token.

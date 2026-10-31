@@ -22,13 +22,19 @@ browser, which the Nether server serves
   come from the browser's file and folder pickers, read as the desktop
   app reads them (`apps/desktop/src/webImports.ts`), ZIP files in the page.
 
+The server serves the build at `/`, with its content security policy
+(`apps/server/src/web.ts`). The build adds a web manifest, the icons in
+`public/` (`pnpm --filter @nether/web icons` renders them from the desktop
+app's `icon.svg`), and a service worker that keeps every file of the
+build, so the app installs and opens offline.
+
 ## Develop
 
 Start a server on port 3000 (see [its README](../server/README.md)), then:
 
 ```sh
 pnpm --filter @nether/web dev       # http://localhost:5174, the API sent on to :3000
-pnpm --filter @nether/web build     # into dist/
+pnpm --filter @nether/web build     # into dist/, which the server then serves
 ```
 
 `NETHER_SERVER` points the dev server at another server's address.

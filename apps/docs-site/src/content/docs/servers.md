@@ -73,6 +73,29 @@ its place, and the other beside it, as `map 1.png`. Hidden folders, such as
 100 MB unless its admin sets otherwise, stays on your computer, and the
 line at the foot of the sidebar names it.
 
+## The web app
+
+A Nether server is also a web app: open its address in a browser, such as
+`https://nether.example.org`, and sign in there. Each workspace of yours is
+listed, and opens as a vault in the browser, which keeps a copy of it and
+syncs it as the desktop app does. Make a new workspace from the same page.
+
+- **Offline.** Once opened, the app and the workspaces it keeps open with
+  no connection; changes wait, and sync when the server can be reached.
+- **As an app.** The browser's install button, in its address bar or menu,
+  installs Nether as an app of its own window.
+- **One tab per workspace.** A workspace opens in one tab of a browser at a
+  time; another tab says it is open already.
+- **Files.** Exports download, PDFs through the browser's print dialog, and
+  imports come from the browser's file and folder pickers. Previews of web
+  links need the desktop app.
+- **Signing in.** Invitation links and the links in sign-in emails open
+  the web app. **Account and encryption** signs out, and turns on or
+  unlocks end-to-end encryption.
+
+What a browser keeps goes when its site data is cleared; what has synced
+stays on the server.
+
 ## Members and invitations
 
 **Workspace members**, in the command palette, lists the people in the

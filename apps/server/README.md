@@ -346,6 +346,33 @@ one. A backup made by an older server of the same major release restores
 into a newer one, migrated as it is restored; one made by a newer server
 is refused. CI runs these steps on every change, against PostgreSQL.
 
+## The web app
+
+The server serves the web app at `/`
+([ADR 0053](../../docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)):
+by default the build in `apps/web/dist` beside it, when it was built, or
+the folder `NETHER_WEB_APP` names; `NETHER_WEB_APP=off` serves only the
+API.
+
+```sh
+pnpm --filter @nether/web build
+pnpm --filter @nether/server start      # the app at http://127.0.0.1:3000/
+```
+
+Every path the API does not have, and that names no file, gets the app's
+page, as `/invite` and `/sign-in` do; `/api/…` keeps its JSON answers.
+Files under `/assets/` are named by their content and kept by browsers for
+a year; the page, its manifest and its service worker are checked each
+time. Each answer carries the app's content security policy: its own
+scripts, workers and WebAssembly, connections to this server alone, images
+and media from it and from `blob:` and `data:`, no frames, and no inline
+scripts.
+
+The service worker keeps all of the app's files, about 11 MB, once it is
+opened, so it opens offline. Serve it over HTTPS: browsers keep the
+session's cookies `Secure` and run service workers only there, or on this
+machine.
+
 ## Configuration
 
 | Variable | Default | |
@@ -375,6 +402,7 @@ is refused. CI runs these steps on every change, against PostgreSQL.
 | `NETHER_BACKUP_S3_PREFIX` | `nether-backups/` | The folder of that bucket they go in |
 | `NETHER_BACKUP_HOURS` | `24` | How many hours apart backups are made |
 | `NETHER_BACKUP_KEEP` | `7` | How many backups are kept, the newest |
+| `NETHER_WEB_APP` | `apps/web/dist`, when built | The web app's build to serve at `/`, or `off` |
 | `NETHER_TRUST_PROXY` | `off` | Behind a reverse proxy, whose `X-Forwarded-For` to believe: `on` for any, or addresses and ranges such as `10.0.0.2, 172.16.0.0/12` or `uniquelocal` |
 | `NETHER_ENTERPRISE_SSO` | `off` | Single sign-on |
 | `NETHER_ENTERPRISE_SCIM` | `off` | Provisioning through SCIM and LDAP |
