@@ -19,8 +19,10 @@ export function QuickSwitcher(props: {
   readonly graph: LinkGraph;
   readonly onOpen: (id: NoteId) => void;
   readonly onClose: () => void;
+  /** What the dialog is called, when it picks a note for something other than opening it. */
+  readonly label?: string;
 }) {
-  const { vault, graph, onOpen, onClose } = props;
+  const { vault, graph, onOpen, onClose, label } = props;
   const [text, setText] = useState("");
   const [active, setActive] = useState(0);
   const list = useRef<HTMLUListElement>(null);
@@ -72,7 +74,7 @@ export function QuickSwitcher(props: {
         className="switcher"
         role="dialog"
         aria-modal="true"
-        aria-label={t("switcher")}
+        aria-label={label ?? t("switcher")}
         ref={dialog}
       >
         <input
