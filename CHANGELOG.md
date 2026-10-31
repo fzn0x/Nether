@@ -153,6 +153,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   note's text
   ([ADR 0044](docs/adr/0044-a-notes-comments-are-a-document-of-their-own-beside-it.md)).
   `@nether/editor` reads and changes their threads.
+- Comments in the desktop app, in a vault linked to a workspace: a thread
+  on the selection or a block, from **Comment on the selection**
+  (Ctrl+Alt+M) or the block's menu; its text tinted in the note; and the
+  **Comments** panel beside the note to reply, edit and delete one's own
+  comments, resolve and reopen. Those who may only view read them. A
+  Markdown export holds the notes' comments in `.nether/comments.json`.
 - Spaces and sharing in the desktop app: **Spaces** makes teamspaces,
   from a folder of the vault or anew, with their members and levels, and
   a private space; **Share this page** shares a page on its own with its

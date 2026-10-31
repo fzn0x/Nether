@@ -66,6 +66,12 @@ fetches its comments too, as they may have been stored before this device
 could see them, as when a teamspace has just been opened to it. In an
 encrypted workspace they go through the relay, encrypted like notes.
 
+**The app offers comments in a vault linked to a workspace.** A comment
+names its writer by their account on the workspace's server, which a vault
+with no server has none of. The app reads the account's level on the
+note's unit, and offers to comment only above **Can view**; while sync has
+not said, it offers to, and the server refuses what it must.
+
 ## Alternatives
 
 - **One comments document per workspace or unit.** Every device would

@@ -24,7 +24,10 @@ it is saved, **Show in folder** opens the folder it is in.
 
 **Markdown files, in a ZIP.** The notes' files exactly as they are in the
 vault, in their folders, with the images and other files they show. An
-export of the whole vault takes every file the vault holds.
+export of the whole vault takes every file the vault holds. When the notes
+have [comments](../servers/#comments), `.nether/comments.json` holds them:
+each note's threads, with the text each is on, and what each comment says,
+who wrote it and when.
 
 **Web pages, in a ZIP.** A page for each note, in the same folders, with
 the files it shows beside it, and an `index.html` that lists every page.

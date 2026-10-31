@@ -101,6 +101,29 @@ tinted the same. Your name is your account's on the server.
 In an encrypted workspace, edits come a few seconds apart, as they do for
 notes no one has open, and no carets show yet.
 
+## Comments
+
+In a vault that syncs with a workspace, you can comment on a note's text:
+
+- Select the text and press **Ctrl+Alt+M** (**Cmd+Option+M** on a Mac), or
+  run **Comment on the selection** from the command palette. With nothing
+  selected, the comment is on the block the caret is in. A block's menu,
+  beside it, has **Comment** too.
+- Write the comment in the box that opens in the **Comments** panel beside
+  the note, then click **Comment** or press **Ctrl+Enter**.
+- The text commented on is tinted in the note. Click it to show its thread,
+  or click a thread's quote to show its text in the note.
+- Reply to a thread from its box, and **Resolve** it once it is settled:
+  it folds away under **Resolved**, where **Reopen** brings it back. You
+  can edit and delete your own comments.
+
+A thread follows its text as anyone edits the note. If that text is
+deleted, the thread stays on its block. Comments sync with the note, even
+when you comment offline, and in an encrypted workspace they are encrypted
+too. They are not in the note's Markdown file, which holds only the note.
+Those who **Can comment** on a space or page comment on its notes without
+changing them; those who **Can view** read the comments.
+
 ## Spaces and sharing
 
 A workspace's notes are in spaces, which **Spaces**, in the command palette,
