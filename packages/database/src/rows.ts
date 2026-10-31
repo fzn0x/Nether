@@ -11,6 +11,8 @@ export interface Row {
   readonly created?: number;
   readonly updated: number;
   readonly properties: readonly PropertyEntry[];
+  /** Its tags, without `#`, inline ones and those its properties name, when they are known. */
+  readonly tags?: readonly string[];
   /** What each formula could not work out for the row, by its key. */
   readonly errors?: ReadonlyMap<string, string>;
 }

@@ -27,10 +27,11 @@ const values: Record<string, FormulaValue> = {
 const context: FormulaContext = {
   property: (key) => values[key] ?? null,
   file: {
-    name: "Launch",
     path: "Projects/Launch.md",
     mtime: new Date(2026, 10, 1),
     ctime: new Date(2026, 9, 1),
+    tags: ["area/web", "Launch"],
+    hasProperty: (key) => key in values,
   },
   now,
 };
@@ -149,13 +150,51 @@ describe("evaluateFormula", () => {
 
   it("reads the row's values by name, as a note's or a formula's, and its file's", () => {
     expect(run('note["Big points"] + note.price + formula.pages')).toBe(23);
-    expect(run('file.name + " " + file.path')).toBe("Launch Projects/Launch.md");
+    expect(run('file.name + " " + file.path')).toBe("Launch.md Projects/Launch.md");
     expect(run("file.mtime < file.ctime")).toBe(false);
-    expect(run("file.basename")).toBe("Launch");
+    expect(run('file.basename + " in " + file.folder + ", " + file.ext')).toBe(
+      "Launch in Projects, md",
+    );
+    expect(run("file.tags")).toEqual(["area/web", "Launch"]);
     expect(run("unknown")).toBeNull();
     expect(fails("note")).toBe('"note" needs a name after it, as note.name');
     expect(fails("file.size")).toBe('file has no "size"');
+    expect(fails("file.open()")).toBe("file has no open()");
     expect(fails("price()")).toBe("There is no function price()");
+  });
+
+  it("asks of the file what Obsidian's file functions do", () => {
+    // A tag, or one below it, case aside, with or without its #.
+    expect(run('file.hasTag("area")')).toBe(true);
+    expect(run('file.hasTag("#launch")')).toBe(true);
+    expect(run('file.hasTag("are")')).toBe(false);
+    expect(run('file.hasTag("docs", "area/web")')).toBe(true);
+    // A folder, or one above it; the vault's top holds every file.
+    expect(run('file.inFolder("Projects")')).toBe(true);
+    expect(run('file.inFolder("projects/")')).toBe(true);
+    expect(run('file.inFolder("Proj")')).toBe(false);
+    expect(run('file.inFolder("/")')).toBe(true);
+    // A property it has, even an empty one.
+    expect(run('file.hasProperty("empty")')).toBe(true);
+    expect(run('file.hasProperty("missing")')).toBe(false);
+  });
+
+  it("names a file at the vault's top as Obsidian does, and one without an extension", () => {
+    const file = (path: string) => ({ ...context.file, path });
+    const at = (path: string, text: string) =>
+      evaluateFormula(parseFormula(text), { ...context, file: file(path) });
+    expect(at("Inbox.md", "file.folder")).toBe("/");
+    expect(at("Inbox.md", 'file.inFolder("Projects")')).toBe(false);
+    expect(at("Notes/README", "file.basename + file.ext")).toBe("README");
+  });
+
+  it("reads formula. through the context's formulas when it has them", () => {
+    const formulas = { ...context, formula: (key: string) => `formula ${key}` };
+    expect(evaluateFormula(parseFormula("formula.price"), formulas)).toBe("formula price");
+    expect(evaluateFormula(parseFormula('formula["Big points"]'), formulas)).toBe(
+      "formula Big points",
+    );
+    expect(evaluateFormula(parseFormula("note.price + price"), formulas)).toBe(24);
   });
 
   it("holds lists, indexed from the start or the end", () => {

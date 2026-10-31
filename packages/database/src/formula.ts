@@ -10,7 +10,7 @@ import {
   addToDate,
   formatDate,
 } from "@nether/core";
-import { type Row, linkName, rowTitle, rowValue } from "./rows.ts";
+import { type Row, linkName, rowValue } from "./rows.ts";
 
 /** A value a formula works with: JSON's, or a date. */
 export type FormulaValue = null | boolean | number | string | Date | readonly FormulaValue[];
@@ -271,16 +271,25 @@ export function parseFormula(text: string): FormulaNode {
   return node;
 }
 
+/** What a formula reads of a row's file, as Obsidian's `file.` does. */
+export interface FormulaFile {
+  /** Relative to the vault, with its extension; its name, folder and extension are read from it. */
+  readonly path: string;
+  readonly ctime?: Date;
+  readonly mtime: Date;
+  /** Its tags, without `#`. */
+  readonly tags: readonly string[];
+  /** Whether it has a property by that name, even an empty one. */
+  hasProperty(key: string): boolean;
+}
+
 /** What a formula reads a row's values through. */
 export interface FormulaContext {
   /** A property's value, by its key: a note's own, a rollup's, or another formula's. */
   property(key: string): FormulaValue;
-  readonly file: {
-    readonly name: string;
-    readonly path: string;
-    readonly ctime?: Date;
-    readonly mtime: Date;
-  };
+  /** A formula's value, as `formula.` reads it; without it, `formula.` reads as `note.` does. */
+  formula?(key: string): FormulaValue;
+  readonly file: FormulaFile;
   readonly now: Date;
 }
 
@@ -295,7 +304,8 @@ function isList(value: FormulaValue | undefined): value is readonly FormulaValue
   return Array.isArray(value);
 }
 
-function truthy(value: FormulaValue): boolean {
+/** Whether a value holds as a condition: not `null`, `false`, `0`, `""` or `[]`. */
+export function truthy(value: FormulaValue): boolean {
   if (value === null || value === false || value === 0 || value === "") return false;
   if (isList(value)) return value.length > 0;
   return !(typeof value === "number" && Number.isNaN(value));
@@ -373,7 +383,8 @@ function same(a: FormulaValue, b: FormulaValue): boolean {
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
-function order(a: FormulaValue, b: FormulaValue): number | undefined {
+/** How two values of a kind are ordered; undefined for values of different kinds. */
+export function order(a: FormulaValue, b: FormulaValue): number | undefined {
   if (isDate(a) && isDate(b)) return a.getTime() - b.getTime();
   if (typeof a === "number" && typeof b === "number") return a - b;
   if (typeof a === "string" && typeof b === "string")
@@ -391,6 +402,79 @@ function kindName(value: FormulaValue): string {
     : typeof value === "number"
       ? "a number"
       : "true or false";
+}
+
+/** A file's name, with its extension, from its path. */
+function fileName(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+/** A file's folder, `/` at the vault's top, as Obsidian names it. */
+function fileFolder(path: string): string {
+  const end = path.lastIndexOf("/");
+  return end === -1 ? "/" : path.slice(0, end);
+}
+
+/** A file's extension, without its dot; "" when it has none. */
+function fileExtension(path: string): string {
+  const name = fileName(path);
+  const dot = name.lastIndexOf(".");
+  return dot <= 0 ? "" : name.slice(dot + 1);
+}
+
+/** What `file.` names: a part of the row's file. */
+function fileMember(file: FormulaFile, name: string, at: number): FormulaValue {
+  switch (name) {
+    case "name":
+      return fileName(file.path);
+    case "basename": {
+      const extension = fileExtension(file.path);
+      const whole = fileName(file.path);
+      return extension === "" ? whole : whole.slice(0, -extension.length - 1);
+    }
+    case "path":
+      return file.path;
+    case "folder":
+      return fileFolder(file.path);
+    case "ext":
+      return fileExtension(file.path);
+    case "ctime":
+      return file.ctime ?? null;
+    case "mtime":
+      return file.mtime;
+    case "tags":
+      return [...file.tags];
+  }
+  throw new FormulaError(`file has no "${name}"`, at);
+}
+
+/** What `file.` does: whether the row's file has a tag, is in a folder, or has a property. */
+function fileMethod(
+  file: FormulaFile,
+  name: string,
+  args: readonly FormulaValue[],
+  at: number,
+): FormulaValue {
+  switch (name) {
+    case "hasTag": {
+      // Any of the tags, or a tag below one, as `#area/project` is below `#area`.
+      const tags = file.tags.map((tag) => tag.toLowerCase());
+      return args.some((arg) => {
+        const wanted = formulaText(arg).replace(/^#/, "").toLowerCase();
+        return tags.some((tag) => tag === wanted || tag.startsWith(`${wanted}/`));
+      });
+    }
+    case "inFolder": {
+      // The folder, or one below it; the vault's top holds every file.
+      const folder = formulaText(args[0] ?? null)
+        .replace(/^\/+|\/+$/g, "")
+        .toLowerCase();
+      return folder === "" || file.path.toLowerCase().startsWith(`${folder}/`);
+    }
+    case "hasProperty":
+      return file.hasProperty(formulaText(args[0] ?? null));
+  }
+  throw new FormulaError(`file has no ${name}()`, at);
 }
 
 /** Works out a read formula for one row. */
@@ -608,6 +692,10 @@ export function evaluateFormula(node: FormulaNode, context: FormulaContext): For
     throw new FormulaError(`"${op}" cannot be worked out`, at);
   }
 
+  function formula(key: string): FormulaValue {
+    return context.formula === undefined ? context.property(key) : context.formula(key);
+  }
+
   function run(node: FormulaNode): FormulaValue {
     step();
     switch (node.type) {
@@ -625,31 +713,19 @@ export function evaluateFormula(node: FormulaNode, context: FormulaContext): For
         return context.property(node.name);
       case "member": {
         const object = node.object;
-        if (object.type === "name" && (object.name === "note" || object.name === "formula")) {
-          return context.property(node.name);
-        }
+        if (object.type === "name" && object.name === "note") return context.property(node.name);
+        if (object.type === "name" && object.name === "formula") return formula(node.name);
         if (object.type === "name" && object.name === "file") {
-          switch (node.name) {
-            case "name":
-            case "basename":
-              return context.file.name;
-            case "path":
-              return context.file.path;
-            case "ctime":
-              return context.file.ctime ?? null;
-            case "mtime":
-              return context.file.mtime;
-          }
-          throw new FormulaError(`file has no "${node.name}"`, node.at);
+          return fileMember(context.file, node.name, node.at);
         }
         return member(run(object), node.name, node.at);
       }
       case "index": {
-        if (
-          node.object.type === "name" &&
-          (node.object.name === "note" || node.object.name === "formula")
-        ) {
+        if (node.object.type === "name" && node.object.name === "note") {
           return context.property(formulaText(run(node.index)));
+        }
+        if (node.object.type === "name" && node.object.name === "formula") {
+          return formula(formulaText(run(node.index)));
         }
         const list = run(node.object);
         const index = run(node.index);
@@ -666,6 +742,10 @@ export function evaluateFormula(node: FormulaNode, context: FormulaContext): For
           if (call === undefined)
             throw new FormulaError(`There is no function ${callee.name}()`, callee.at);
           return call(node.args, node.at);
+        }
+        if (callee.type === "member" && callee.object.type === "name") {
+          if (callee.object.name === "file")
+            return fileMethod(context.file, callee.name, node.args.map(run), callee.at);
         }
         if (callee.type === "member")
           return method(run(callee.object), callee.name, node.args.map(run), callee.at);
@@ -688,7 +768,7 @@ export function evaluateFormula(node: FormulaNode, context: FormulaContext): For
 }
 
 /** A row's value as a formula reads it: a date property's as a date, a list's items each so. */
-function readValue(
+export function readValue(
   value: JsonValue | undefined,
   definition: PropertyDefinition | undefined,
   key: string,
@@ -712,6 +792,68 @@ export function formulaJson(value: FormulaValue): JsonValue {
   return value;
 }
 
+/** Formulas read from their text, by their names, or why each cannot be read. */
+export function readFormulas(
+  entries: Iterable<readonly [string, string]>,
+): Map<string, FormulaNode | FormulaError> {
+  const formulas = new Map<string, FormulaNode | FormulaError>();
+  for (const [key, text] of entries) {
+    try {
+      formulas.set(key, parseFormula(text));
+    } catch (error) {
+      formulas.set(key, error instanceof FormulaError ? error : new FormulaError(String(error)));
+    }
+  }
+  return formulas;
+}
+
+/**
+ * Works out one row's formulas by name, each once, through the context
+ * made for it; a formula that reads itself, directly or through others,
+ * is an error.
+ */
+export function formulaWork(
+  formulas: ReadonlyMap<string, FormulaNode | FormulaError>,
+  contextOf: (work: (key: string) => FormulaValue) => FormulaContext,
+): { readonly work: (key: string) => FormulaValue; readonly context: FormulaContext } {
+  const worked = new Map<string, FormulaValue | FormulaError>();
+  const working = new Set<string>();
+  const work = (key: string): FormulaValue => {
+    const done = worked.get(key);
+    if (done instanceof FormulaError) throw done;
+    if (done !== undefined) return done;
+    if (working.has(key)) throw new FormulaError(`The formula refers to itself through ${key}`);
+    const formula = formulas.get(key);
+    if (formula instanceof FormulaError) throw formula;
+    working.add(key);
+    try {
+      if (formula === undefined) throw new FormulaError(`There is no formula ${key}`);
+      const value = evaluateFormula(formula, context);
+      worked.set(key, value);
+      return value;
+    } catch (error) {
+      const failure = error instanceof FormulaError ? error : new FormulaError(String(error));
+      worked.set(key, failure);
+      throw failure;
+    } finally {
+      working.delete(key);
+    }
+  };
+  const context = contextOf(work);
+  return { work, context };
+}
+
+/** What a formula reads of a row's file. */
+export function fileOf(row: Row): FormulaFile {
+  return {
+    path: row.path,
+    mtime: new Date(row.updated),
+    ...(row.created === undefined ? {} : { ctime: new Date(row.created) }),
+    tags: row.tags ?? [],
+    hasProperty: (key) => row.properties.some((entry) => entry.key === key),
+  };
+}
+
 /**
  * Rows with each formula's value in place of whatever their files hold
  * under its key, a formula reading the others, rollups and the row's own
@@ -722,55 +864,21 @@ export function withFormulas(
   schema: DatabaseSchema,
   now = new Date(),
 ): Row[] {
-  const formulas = new Map<string, FormulaNode | FormulaError>();
-  for (const property of schema.properties) {
-    if (property.formula === undefined) continue;
-    try {
-      formulas.set(property.key, parseFormula(property.formula));
-    } catch (error) {
-      formulas.set(
-        property.key,
-        error instanceof FormulaError ? error : new FormulaError(String(error)),
-      );
-    }
-  }
+  const formulas = readFormulas(
+    schema.properties.flatMap((property) =>
+      property.formula === undefined ? [] : [[property.key, property.formula] as const],
+    ),
+  );
   if (formulas.size === 0) return [...rows];
   const definitions = new Map(schema.properties.map((property) => [property.key, property]));
   return rows.map((row) => {
-    const worked = new Map<string, FormulaValue | FormulaError>();
-    const working = new Set<string>();
-    const work = (key: string): FormulaValue => {
-      const done = worked.get(key);
-      if (done instanceof FormulaError) throw done;
-      if (done !== undefined) return done;
-      if (working.has(key)) throw new FormulaError(`The formula refers to itself through ${key}`);
-      const formula = formulas.get(key);
-      if (formula instanceof FormulaError) throw formula;
-      working.add(key);
-      try {
-        if (formula === undefined) throw new FormulaError(`There is no formula ${key}`);
-        const value = evaluateFormula(formula, context);
-        worked.set(key, value);
-        return value;
-      } catch (error) {
-        const failure = error instanceof FormulaError ? error : new FormulaError(String(error));
-        worked.set(key, failure);
-        throw failure;
-      } finally {
-        working.delete(key);
-      }
-    };
-    const context: FormulaContext = {
+    // In a database a formula is a property: a name reads either.
+    const { work } = formulaWork(formulas, (formula) => ({
       property: (key) =>
-        formulas.has(key) ? work(key) : readValue(rowValue(row, key), definitions.get(key), key),
-      file: {
-        name: rowTitle(row),
-        path: row.path,
-        mtime: new Date(row.updated),
-        ...(row.created === undefined ? {} : { ctime: new Date(row.created) }),
-      },
+        formulas.has(key) ? formula(key) : readValue(rowValue(row, key), definitions.get(key), key),
+      file: fileOf(row),
       now,
-    };
+    }));
     const errors = new Map<string, string>();
     const values = [...formulas.keys()].map((key) => {
       try {

@@ -2,6 +2,7 @@ export { basePath, readBase, writeBase } from "./base.ts";
 export {
   type FormulaContext,
   FormulaError,
+  type FormulaFile,
   type FormulaNode,
   type FormulaValue,
   evaluateFormula,
@@ -11,6 +12,16 @@ export {
   withFormulas,
 } from "./formula.ts";
 export { type FindRow, rollupValue, withRollups } from "./rollups.ts";
+export {
+  type Query,
+  type QueryColumn,
+  type QueryFilter,
+  type QueryResult,
+  type QuerySort,
+  type QueryView,
+  readQuery,
+  runQuery,
+} from "./queryBlock.ts";
 export {
   type Group,
   type ViewResult,
