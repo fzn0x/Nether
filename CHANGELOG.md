@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Encrypted workspaces on the server: accounts keep a public key and a
+  private key only their recovery phrase opens, a workspace made encrypted
+  holds its key sealed to each member, and its updates sync through
+  `/api/relay`, which keeps them in order without reading them; Hocuspocus
+  refuses them, so no note of one is ever stored in plain text
+  ([ADR 0038](docs/adr/0038-encrypted-workspaces-seal-a-key-to-each-member-and-relay-updates-the-server-cannot-read.md)).
 - Sync this vault, in the desktop app's command palette: a vault syncs
   with a workspace on a server it is signed in to, its notes sent there and
   made on every computer that opens the workspace into an empty folder,
