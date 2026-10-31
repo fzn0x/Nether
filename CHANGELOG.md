@@ -352,6 +352,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   moved with it. A view's columns, grouping and filter changed in
   Obsidian, and views added or removed there, come back to the database;
   what only Obsidian has, as a sort, a limit or a map, stays in the base.
+- A note's properties can be put in another order: drag one by the handle
+  in the margin before it, or focus the handle and press the up or down
+  arrow. The frontmatter keeps the order.
 
 ### Changed
 

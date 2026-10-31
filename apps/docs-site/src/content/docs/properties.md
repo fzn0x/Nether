@@ -22,6 +22,11 @@ Click **Add a property** below the note's properties. The new property's
 name is ready to type; press Enter or click away to keep it. Click any name
 to rename it, and the × at the end of a row to remove it.
 
+To change the order, drag a property by the handle (⠿) that shows in the
+margin before it, and drop it where the line shows. From the keyboard, Tab
+to the handle and press the up or down arrow. The note's frontmatter keeps
+the order you choose.
+
 How you edit a value depends on its type:
 
 | Type | Edited as |
