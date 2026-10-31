@@ -59,6 +59,16 @@ export interface NoteIndexData {
   readonly data: unknown;
 }
 
+/** A version of a note: its text as it was before an edit (ADR 0041). */
+export interface NoteVersion {
+  readonly id: number;
+  readonly note: NoteId;
+  /** When the note last had this text, in milliseconds since 1970. */
+  readonly time: number;
+  /** The text's length, in characters. */
+  readonly length: number;
+}
+
 /** A JSON text read, or null when it cannot be. */
 export function readJson(text: string): unknown {
   try {
@@ -98,8 +108,19 @@ export interface IndexStore {
   compact(note: NoteId, snapshot: Uint8Array, through: number): Promise<void>;
   /** Records the hash of the file the document now matches. */
   setFileHash(note: NoteId, hash: string): Promise<void>;
-  /** Forgets a note's document, its updates and its file's hash, as when the note is deleted for good. */
+  /**
+   * Forgets a note's document, its updates, its file's hash and its
+   * versions, as when the note is deleted for good.
+   */
   deleteDocument(note: NoteId): Promise<void>;
+  /** Keeps a version of a note's text, from a time. */
+  addVersion(note: NoteId, time: number, text: string): Promise<void>;
+  /** A note's versions, the latest first, without their text. */
+  versions(note: NoteId): Promise<readonly NoteVersion[]>;
+  /** A version's text; undefined when it is not kept. */
+  versionText(id: number): Promise<string | undefined>;
+  /** Deletes every note's versions from before a time; returns how many. */
+  deleteVersions(before: number): Promise<number>;
   /**
    * A setting this device keeps for the vault, outside its folder, as its
    * link to a server and what sync knows; undefined when there is none.
@@ -160,6 +181,8 @@ export class MemoryStore implements IndexStore {
   #indexOrder: NoteId[] | undefined;
   readonly #texts = new Map<NoteId, NoteTextRow>();
   readonly #settings = new Map<string, Uint8Array>();
+  readonly #versions = new Map<number, NoteVersion & { readonly text: string }>();
+  #nextVersion = 1;
 
   #document(note: NoteId) {
     let document = this.#documents.get(note);
@@ -208,7 +231,39 @@ export class MemoryStore implements IndexStore {
 
   deleteDocument(note: NoteId): Promise<void> {
     this.#documents.delete(note);
+    for (const [id, version] of this.#versions) {
+      if (version.note === note) this.#versions.delete(id);
+    }
     return Promise.resolve();
+  }
+
+  addVersion(note: NoteId, time: number, text: string): Promise<void> {
+    const id = this.#nextVersion++;
+    this.#versions.set(id, { id, note, time, length: text.length, text });
+    return Promise.resolve();
+  }
+
+  versions(note: NoteId): Promise<readonly NoteVersion[]> {
+    return Promise.resolve(
+      [...this.#versions.values()]
+        .filter((version) => version.note === note)
+        .sort((a, b) => b.time - a.time || b.id - a.id)
+        .map(({ id, time, length }) => ({ id, note, time, length })),
+    );
+  }
+
+  versionText(id: number): Promise<string | undefined> {
+    return Promise.resolve(this.#versions.get(id)?.text);
+  }
+
+  deleteVersions(before: number): Promise<number> {
+    let count = 0;
+    for (const [id, version] of this.#versions) {
+      if (version.time >= before) continue;
+      this.#versions.delete(id);
+      count += 1;
+    }
+    return Promise.resolve(count);
   }
 
   setting(key: string): Promise<Uint8Array | undefined> {

@@ -15,7 +15,7 @@ import {
   noteTitle,
 } from "./files.ts";
 import { LinkIndex } from "./links.ts";
-import type { FileRecord, IndexChange, IndexStore } from "./store.ts";
+import type { FileRecord, IndexChange, IndexStore, NoteVersion } from "./store.ts";
 import {
   type TrashItem,
   type TrashRecord,
@@ -67,6 +67,16 @@ const dayLength = 86_400_000;
 
 /** Where the vault records its trash, in `.nether`. */
 const trashData = "trash";
+
+/**
+ * How long a note goes between versions (ADR 0041): its first write after
+ * this long keeps the text it replaces, so its history has the note as it
+ * was before each spell of editing, and every ten minutes during one.
+ */
+export const versionEvery = 10 * 60_000;
+/** How many days this device keeps notes' versions, unless set. */
+export const defaultHistoryDays = 30;
+const historyDaysKey = "history.days";
 
 /** Sorts as a file explorer does: case aside, and numbers by their value. */
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -121,6 +131,8 @@ export class Vault {
   readonly #records = new Map<string, FileRecord>();
   readonly #paths = new Map<NoteId, string>();
   readonly #listeners = new Set<(changed: readonly NoteId[]) => void>();
+  /** When each note written since the vault opened last kept a version. */
+  readonly #lastVersion = new Map<NoteId, number>();
   #notes: NoteEntry[] | undefined;
   #links: LinkIndex | undefined;
   #queue: Promise<void> = Promise.resolve();
@@ -343,12 +355,61 @@ export class Vault {
 
   async #write(id: NoteId, text: string, base: string): Promise<FileText> {
     const path = this.#need(id);
+    await this.#keepVersion(id, path, text, base);
     const written = await this.#files.write(path, text, base);
     const record = this.#records.get(path);
     if (record !== undefined) {
       await this.#commit({ upsert: [{ ...moved(record, path, written), hash: written.hash }] });
     }
     return written;
+  }
+
+  /**
+   * Keeps the text a write replaces as a version of the note, when its
+   * last version is older than `versionEvery`. Only the text the write was
+   * checked against is kept: a file changed since fails the write anyway.
+   */
+  async #keepVersion(id: NoteId, path: string, text: string, base: string): Promise<void> {
+    const now = this.#now();
+    const last = this.#lastVersion.get(id) ?? (await this.#store.versions(id))[0]?.time ?? 0;
+    this.#lastVersion.set(id, last);
+    if (now - last < versionEvery) return;
+    const before = await this.#files.read(path);
+    if (before.missing === true || before.binary === true) return;
+    if (before.hash !== base || before.text === text) return;
+    await this.#store.addVersion(id, now, before.text);
+    this.#lastVersion.set(id, now);
+  }
+
+  /** A note's versions, the latest first, without their text. */
+  versions(id: NoteId): Promise<readonly NoteVersion[]> {
+    return this.#store.versions(id);
+  }
+
+  /** A version's text; undefined once it is no longer kept. */
+  versionText(version: number): Promise<string | undefined> {
+    return this.#store.versionText(version);
+  }
+
+  /** How many days this device keeps notes' versions: 30 unless set. */
+  async historyDays(): Promise<number> {
+    const value = await this.#store.setting(historyDaysKey);
+    const days = value === undefined ? undefined : Number(new TextDecoder().decode(value));
+    return isKeepDays(days) ? days : defaultHistoryDays;
+  }
+
+  /** Sets how many days this device keeps notes' versions, a whole number from 1. */
+  async setHistoryDays(days: number): Promise<void> {
+    if (!isKeepDays(days)) {
+      throw new Error(`${String(days)} is not a number of days to keep versions.`);
+    }
+    await this.#store.setSetting(historyDaysKey, new TextEncoder().encode(String(days)));
+  }
+
+  /** Deletes the versions older than this device keeps them; returns how many. */
+  async purgeHistory(): Promise<number> {
+    const days = await this.historyDays();
+    return this.#store.deleteVersions(this.#now() - days * dayLength);
   }
 
   /** Creates a note with its text at a path where no file is. */

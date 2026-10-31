@@ -1,6 +1,6 @@
 import type { NoteId } from "@nether/core";
 import { describe, expect, it } from "vitest";
-import { SqliteStore, migrate, schemaVersion } from "../src/index.ts";
+import { MemoryStore, SqliteStore, migrate, schemaVersion } from "../src/index.ts";
 import { nodeDatabase } from "./node-database.ts";
 
 const note = (n: number) => `01929f4c-7b00-7a00-8000-00000000000${String(n)}` as NoteId;
@@ -19,9 +19,11 @@ describe("migrate", () => {
   it("keeps the texts of a version 4 index, found by their rows from then on", async () => {
     const database = nodeDatabase();
     await migrate(database);
-    // As version 4 left it: texts in note_texts, no table of their rows, no detail and no settings.
+    // As version 4 left it: texts in note_texts, no table of their rows, no
+    // detail, no settings and no versions.
     await database.execute("DROP TABLE note_text_rows");
     await database.execute("DROP TABLE settings");
+    await database.execute("DROP TABLE note_versions");
     await database.execute("ALTER TABLE note_indexes DROP COLUMN detail");
     await database.execute("PRAGMA user_version = 4");
     await database.execute("INSERT INTO note_texts (note, title, body) VALUES (?, ?, ?)", [
@@ -50,9 +52,10 @@ describe("migrate", () => {
   it("keeps the index rows of a version 5 index, with no detail", async () => {
     const database = nodeDatabase();
     await migrate(database);
-    // As version 5 left it: no detail column, and no settings.
+    // As version 5 left it: no detail column, no settings and no versions.
     await database.execute("ALTER TABLE note_indexes DROP COLUMN detail");
     await database.execute("DROP TABLE settings");
+    await database.execute("DROP TABLE note_versions");
     await database.execute("PRAGMA user_version = 5");
     await database.execute(
       "INSERT INTO note_indexes (note, size, modified, data) VALUES (?, ?, ?, ?)",
@@ -135,4 +138,35 @@ describe("SqliteStore", () => {
     await store.close();
     expect(() => database.raw.prepare("SELECT 1")).toThrow();
   });
+});
+
+describe("notes' versions", () => {
+  for (const [kind, open] of [
+    ["in SQLite", () => SqliteStore.open(nodeDatabase())],
+    ["in memory", () => Promise.resolve(new MemoryStore())],
+  ] as const) {
+    it(`are kept, listed the latest first, and deleted by age or with their note, ${kind}`, async () => {
+      const store = await open();
+      await store.addVersion(note(1), 100, "first");
+      await store.addVersion(note(1), 300, "third, the latest");
+      await store.addVersion(note(1), 200, "second");
+      await store.addVersion(note(2), 150, "another note's");
+      const versions = await store.versions(note(1));
+      expect(versions.map((version) => [version.time, version.length])).toEqual([
+        [300, 17],
+        [200, 6],
+        [100, 5],
+      ]);
+      expect(versions.every((version) => version.note === note(1))).toBe(true);
+      expect(await store.versionText(versions[0]?.id ?? 0)).toBe("third, the latest");
+      expect(await store.versionText(9999)).toBeUndefined();
+
+      expect(await store.deleteVersions(200)).toBe(2);
+      expect((await store.versions(note(1))).map((version) => version.time)).toEqual([300, 200]);
+      expect(await store.versions(note(2))).toEqual([]);
+      expect(await store.deleteVersions(200)).toBe(0);
+      await store.deleteDocument(note(1));
+      expect(await store.versions(note(1))).toEqual([]);
+    });
+  }
 });

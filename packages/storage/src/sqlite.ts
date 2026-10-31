@@ -9,6 +9,7 @@ import {
   type NoteIndexData,
   type NoteIndexRow,
   type NoteTextRow,
+  type NoteVersion,
   type StoredDocument,
   type StoredUpdate,
   type TextHit,
@@ -106,6 +107,17 @@ const migrations: readonly (readonly string[])[] = [
       key TEXT PRIMARY KEY NOT NULL,
       value BLOB NOT NULL
     ) WITHOUT ROWID`,
+  ],
+  [
+    // Each note's earlier texts, for its history (ADR 0041).
+    `CREATE TABLE note_versions (
+      id INTEGER PRIMARY KEY,
+      note TEXT NOT NULL,
+      time INTEGER NOT NULL,
+      text TEXT NOT NULL
+    )`,
+    "CREATE INDEX note_versions_by_note ON note_versions (note, time)",
+    "CREATE INDEX note_versions_by_time ON note_versions (time)",
   ],
 ];
 
@@ -243,7 +255,50 @@ export class SqliteStore implements IndexStore {
     await this.#database.transaction([
       { sql: "DELETE FROM document_updates WHERE note = ?", params: [note] },
       { sql: "DELETE FROM documents WHERE note = ?", params: [note] },
+      { sql: "DELETE FROM note_versions WHERE note = ?", params: [note] },
     ]);
+  }
+
+  async addVersion(note: NoteId, time: number, text: string): Promise<void> {
+    await this.#database.execute("INSERT INTO note_versions (note, time, text) VALUES (?, ?, ?)", [
+      note,
+      time,
+      text,
+    ]);
+  }
+
+  async versions(note: NoteId): Promise<readonly NoteVersion[]> {
+    const { rows } = await this.#database.query(
+      `SELECT id, time, length(text) FROM note_versions
+        WHERE note = ? ORDER BY time DESC, id DESC`,
+      [note],
+    );
+    return rows.map(([id, time, length]) => ({
+      id: integer(id),
+      note,
+      time: integer(time),
+      length: integer(length),
+    }));
+  }
+
+  async versionText(id: number): Promise<string | undefined> {
+    const { rows } = await this.#database.query("SELECT text FROM note_versions WHERE id = ?", [
+      id,
+    ]);
+    const row = rows[0];
+    return row === undefined ? undefined : text(row[0]);
+  }
+
+  async deleteVersions(before: number): Promise<number> {
+    const { rows } = await this.#database.query(
+      "SELECT count(*) FROM note_versions WHERE time < ?",
+      [before],
+    );
+    const count = integer(rows[0]?.[0]);
+    if (count > 0) {
+      await this.#database.execute("DELETE FROM note_versions WHERE time < ?", [before]);
+    }
+    return count;
   }
 
   async setting(key: string): Promise<Uint8Array | undefined> {

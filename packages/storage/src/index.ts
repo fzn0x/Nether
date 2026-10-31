@@ -30,6 +30,7 @@ export {
   type NoteIndexData,
   type NoteIndexRow,
   type NoteTextRow,
+  type NoteVersion,
   type StoredDocument,
   type StoredUpdate,
   type TextHit,
@@ -50,5 +51,7 @@ export {
   type NoteIndexes,
   Vault,
   type VaultOptions,
+  defaultHistoryDays,
   matchMoves,
+  versionEvery,
 } from "./vault.ts";
