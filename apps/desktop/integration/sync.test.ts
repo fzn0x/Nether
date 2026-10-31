@@ -108,7 +108,12 @@ describe("syncing desktop vaults", () => {
     // text, properties and blocks, in Nether's layout, with no blank line
     // after the frontmatter. The laptop's file keeps its own bytes.
     const written = "---\nstatus: draft\n---\n# Plan\n\n- One\n- Two\n";
-    await until(async () => (await phone.text("Projects/Plan.md")) === written);
+    // Notes come a few at a time, in any order: both, then.
+    await until(
+      async () =>
+        (await phone.text("Projects/Plan.md")) === written &&
+        (await phone.text("Ideas.md")) !== undefined,
+    );
     expect(await phone.text("Ideas.md")).toBe(ideas);
     expect(phone.vault.noteAt("Ideas.md")?.id).toBe(laptop.vault.noteAt("Ideas.md")?.id);
     expect(phone.vault.noteAt("Projects/Plan.md")?.id).toBe(
@@ -145,7 +150,10 @@ describe("syncing desktop vaults", () => {
     const laptop = await device(served, { "Kept.md": "# Kept\n", "Gone.md": "# Gone\n" });
     await until(() => laptop.engine.status.state === "synced");
     const phone = await device(served, {});
-    await until(async () => (await phone.text("Gone.md")) !== undefined);
+    await until(
+      async () =>
+        (await phone.text("Gone.md")) !== undefined && (await phone.text("Kept.md")) !== undefined,
+    );
 
     const kept = phone.vault.noteAt("Kept.md");
     if (kept === undefined) throw new Error("No Kept.md on the phone");
