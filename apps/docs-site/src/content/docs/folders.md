@@ -64,6 +64,10 @@ for what you can do with it without opening it first:
 - **Make a copy** beside it, named as the next free `Name 2`, `Name 3`.
 - **Move to…** a folder, found by typing its name; its pages go with it and
   links to it follow, as when you drag it.
+- **Merge into…** another note, found by typing: its text goes after the
+  other's, its properties join the other's (lists such as tags are joined),
+  every link to it leads to the other, keeping the heading or block it
+  named, and it moves to the trash.
 - **Add tags…**: its tags as chips, and more typed in, the vault's tags
   offered as you type. They are kept in its `tags` property; tags written
   in its text stay where they are.

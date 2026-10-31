@@ -365,6 +365,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   above the others in the sidebar, follows the note when it is renamed or
   moved, and is kept in `.nether/bookmarks.json` in Obsidian's shape; a
   vault from Obsidian starts with its bookmarks there.
+- Merging a note into another from its menu: its text goes after the
+  other's, its properties join the other's, every link to it leads to the
+  other, keeping the heading or block it named, and it moves to the trash.
 
 ### Changed
 
