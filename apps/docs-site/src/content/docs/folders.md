@@ -37,6 +37,7 @@ note to open it. With the keyboard:
 | ← | Close it, or move to the one it is in |
 | Enter | Open the note, or open or close the folder |
 | Home and End | Move to the first or last row |
+| Shift+F10, or the menu key | Open the note's menu |
 
 The note you have open shows in the tree, its folders opened. What you
 open and close is remembered for the vault.
@@ -52,3 +53,25 @@ of the vault.
 - Images and other files in a moving folder move with it.
 - Every link to what moved is rewritten to find it, as when you
   [rename a note](../links/#renaming-a-note).
+
+## A note's menu
+
+Right-click a note in any view, or press Shift+F10 or the menu key on it,
+for what you can do with it without opening it first:
+
+- **Open** it.
+- **Rename…** it in its folder; links to it follow.
+- **Make a copy** beside it, named as the next free `Name 2`, `Name 3`.
+- **Move to…** a folder, found by typing its name; its pages go with it and
+  links to it follow, as when you drag it.
+- **Add tags…**: its tags as chips, and more typed in, the vault's tags
+  offered as you type. They are kept in its `tags` property; tags written
+  in its text stay where they are.
+- **Copy link** as `[[Name]]`, **Copy path** in the vault, or **Copy full
+  path** on disk.
+- **Open in default app**, the one the system opens Markdown with, or
+  **Show in system explorer**.
+- **Export…** it, see its **Version history**, or **Move to trash**.
+
+The arrow keys move through the menu, a letter goes to the next item
+starting with it, Enter chooses, and Escape closes it.

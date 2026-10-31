@@ -357,6 +357,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   arrow. The frontmatter keeps the order.
 - A message at the top of the sidebar, as that a note is in the trash or
   why it could not come back, closes with its ×.
+- A note's menu, on a right click or Shift+F10 in the sidebar: open,
+  rename, make a copy, move to a folder, add tags, copy its link, path or
+  full path, open it in the system's app for Markdown, show it in the
+  file manager, export, version history and move to trash.
 
 ### Changed
 
