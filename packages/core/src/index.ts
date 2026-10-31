@@ -82,11 +82,14 @@ export {
   type PropertyDefinition,
   type PropertyEntry,
   type PropertyType,
+  type Rollup,
+  type RollupFunction,
   type SelectOption,
   checkPropertyValue,
   isPropertyKey,
   optionColors,
   propertyTypes,
+  rollupFunctions,
 } from "./properties.ts";
 export { type TemplateValues, fillTemplate } from "./templates.ts";
 export {

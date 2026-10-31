@@ -24,9 +24,35 @@ export const propertyTypes = [
   "person",
   "relation",
   "file",
+  "rollup",
 ] as const;
 
 export type PropertyType = (typeof propertyTypes)[number];
+
+/**
+ * What a rollup works out from its related rows' values (ADR 0019): how
+ * many rows, how many have a value, a sum, an average, the least or most,
+ * and the earliest or latest date.
+ */
+export const rollupFunctions = [
+  "count",
+  "countValues",
+  "sum",
+  "average",
+  "min",
+  "max",
+  "earliest",
+  "latest",
+] as const;
+
+export type RollupFunction = (typeof rollupFunctions)[number];
+
+/** A rollup's source: a relation of its database, a property of the related rows, and what it works out. */
+export interface Rollup {
+  readonly relation: string;
+  readonly property: string;
+  readonly function: RollupFunction;
+}
 
 /** The colors a select option can have. */
 export const optionColors = [
@@ -57,6 +83,8 @@ export interface PropertyDefinition {
   readonly options?: readonly SelectOption[];
   /** For a relation: the database its values point to, and, when the relation is two-way, the key of the matching property there. */
   readonly relation?: { readonly database: NoteId; readonly backlink?: string };
+  /** For a rollup: what it works out, never written to the rows. */
+  readonly rollup?: Rollup;
 }
 
 /** A property of a note: a frontmatter key and its value. */
@@ -98,7 +126,7 @@ function readSelectOption(value: unknown, path: string): SelectOption {
 }
 
 export function readPropertyDefinition(value: unknown, path: string): PropertyDefinition {
-  const fields = readFields(value, path, ["key", "type"], ["options", "relation"]);
+  const fields = readFields(value, path, ["key", "type"], ["options", "relation", "rollup"]);
   const key = readPropertyKey(fields.key, `${path}.key`);
   const type = readOneOf(fields.type, `${path}.type`, propertyTypes);
   const definition: PropertyDefinition = { key, type };
@@ -118,6 +146,25 @@ export function readPropertyDefinition(value: unknown, path: string): PropertyDe
     return { ...definition, options };
   }
   if (fields.options !== undefined) fail(`${path}.options`, "is only for select properties");
+
+  if (type === "rollup") {
+    if (fields.relation !== undefined) fail(`${path}.relation`, "is only for relation properties");
+    if (fields.rollup === undefined) fail(`${path}.rollup`, "is missing");
+    const rollup = readFields(fields.rollup, `${path}.rollup`, [
+      "relation",
+      "property",
+      "function",
+    ]);
+    return {
+      ...definition,
+      rollup: {
+        relation: readPropertyKey(rollup.relation, `${path}.rollup.relation`),
+        property: readLine(rollup.property, `${path}.rollup.property`),
+        function: readOneOf(rollup.function, `${path}.rollup.function`, rollupFunctions),
+      },
+    };
+  }
+  if (fields.rollup !== undefined) fail(`${path}.rollup`, "is only for rollup properties");
 
   if (type === "relation") {
     if (fields.relation === undefined) fail(`${path}.relation`, "is missing");
@@ -180,6 +227,9 @@ export function checkPropertyValue(type: PropertyType, value: JsonValue, path: s
         return isStringList(value, nonEmpty);
       case "relation":
         return isStringList(value, isUuid);
+      case "rollup":
+        // Worked out from the related rows, never held: what a file has is not read.
+        return true;
     }
   })();
   if (!fits) fail(path, `does not fit a ${type} property`);

@@ -171,3 +171,48 @@ describe("checkRow", () => {
     }).toThrow("row.properties[0].value does not fit a number property");
   });
 });
+
+describe("rollups", () => {
+  const clients = "01929f4c-7b00-7a00-8000-000000000001";
+  const schema = (rollup: unknown, type = "rollup") =>
+    readDatabaseSchema(
+      {
+        properties: [
+          { key: "client", type: "relation", relation: { database: clients } },
+          { key: "budget", type, rollup },
+        ],
+        views: [],
+      },
+      "schema",
+    );
+
+  it("read a relation of the database, a property of its rows and a function", () => {
+    expect(
+      schema({ relation: "client", property: "Budget", function: "sum" }).properties[1],
+    ).toEqual({
+      key: "budget",
+      type: "rollup",
+      rollup: { relation: "client", property: "Budget", function: "sum" },
+    });
+  });
+
+  it("refuse a rollup without one, of another type, or of a property that is no relation", () => {
+    expect(() => schema(undefined)).toThrow("schema.properties[1].rollup is missing");
+    expect(() => schema({ relation: "client", property: "x", function: "sum" }, "text")).toThrow(
+      "schema.properties[1].rollup is only for rollup properties",
+    );
+    expect(() => schema({ relation: "client", property: "x", function: "median" })).toThrow(
+      "schema.properties[1].rollup.function must be one of",
+    );
+    expect(() => schema({ relation: "budget", property: "x", function: "count" })).toThrow(
+      'schema.properties[1].rollup.relation names no relation of the database: "budget"',
+    );
+  });
+
+  it("take any value a row's file has, as a rollup's is worked out", () => {
+    const read = schema({ relation: "client", property: "x", function: "count" });
+    expect(() => {
+      checkRow([{ key: "budget", value: { any: "thing" } }], read, "row");
+    }).not.toThrow();
+  });
+});

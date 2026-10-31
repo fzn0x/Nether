@@ -217,6 +217,15 @@ export function readDatabaseSchema(value: unknown, path: string): DatabaseSchema
     }
     types.set(definition.key, definition.type);
   });
+  properties.forEach((definition, index) => {
+    const relation = definition.rollup?.relation;
+    if (relation !== undefined && types.get(relation) !== "relation") {
+      fail(
+        `${path}.properties[${String(index)}].rollup.relation`,
+        `names no relation of the database: "${relation}"`,
+      );
+    }
+  });
   const typeOf = (key: string, keyPath: string): string => {
     if ((builtInProperties as readonly string[]).includes(key)) return key;
     const type = types.get(key);
