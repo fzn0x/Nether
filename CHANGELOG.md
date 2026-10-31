@@ -165,6 +165,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   no text from an encrypted workspace; emails can be turned off, and
   notifications are kept 90 days
   ([ADR 0045](docs/adr/0045-mentions-are-named-by-the-commenting-client-and-the-server-tells-those-who-may-open-the-note.md)).
+- Mentions in the desktop app: typing @ in a comment offers the
+  workspace's people, and those picked are kept with the comment and told
+  through the server, once back online for a mention made offline.
+  **Notifications**, at the foot of the sidebar, lists who mentioned you
+  and where, opens the note and thread, marks them read, and turns emails
+  off.
 - Spaces and sharing in the desktop app: **Spaces** makes teamspaces,
   from a folder of the vault or anew, with their members and levels, and
   a private space; **Share this page** shares a page on its own with its

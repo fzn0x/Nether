@@ -124,6 +124,21 @@ too. They are not in the note's Markdown file, which holds only the note.
 Those who **Can comment** on a space or page comment on its notes without
 changing them; those who **Can view** read the comments.
 
+### Mentions and notifications
+
+Type **@** in a comment to mention someone in the workspace: a word of
+their name narrows the list, and the arrow keys and **Enter**, or a click,
+pick them. They are told in Nether, and by email when the server sends
+email. Only those who may open the note are told. A mention made offline
+is sent once you are back online.
+
+**Notifications**, at the foot of the sidebar or in the command palette,
+lists who mentioned you and where, the new ones marked. Choose one to open
+its note and thread, or **Mark all as read**. Clear **Email me when
+someone mentions me** there to get no more emails. In an encrypted
+workspace, a notification and its email say only who mentioned you, and
+in which workspace.
+
 ## Spaces and sharing
 
 A workspace's notes are in spaces, which **Spaces**, in the command palette,
