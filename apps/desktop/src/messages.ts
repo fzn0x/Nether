@@ -384,6 +384,8 @@ export const messages = {
   command_monthNote: "Open this month's note",
   command_toggleSource: "Show the note as Markdown or as blocks",
   command_rename: "Rename the note",
+  command_bookmark: "Bookmark the note",
+  command_bookmarkRemove: "Remove the note's bookmark",
   command_history: "Show the note's history",
   command_comment: "Comment on the selection",
   command_notifications: "Notifications",
@@ -630,6 +632,11 @@ export const messages = {
   noteTagsHint:
     "Press Enter after each tag. They are kept in the note's properties; tags written in its text stay as they are.",
   tagsCannotChange: "This note's tags cannot be changed now.",
+  bookmarks: "Bookmarks",
+  menuBookmark: "Bookmark",
+  menuUnbookmark: "Remove bookmark",
+  removeBookmark: "Remove the bookmark of {name}",
+  bookmarkMissing: "{path} is not in the vault now.",
 } as const;
 
 export type MessageKey = keyof typeof messages;

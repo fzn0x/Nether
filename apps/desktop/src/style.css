@@ -2019,6 +2019,97 @@ button {
 }
 
 /* How the sidebar shows notes: folders, pages or a list. */
+/* The vault's bookmarks, above its notes. */
+.bookmarks {
+  flex-shrink: 0;
+  max-height: 40%;
+  margin-block-end: 0.4rem;
+  overflow-y: auto;
+}
+
+.bookmarks-heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: normal;
+}
+
+.bookmarks-heading button {
+  width: 100%;
+  padding: 0.15rem 0.75rem;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: start;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.bookmarks-heading .count {
+  font-weight: normal;
+}
+
+.bookmark-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bookmark {
+  display: flex;
+  align-items: center;
+  height: 28px;
+}
+
+.bookmark-open {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 0.5rem 0 1.5rem;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  line-height: 28px;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.bookmark.missing .bookmark-open {
+  color: var(--muted);
+  font-style: italic;
+  cursor: default;
+}
+
+.bookmark:hover {
+  background: color-mix(in srgb, var(--rule) 50%, transparent);
+}
+
+.bookmark:has([aria-current="page"]) {
+  background: var(--rule);
+}
+
+.bookmark-remove {
+  margin-inline-end: 0.5rem;
+  padding: 0 0.35rem;
+  opacity: 0;
+}
+
+.bookmark:hover .bookmark-remove,
+.bookmark-remove:focus-visible {
+  opacity: 1;
+}
+
+.bookmark-open.menu-open {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .view-switch {
   display: flex;
   gap: 0.15rem;

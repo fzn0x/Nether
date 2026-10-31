@@ -19,6 +19,7 @@ import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
 import { backend } from "./backend.ts";
+import { BookmarkList } from "./BookmarkList.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
 import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
@@ -37,6 +38,7 @@ import { ariaKeys, commandFor, eventKeys } from "./shortcuts.ts";
 import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
 
 import { useAppearance } from "./useAppearance.ts";
+import { useBookmarks } from "./useBookmarks.ts";
 import { TrashPanel } from "./TrashPanel.tsx";
 import type { NotePart } from "./noteLinks.ts";
 import type { NoteMode } from "./NoteView.tsx";
@@ -200,6 +202,7 @@ export function VaultView(props: {
   const appearance = useAppearance(vault);
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
+  const bookmarks = useBookmarks(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
   // Whether the graph shows in place of the note.
   const [graphShown, setGraphShown] = useState(false);
@@ -461,6 +464,16 @@ export function VaultView(props: {
     );
   }, []);
 
+  /** Bookmarks a note, or takes its bookmark away. */
+  const toggleBookmark = useCallback(
+    (path: string) => {
+      bookmarks.toggle(path).catch((error: unknown) => {
+        setNotice({ text: error instanceof Error ? error.message : String(error) });
+      });
+    },
+    [bookmarks],
+  );
+
   /** What a note's menu offers: what the app can do with it from the list, without opening it first. */
   const menuEntries = useCallback(
     (id: NoteId): MenuEntry[] => {
@@ -506,6 +519,12 @@ export function VaultView(props: {
           label: t("menuTags"),
           run: () => {
             setNoteDialog({ kind: "tags", id });
+          },
+        },
+        {
+          label: bookmarks.has(note.path) ? t("menuUnbookmark") : t("menuBookmark"),
+          run: () => {
+            toggleBookmark(note.path);
           },
         },
         "separator",
@@ -575,7 +594,7 @@ export function VaultView(props: {
         },
       ];
     },
-    [state, info.path, openNote, trashNote, copyText],
+    [state, info.path, openNote, trashNote, copyText, bookmarks, toggleBookmark],
   );
 
   /** What each command does, and whether it can now: those about a note need one open. */
@@ -650,6 +669,13 @@ export function VaultView(props: {
           ? undefined
           : () => {
               setRenameRequest((count) => count + 1);
+            },
+      bookmark:
+        note === undefined || !open
+          ? undefined
+          : () => {
+              const path = state.vault.note(note)?.path;
+              if (path !== undefined) toggleBookmark(path);
             },
       history:
         note === undefined
@@ -764,6 +790,7 @@ export function VaultView(props: {
     sync.me,
     sync.levelOf,
     mode,
+    toggleBookmark,
   ]);
 
   // Shortcuts run their commands, before the editors, which have their own uses for keys.
@@ -988,6 +1015,18 @@ export function VaultView(props: {
                     </button>
                   </p>
                 )}
+                {tag === undefined && bookmarks.list.length > 0 ? (
+                  <BookmarkList
+                    vault={state.vault}
+                    bookmarks={bookmarks.list}
+                    selected={selected}
+                    onOpen={openNote}
+                    onRemove={toggleBookmark}
+                    onMenu={openMenu}
+                    menuFor={menu?.id}
+                    storageKey={`nether.bookmarks.${info.id}`}
+                  />
+                ) : null}
                 {tag === undefined ? (
                   <div className="view-switch" role="group" aria-label={t("notesView")}>
                     {notesViews.map((view) => (
@@ -1318,7 +1357,11 @@ export function VaultView(props: {
                     name:
                       id === "updateChecks" && !updates.automatic
                         ? t("command_updateChecksOn")
-                        : t(`command_${id}`),
+                        : id === "bookmark" &&
+                            selectedPath !== undefined &&
+                            bookmarks.has(selectedPath)
+                          ? t("command_bookmarkRemove")
+                          : t(`command_${id}`),
                     keys: hotkeys[id] ?? [],
                   },
                 ],
