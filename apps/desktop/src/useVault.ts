@@ -87,6 +87,15 @@ export function useVault(info: VaultInfo): VaultState {
 }
 
 const none: readonly NoteEntry[] = [];
+const noFolders: readonly string[] = [];
+
+/** The vault's folders, empty ones too, kept current as they change. */
+export function useFolders(vault: Vault | undefined): readonly string[] {
+  return useSyncExternalStore(
+    (listener) => vault?.subscribeFolders(listener) ?? (() => undefined),
+    () => vault?.folders() ?? noFolders,
+  );
+}
 
 /** The vault's notes, kept current as they change. */
 export function useNotes(vault: Vault | undefined): readonly NoteEntry[] {

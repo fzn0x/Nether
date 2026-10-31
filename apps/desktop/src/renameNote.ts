@@ -103,6 +103,25 @@ export function folderMoves(vault: Vault, folder: string, to: string): Move[] {
     .map((path) => ({ from: path, to: `${to}${path.slice(folder.length)}` }));
 }
 
+/**
+ * Ends a folder's move once its files have moved: the folders in it that
+ * no file is in are made where it went, and it and the folders in it,
+ * emptied, are deleted, deepest first. One something is left in, as a
+ * hidden file, stays.
+ */
+export async function carryFolder(vault: Vault, from: string, to: string): Promise<void> {
+  const inside = vault.folders().filter((path) => path === from || path.startsWith(`${from}/`));
+  if (inside.length === 0) return;
+  const there = new Set(vault.folders().map((path) => path.toLowerCase()));
+  for (const path of inside) {
+    const target = to + path.slice(from.length);
+    if (!there.has(target.toLowerCase())) await vault.makeFolder(target).catch(() => undefined);
+  }
+  for (const path of inside.sort((a, b) => b.length - a.length)) {
+    await vault.removeFolder(path).catch(() => undefined);
+  }
+}
+
 /** The moves that put a note at `to` with its pages, those in the folder beside it, following it. */
 export function pageMoves(vault: Vault, from: string, to: string): Move[] {
   // A database's Obsidian base goes with it (ADR 0018).

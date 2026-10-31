@@ -4,7 +4,14 @@ import { parseMarkdown } from "@nether/markdown";
 import { MemoryFiles, Vault } from "@nether/storage";
 import { MemoryStore } from "@nether/storage";
 import { describe, expect, it } from "vitest";
-import { folderMoves, moveFiles, pageMoves, renameNote, renamedPath } from "../src/renameNote.ts";
+import {
+  carryFolder,
+  folderMoves,
+  moveFiles,
+  pageMoves,
+  renameNote,
+  renamedPath,
+} from "../src/renameNote.ts";
 
 async function setUp(files: Record<string, string>) {
   const memory = new MemoryFiles(files);
@@ -165,5 +172,26 @@ describe("renamedPath", () => {
     for (const name of ["a/b", "a:b", "[[x]]", "a#b", ".hidden", "a|b"]) {
       expect(renamedPath("Plan.md", name)).toEqual({ error: "unsafe" });
     }
+  });
+});
+
+describe("carryFolder", () => {
+  it("makes the empty folders where the folder went and deletes the emptied ones", async () => {
+    const files = new MemoryFiles({ "Old/note.md": "x" });
+    await files.makeFolder("Old/Empty/Deeper");
+    const vault = new Vault(files, new MemoryStore());
+    await vault.open();
+    await vault.moveFile("Old/note.md", "New/note.md");
+    await carryFolder(vault, "Old", "New");
+    expect(vault.folders()).toEqual(["New", "New/Empty", "New/Empty/Deeper"]);
+  });
+
+  it("leaves a folder something is still in", async () => {
+    const files = new MemoryFiles({ "Old/note.md": "x", "Old/.keep": "" });
+    const vault = new Vault(files, new MemoryStore());
+    await vault.open();
+    await vault.moveFile("Old/note.md", "New/note.md");
+    await carryFolder(vault, "Old", "New");
+    expect(vault.folders()).toEqual(["New", "Old"]);
   });
 });

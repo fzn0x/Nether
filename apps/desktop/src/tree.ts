@@ -74,11 +74,10 @@ function folderChildren(folder: Building): TreeNode[] {
   return [...folders, ...notes];
 }
 
-function root(notes: readonly NoteEntry[]): Building {
+function root(notes: readonly NoteEntry[], folders: readonly string[]): Building {
   const top = building("");
-  for (const note of notes) {
+  const into = (parts: readonly string[]): Building => {
     let folder = top;
-    const parts = note.path.split("/").slice(0, -1);
     for (const [index, part] of parts.entries()) {
       const path = parts.slice(0, index + 1).join("/");
       let next = folder.folders.get(part);
@@ -88,18 +87,26 @@ function root(notes: readonly NoteEntry[]): Building {
       }
       folder = next;
     }
-    folder.notes.push(note);
-  }
+    return folder;
+  };
+  for (const folder of folders) into(folder.split("/"));
+  for (const note of notes) into(note.path.split("/").slice(0, -1)).notes.push(note);
   return top;
 }
 
-/** The file tree: folders, then notes, at each level. */
-export function folderTree(notes: readonly NoteEntry[]): readonly TreeNode[] {
-  return folderChildren(root(notes));
+/** The file tree: folders, then notes, at each level; `folders` adds those no note is in. */
+export function folderTree(
+  notes: readonly NoteEntry[],
+  folders: readonly string[] = [],
+): readonly TreeNode[] {
+  return folderChildren(root(notes, folders));
 }
 
 /** The page tree: a folder beside a note with its name holds the note's pages. */
-export function pageTree(notes: readonly NoteEntry[]): readonly TreeNode[] {
+export function pageTree(
+  notes: readonly NoteEntry[],
+  folders: readonly string[] = [],
+): readonly TreeNode[] {
   const pages = (children: readonly TreeNode[]): TreeNode[] => {
     const byPath = new Map<string, TreeNode & { kind: "note" }>();
     for (const child of children) {
@@ -127,7 +134,7 @@ export function pageTree(notes: readonly NoteEntry[]): readonly TreeNode[] {
       })
       .sort((a, b) => collator.compare(nameOf(a), nameOf(b)));
   };
-  return pages(folderTree(notes));
+  return pages(folderTree(notes, folders));
 }
 
 /** The rows shown: every node whose parents are all expanded, in order. */
