@@ -120,7 +120,7 @@ The first public release, one feature per pull request, in this order:
 - [x] Comments and threads; mentions and notifications, by email through the admin's SMTP: comments in a document beside each note, synced with it (#76) and shown beside it (#77) ([ADR 0044](adr/0044-a-notes-comments-are-a-document-of-their-own-beside-it.md)); mentions named by the commenting client, which the server tells those who may open the note of (#78) ([ADR 0045](adr/0045-mentions-are-named-by-the-commenting-client-and-the-server-tells-those-who-may-open-the-note.md)).
 - [ ] The web app, served by the server, installable as a PWA, with its content security policy, its sessions in a cookie with a CSRF defence, and the link to sign in by email.
 - [x] Workspace search on the server, by permission: PostgreSQL full text over what the server can read, indexed as notes are stored, and only the units an account opens ([ADR 0050](adr/0050-the-server-searches-what-it-can-read-indexed-as-notes-are-stored.md)).
-- [ ] The canvas, in the JSON Canvas format.
+- [x] The canvas, in the JSON Canvas format: `.canvas` files read and written as Obsidian keeps them, opened in tabs, edited by pointer and keyboard, with text, note, image, link and group cards ([ADR 0051](adr/0051-canvases-are-json-canvas-files-drawn-with-the-page-s-own-elements.md)).
 - [ ] Task assignment: the person property, and "assigned to me".
 - [ ] Backups to disk or S3, with the restore tested in CI; migrations safe across versions.
 - [ ] `docker compose up` with PostgreSQL, Redis and storage.

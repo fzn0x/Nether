@@ -8,6 +8,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Canvas cards show Markdown, notes' openings and links' sites; links,
+  groups and notes are added from the toolbar, notes and canvases dragged
+  from the sidebar, and images dropped from the computer; a note opened
+  from a canvas opens beside it.
 - Canvases are edited in the desktop app: text cards written in place,
   notes added, cards moved, resized, colored and removed, arrows drawn
   between them and labelled, undo and redo, all from the keyboard as well

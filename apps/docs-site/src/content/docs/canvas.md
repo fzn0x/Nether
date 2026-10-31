@@ -25,7 +25,14 @@ in a folder's menu. It starts empty, named "Untitled canvas".
 - **Double-click** the board, or choose **Add text**, for a text card, and
   type; click elsewhere, press Escape, or Ctrl+Enter (Cmd+Enter) to finish.
   Double-click a text card to write in it again.
-- **Add a note** picks a note of the vault and puts its card on the board.
+- **Add a note** picks a note of the vault and puts its card on the board,
+  showing the note's title and its opening; drag a note or a canvas from
+  the sidebar onto the board for the same.
+- **Add a link** puts a web address on the board, its site shown large.
+- **Add a group** draws a group around the cards selected, or an empty
+  one; rename it from its menu.
+- Drop images from your computer onto the board: they are kept in the
+  vault's `attachments` folder, and shown as cards.
 - Click a card to select it, Shift and click to select more, and drag to
   move them; a group moves with the cards inside it. Drag the square at a
   selected card's corner to resize it.
@@ -55,6 +62,12 @@ Every card can be reached with Tab, in reading order. On a card:
 After the cards, a list of the canvas's connections appears as the
 keyboard reaches it; Enter on one opens the arrow's menu.
 
+## What cards show
+
+Text cards are Markdown: headings, **bold**, lists, `[[links]]` to notes
+and images, as in a note, a line break kept as one. A note's card shows
+its title and its first paragraphs, kept current as the note changes.
+
 ## Moving around
 
 - Drag the background, or drag with the middle button anywhere, to move
@@ -62,7 +75,8 @@ keyboard reaches it; Enter on one opens the arrow's menu.
 - Hold Ctrl (Cmd on a Mac) and scroll, or pinch on a trackpad, to zoom
   where the pointer is. **Zoom in**, **Zoom out** and **Fit to view** are
   above the board; a canvas opens fitted to its tab.
-- Click a note's card to open the note.
+- Click a note's title on its card, or a link in a card, to open the note
+  in a new tab, the canvas staying open.
 
 ## Reading a canvas without seeing it
 
