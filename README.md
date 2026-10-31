@@ -15,17 +15,23 @@ Notion exports. Self-hosting is available for enterprise.
 > [!NOTE]
 > Nether is in early development. [Version 0.0.1](https://github.com/fzn0x/Nether/releases/latest),
 > a developer preview of the desktop app for Windows, macOS and Linux, keeps
-> your notes on your computer; sync and collaboration come later.
+> your notes on your computer ([how to install it](https://fzn0x.github.io/Nether/install/)).
 > [Phase 0](docs/reports/phase-0.md), [Phase 1](docs/reports/phase-1.md)
-> and [Phase 2](docs/reports/phase-2.md) of six are done: the desktop app
-> keeps a vault of Markdown notes with the block editor, links, backlinks,
-> tags, search, templates and export, and databases with six views,
-> relations, rollups, formulas, query blocks, synced blocks, the graph,
-> themes and importers from Obsidian, Notion, Logseq, HTML and CSV, within
-> the performance targets on 50,000 notes. Phase 3, sync and
-> collaboration, the first public release, is under way, and the
+> and [Phase 2](docs/reports/phase-2.md) of six are done: a vault of
+> Markdown notes with the block editor, links, backlinks, tags, search,
+> templates and export, and databases with six views, relations, rollups,
+> formulas, query blocks, synced blocks, the graph, themes and importers
+> from Obsidian, Notion, Logseq, HTML and CSV, within the performance
+> targets on 50,000 notes.
+>
+> Phase 3, sync and collaboration, the first public release, has 14 of its
+> 16 tasks done: the server with accounts and single sign-on, sync with
+> end-to-end encryption, attachments, version history, spaces and page
+> permissions, live co-editing, comments and mentions, server search, the
+> canvas, task assignment, and backups. The web app and `docker compose up`
+> are what remain; until then, sync stays out of the released app. The
 > [roadmap](docs/roadmap.md#phase-3-self-hosted-sync-and-collaboration)
-> ticks it off as it lands. Watch the repository to follow along.
+> ticks each task off as it lands.
 
 [Documentation](https://fzn0x.github.io/Nether/) ·
 [Roadmap](docs/roadmap.md) · [Requirements](docs/requirements.md) ·
@@ -58,7 +64,7 @@ Notion exports. Self-hosting is available for enterprise.
 | 0. Foundations | Decisions, the repository, CI, the data model, a 50,000-note test vault | ✅ |
 | 1. Local-first notes | The desktop app: a vault on disk, the block and Markdown editor, links and backlinks, tags, search, templates, export | ✅ |
 | 2. Databases and structure | Databases with six views, relations, rollups, formulas, synced blocks, the graph view, importers from Obsidian and Notion | ✅ |
-| 3. Sync and collaboration | The first public release: the server, end-to-end encrypted sync, co-editing, comments, permissions, the web app, the canvas, backups | ❌ |
+| 3. Sync and collaboration | The first public release: the server, end-to-end encrypted sync, co-editing, comments, permissions, the web app, the canvas, backups | 🚧 14 of 16 |
 | 4. Platform | Plugins in a sandbox, bring-your-own AI, publishing, the REST API, the web clipper, automations | ❌ |
 | 5. Enterprise, mobile and scale | Single sign-on, SCIM, audit logs, data policies, high availability, the Helm chart, mobile apps | ❌ |
 
@@ -87,8 +93,13 @@ You need Node.js 24, pnpm 10 and, for the desktop app, Go 1.27.
 pnpm install
 pnpm test                               # unit tests
 pnpm --filter @nether/desktop dev       # the desktop app
+VITE_NETHER_SYNC=on pnpm --filter @nether/desktop dev   # with sync's menus
 pnpm vault:generate                     # the 50,000-note reference vault
 ```
+
+The server needs PostgreSQL 16 or newer;
+[its README](apps/server/README.md) shows how to run it, set it up and
+back it up.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rest: every check, how work is
 organized, and how commits are signed off.
