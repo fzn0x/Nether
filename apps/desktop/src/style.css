@@ -3423,6 +3423,7 @@ kbd {
 .note-tags-dialog,
 .rename-note-dialog,
 .new-folder-dialog,
+.delete-folder-dialog,
 .move-note-dialog {
   align-self: flex-start;
 }

@@ -27,6 +27,7 @@ import { type Menu, MenuBar } from "./MenuBar.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { commandIcons, itemIcons, menuIcons } from "./icons.ts";
 import { NewFolderDialog } from "./NewFolderDialog.tsx";
+import { DeleteFolderDialog } from "./DeleteFolderDialog.tsx";
 import { SidebarResizer, useSidebarWidth } from "./SidebarResizer.tsx";
 import { builtInTheme } from "./appearance.ts";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
@@ -350,6 +351,8 @@ export function VaultView(props: {
   const [newIn, setNewIn] = useState("");
   // The folder a new folder goes in, while its dialog is open.
   const [newFolderIn, setNewFolderIn] = useState<string | undefined>();
+  // The folder with notes or files in it that is asked about before it goes.
+  const [deletingFolder, setDeletingFolder] = useState<string | undefined>();
   // A folder's menu, open at a point.
   const [folderMenu, setFolderMenu] = useState<
     { readonly path: string; readonly at: MenuPoint } | undefined
@@ -357,7 +360,12 @@ export function VaultView(props: {
   const [notesView, setNotesView] = useState<NotesView>(storedView);
   // What happened to a note: a template the vault no longer has, or the note moved to the trash.
   const [notice, setNotice] = useState<
-    { readonly text: string; readonly restore?: string } | undefined
+    | {
+        readonly text: string;
+        /** Where in the trash what it moved there went, which Restore puts back. */
+        readonly restore?: string | readonly string[];
+      }
+    | undefined
   >();
   const { settings, save } = useTemplateSettings(vault);
   const version = useGraph(graph);
@@ -579,10 +587,50 @@ export function VaultView(props: {
     [folders, vault],
   );
 
-  /** A folder's menu: notes and folders made in it, and deleting it while it is empty. */
+  /**
+   * Deletes a folder: what is in it, notes and files, goes to the trash one
+   * by one, each restorable where it was, and the folders it emptied are
+   * deleted. One that holds hidden files stays, as they are not the vault's.
+   */
+  const deleteFolder = useCallback(
+    async (path: string) => {
+      if (vault === undefined) return;
+      const name = path.slice(path.lastIndexOf("/") + 1);
+      const trashed: string[] = [];
+      const gone: NoteId[] = [];
+      try {
+        for (const file of vault.files().filter((other) => other.startsWith(`${path}/`))) {
+          const note = vault.noteAt(file);
+          trashed.push(
+            note === undefined ? await vault.removeFile(file) : await vault.remove(note.id),
+          );
+          if (note !== undefined) gone.push(note.id);
+        }
+      } finally {
+        changeLayout((current) => gone.reduce(closeNote, current));
+      }
+      const emptied = vault
+        .folders()
+        .filter((folder) => folder === path || folder.startsWith(`${path}/`))
+        .sort((a, b) => b.length - a.length);
+      for (const folder of emptied) await vault.removeFolder(folder).catch(() => undefined);
+      const kept = vault.folders().includes(path);
+      setNotice({
+        text: kept
+          ? t("folderKeptHidden", { name })
+          : trashed.length === 0
+            ? t("deletedFolder", { name })
+            : t("deletedFolderWith", { name, count: String(trashed.length) }),
+        ...(trashed.length === 0 ? {} : { restore: trashed }),
+      });
+    },
+    [vault],
+  );
+
+  /** A folder's menu: notes and folders made in it, and deleting it, asked first unless empty. */
   const folderEntries = (path: string): MenuEntry[] => {
     const inside = (other: string) => other.startsWith(`${path}/`);
-    const empty = !notes.some((note) => inside(note.path)) && !folders.some(inside);
+    const empty = !(vault?.files().some(inside) ?? false) && !folders.some(inside);
     const name = path.slice(path.lastIndexOf("/") + 1);
     return [
       {
@@ -601,17 +649,20 @@ export function VaultView(props: {
       },
       "separator",
       {
-        label: t("deleteFolder"),
+        label: empty ? t("deleteFolder") : t("deleteFolderAsk"),
         icon: itemIcons.trash,
         danger: true,
-        disabled: !empty,
         run: () => {
+          if (!empty) {
+            setDeletingFolder(path);
+            return;
+          }
           vault?.removeFolder(path).then(
             () => {
               setNotice({ text: t("deletedFolder", { name }) });
             },
-            () => {
-              setNotice({ text: t("folderNotEmpty") });
+            (error: unknown) => {
+              setNotice({ text: error instanceof Error ? error.message : String(error) });
             },
           );
         },
@@ -1285,11 +1336,20 @@ export function VaultView(props: {
                       onClick={() => {
                         const where = notice.restore;
                         if (where === undefined) return;
-                        state.vault.restore(where).then(openRestored, (error: unknown) => {
+                        const fail = (error: unknown) => {
                           setNotice({
                             text: error instanceof Error ? error.message : String(error),
                           });
-                        });
+                        };
+                        if (typeof where === "string") {
+                          state.vault.restore(where).then(openRestored, fail);
+                          return;
+                        }
+                        // A folder's notes and files, each back where it was, one at a time.
+                        void (async () => {
+                          for (const item of where) await state.vault.restore(item);
+                          setNotice(undefined);
+                        })().catch(fail);
                       }}
                     >
                       {t("restore")}
@@ -1638,6 +1698,24 @@ export function VaultView(props: {
           at={folderMenu.at}
           entries={folderEntries(folderMenu.path)}
           onClose={closeFolderMenu}
+        />
+      )}
+      {deletingFolder === undefined || state.status !== "open" ? null : (
+        <DeleteFolderDialog
+          path={deletingFolder}
+          notes={notes.filter((note) => note.path.startsWith(`${deletingFolder}/`)).length}
+          files={
+            state.vault
+              .files()
+              .filter(
+                (file) =>
+                  file.startsWith(`${deletingFolder}/`) && state.vault.noteAt(file) === undefined,
+              ).length
+          }
+          onDelete={() => deleteFolder(deletingFolder)}
+          onClose={() => {
+            setDeletingFolder(undefined);
+          }}
         />
       )}
       {newFolderIn === undefined || state.status !== "open" ? null : (

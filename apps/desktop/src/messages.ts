@@ -262,8 +262,20 @@ export const messages = {
   newNoteHere: "New note here",
   newFolderHere: "New folder here",
   deleteFolder: "Delete folder",
-  folderNotEmpty: "Only an empty folder can be deleted; move or trash what is in it first.",
+  deleteFolderAsk: "Delete folder…",
+  deleteFolderTitle: "Delete the folder {name}?",
+  deleteFolderBody:
+    "The {notes} and {files} in it, folders in it included, move to the trash, where you can restore them.",
+  deleteFolderDo: "Move to trash",
+  countNote: "{count} note",
+  countNotes: "{count} notes",
+  countFile: "{count} other file",
+  countFiles: "{count} other files",
   deletedFolder: "Deleted the folder {name}.",
+  deletedFolderWith:
+    "Deleted the folder {name}; the {count} notes and files in it are in the trash.",
+  folderKeptHidden:
+    "Moved what was in {name} to the trash; the folder stays, as it holds hidden files.",
   noteName: "Name",
   startFrom: "Start from",
   findTemplate: "Find a note to start from",
