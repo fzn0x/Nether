@@ -226,6 +226,54 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX document_versions_by_age ON document_versions (created_at);
     `,
   },
+  {
+    version: 9,
+    name: "units",
+    sql: `
+      -- A workspace's sync units besides General (ADR 0042): teamspaces, private
+      -- spaces and shared pages, each with its own vault document.
+      CREATE TABLE units (
+        id uuid PRIMARY KEY,
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        kind text NOT NULL CHECK (kind IN ('team', 'private', 'page')),
+        -- A teamspace's name, which its folder has.
+        name text,
+        -- A private space's member.
+        owner_id uuid REFERENCES users (id) ON DELETE CASCADE,
+        -- A shared page's note, the root of its subtree, and the unit it sits
+        -- in (none for General); restricted, only its grants open it.
+        root_note text,
+        parent_id uuid REFERENCES units (id) ON DELETE RESTRICT,
+        restricted boolean NOT NULL DEFAULT false,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (workspace_id, root_note)
+      );
+
+      CREATE UNIQUE INDEX units_teamspace_names ON units (workspace_id, lower(name))
+        WHERE kind = 'team';
+      CREATE UNIQUE INDEX units_private_spaces ON units (workspace_id, owner_id)
+        WHERE kind = 'private';
+
+      -- Who may open a unit, at which level.
+      CREATE TABLE unit_grants (
+        unit_id uuid NOT NULL REFERENCES units (id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        level text NOT NULL CHECK (level IN ('full', 'edit', 'comment', 'view')),
+        PRIMARY KEY (unit_id, user_id)
+      );
+
+      -- The unit each note is in; a note not here is in General. A unit with
+      -- notes is not deleted, so they never fall to General by accident.
+      CREATE TABLE note_units (
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        note text NOT NULL,
+        unit_id uuid NOT NULL REFERENCES units (id) ON DELETE RESTRICT,
+        PRIMARY KEY (workspace_id, note)
+      );
+
+      CREATE INDEX note_units_by_unit ON note_units (unit_id);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

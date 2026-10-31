@@ -16,6 +16,7 @@ import { registerSessions } from "./sessions.ts";
 import { registerSetup } from "./setup.ts";
 import { registerRelay } from "./relay.ts";
 import { registerSync } from "./sync.ts";
+import { registerUnits } from "./units.ts";
 import { purgeVersions, registerVersions } from "./versions.ts";
 import { registerWorkspaces } from "./workspaces.ts";
 
@@ -108,10 +109,12 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   // The relay's sockets come through the WebSocket plugin sync registers.
   const sync = await registerSync(app, services.db);
   const relay = registerRelay(app, services.db);
-  registerMembers(app, services.db, (userId) => {
+  const reconnect = (userId: string) => {
     sync.disconnect(userId);
     relay.disconnect(userId);
-  });
+  };
+  registerMembers(app, services.db, reconnect);
+  registerUnits(app, services.db, reconnect);
   if (services.mailer !== undefined) registerCodes(app, services.db, services.mailer);
   const { oidc, publicUrl } = config;
   if (oidc !== null && publicUrl !== null) registerOidc(app, services.db, oidc, publicUrl);

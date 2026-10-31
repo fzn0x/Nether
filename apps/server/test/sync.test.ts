@@ -158,32 +158,66 @@ describe("sync", () => {
     ).resolves.toBeDefined();
   });
 
-  it("lets guests read and not write", async () => {
+  it("opens a unit's documents at each one's level: a viewer reads and does not write", async () => {
     const test = await start();
-    const invited = await test.server.inject({
-      method: "POST",
-      url: `/api/workspaces/${test.workspaceId}/invitations`,
-      headers: bearer(test.token),
-      payload: { role: "member" },
-    });
-    const accepted = await test.server.inject({
-      method: "POST",
-      url: "/api/invitations/accept",
-      payload: {
-        token: invited.json<{ token: string }>().token,
-        name: "Gus",
-        email: "gus@example.org",
-        password: "gus's long password",
-      },
-    });
-    const guest = accepted.json<{ token: string; user: { id: string } }>();
+    const join = async (person: string) => {
+      const invited = await test.server.inject({
+        method: "POST",
+        url: `/api/workspaces/${test.workspaceId}/invitations`,
+        headers: bearer(test.token),
+        payload: { role: "member" },
+      });
+      const accepted = await test.server.inject({
+        method: "POST",
+        url: "/api/invitations/accept",
+        payload: {
+          token: invited.json<{ token: string }>().token,
+          name: person,
+          email: `${person.toLowerCase()}@example.org`,
+          password: `${person}'s long password`,
+        },
+      });
+      return accepted.json<{ token: string; user: { id: string } }>();
+    };
+    const viewer = await join("Vic");
+    const outsider = await join("Oz");
+    const guest = await join("Gus");
     await database().query("UPDATE memberships SET role = 'guest' WHERE user_id = $1", [
       guest.user.id,
     ]);
+    // A teamspace the viewer may view, and a note in it.
+    const made = await test.server.inject({
+      method: "POST",
+      url: `/api/workspaces/${test.workspaceId}/teamspaces`,
+      headers: bearer(test.token),
+      payload: { name: "Design" },
+    });
+    const unit = made.json<{ id: string }>().id;
+    await test.server.inject({
+      method: "PUT",
+      url: `/api/workspaces/${test.workspaceId}/units/${unit}/grants/${viewer.user.id}`,
+      headers: bearer(test.token),
+      payload: { level: "view" },
+    });
+    const note = randomUUID();
+    await test.server.inject({
+      method: "PUT",
+      url: `/api/workspaces/${test.workspaceId}/notes/${note}/unit`,
+      headers: bearer(test.token),
+      payload: { unit },
+    });
 
-    const name = `${test.workspaceId}/${randomUUID()}`;
+    const name = `${test.workspaceId}/${note}`;
+    // Neither someone the teamspace has not, nor a guest, opens its note or its list.
+    await expect(connect(test.url, name, outsider.token)).rejects.toThrow();
+    await expect(
+      connect(test.url, `${test.workspaceId}/vault.${unit}`, outsider.token),
+    ).rejects.toThrow();
+    await expect(connect(test.url, name, guest.token)).rejects.toThrow();
+    // Guests open no General either.
+    await expect(connect(test.url, `${test.workspaceId}/vault`, guest.token)).rejects.toThrow();
     const owner = await connect(test.url, name, test.token);
-    const reader = await connect(test.url, name, guest.token);
+    const reader = await connect(test.url, name, viewer.token);
     text(owner).insert(0, "Read me");
     await whenText(reader, "Read me");
     text(reader).insert(0, "Not ");

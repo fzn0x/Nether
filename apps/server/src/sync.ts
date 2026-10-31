@@ -7,7 +7,9 @@
 // which documents changed since the last number it saw and syncs those
 // alone; a client syncing the vault document hears of each note as it is
 // stored. Storing a note keeps the state it replaces as a version, now and
-// then (ADR 0041).
+// then (ADR 0041). Each sync unit (ADR 0042) has a vault document of its own;
+// a document opens at its unit's level for the account, read-only below edit,
+// and the list of stored documents names only those of the account's units.
 import websocket from "@fastify/websocket";
 import { Hocuspocus } from "@hocuspocus/server";
 import type { FastifyInstance } from "fastify";
@@ -15,12 +17,13 @@ import * as Y from "yjs";
 import { type Database, readBytes, readCount, readText } from "./db.ts";
 import { fail, uuidField } from "./http.ts";
 import { sessionAccount, signedIn, accountOf } from "./sessions.ts";
+import { accessible, general, unitOfDocument, vaultDocument, writesAt } from "./units.ts";
 import { membership } from "./workspaces.ts";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-const namePattern = new RegExp(`^(${uuid})/(vault|${uuid})$`);
+const namePattern = new RegExp(`^(${uuid})/(vault|vault\\.${uuid}|${uuid})$`);
 
-/** A document's name: its workspace's ID, then `vault` or the note's ID. */
+/** A document's name: its workspace's ID, then `vault`, `vault.` and a unit's ID, or the note's ID. */
 export interface DocumentName {
   readonly workspaceId: string;
   readonly document: string;
@@ -64,7 +67,7 @@ export async function storeDocument(
   state: Uint8Array,
 ): Promise<number> {
   return db.transaction(async (tx) => {
-    if (document !== "vault") {
+    if (!document.startsWith("vault")) {
       await tx.query(
         `INSERT INTO document_versions (workspace_id, name, state)
          SELECT workspace_id, name, state FROM documents
@@ -134,10 +137,15 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
       // One answer for each, so a refusal tells nothing of the workspace. An
       // encrypted workspace syncs through the relay, never here, so its
       // notes are never stored in plain text.
-      if (account === undefined || member?.encryption !== "none") {
+      if (account === undefined || name === undefined || member?.encryption !== "none") {
         throw new Error("Sign in, as a member of this document's workspace.");
       }
-      if (member.role === "guest") connectionConfig.readOnly = true;
+      const unit = await unitOfDocument(db, name.workspaceId, name.document);
+      const level = (await accessible(db, account.id, name.workspaceId)).levels.get(unit);
+      // A document of a unit the account may not open is refused as one not there.
+      if (level === undefined)
+        throw new Error("Sign in, as a member of this document's workspace.");
+      if (!writesAt(level)) connectionConfig.readOnly = true;
       return { userId: account.id };
     },
 
@@ -161,10 +169,12 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
         name.document,
         Y.encodeStateAsUpdate(document),
       );
-      if (name.document === "vault") return;
+      if (name.document.startsWith("vault")) return;
       const stored: Stored = { type: "stored", document: name.document, seq };
+      // Told only to those syncing the note's own unit.
+      const unit = await unitOfDocument(db, name.workspaceId, name.document);
       hocuspocus.documents
-        .get(`${name.workspaceId}/vault`)
+        .get(`${name.workspaceId}/${vaultDocument(unit)}`)
         ?.broadcastStateless(JSON.stringify(stored));
     },
   });
@@ -205,13 +215,25 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
       if ((await role(accountOf(request).id, workspace)) === undefined) {
         return fail(reply, 404, "This account is in no such workspace.");
       }
+      // Only the documents of the units the account opens: the others' names stay hidden.
+      const opens = [...(await accessible(db, accountOf(request).id, workspace)).levels.keys()];
       const { rows } = await db.query(
-        `SELECT name, seq FROM documents WHERE workspace_id = $1 AND seq > $2
-         UNION ALL
-         SELECT name, max(seq) AS seq FROM encrypted_updates
-          WHERE workspace_id = $1 AND seq > $2 GROUP BY name
+        `SELECT name, seq FROM (
+           SELECT name, seq FROM documents WHERE workspace_id = $1 AND seq > $2
+           UNION ALL
+           SELECT name, max(seq) AS seq FROM encrypted_updates
+            WHERE workspace_id = $1 AND seq > $2 GROUP BY name
+         ) stored
+         WHERE CASE
+                 WHEN name = 'vault' THEN $4
+                 WHEN name LIKE 'vault.%' THEN substr(name, 7)
+                 ELSE coalesce(
+                   (SELECT unit_id::text FROM note_units n
+                     WHERE n.workspace_id = $1 AND n.note = stored.name),
+                   $4)
+               END = ANY($5::text[])
          ORDER BY seq LIMIT $3`,
-        [workspace, request.query.since ?? 0, pageSize + 1],
+        [workspace, request.query.since ?? 0, pageSize + 1, general, opens],
       );
       const page = rows.slice(0, pageSize);
       return {

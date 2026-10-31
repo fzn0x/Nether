@@ -7,7 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { type Database, readBytes, readCount, readTime } from "./db.ts";
 import { fail, uuidField } from "./http.ts";
 import { accountOf, signedIn } from "./sessions.ts";
-import { membership } from "./workspaces.ts";
+import { accessible, unitOfDocument } from "./units.ts";
 
 /** The most versions one answer lists, the latest. */
 const listed = 200;
@@ -40,12 +40,18 @@ const versionParams = {
 export function registerVersions(app: FastifyInstance, db: Database): void {
   const account = signedIn(db);
 
+  /** Whether the account may open the note, in its unit (ADR 0042). */
+  async function opens(userId: string, workspace: string, note: string): Promise<boolean> {
+    const unit = await unitOfDocument(db, workspace, note.toLowerCase());
+    return (await accessible(db, userId, workspace)).levels.has(unit);
+  }
+
   app.get<{ Params: NoteParams }>(
     "/api/workspaces/:workspace/documents/:note/versions",
     { schema: { params: noteParams }, preHandler: account },
     async (request, reply) => {
       const workspace = request.params.workspace.toLowerCase();
-      if ((await membership(db, accountOf(request).id, workspace)) === undefined) {
+      if (!(await opens(accountOf(request).id, workspace, request.params.note))) {
         return fail(reply, 404, "This account is in no such workspace.");
       }
       const { rows } = await db.query(
@@ -68,7 +74,7 @@ export function registerVersions(app: FastifyInstance, db: Database): void {
     { schema: { params: versionParams }, preHandler: account },
     async (request, reply) => {
       const workspace = request.params.workspace.toLowerCase();
-      if ((await membership(db, accountOf(request).id, workspace)) === undefined) {
+      if (!(await opens(accountOf(request).id, workspace, request.params.note))) {
         return fail(reply, 404, "This account is in no such workspace.");
       }
       const { rows } = await db.query(

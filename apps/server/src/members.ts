@@ -168,11 +168,17 @@ export function registerMembers(
           workspace,
           user,
         ]);
-        // An encrypted workspace's key is not given to them again.
+        // An encrypted workspace's key is not given to them again, nor its
+        // spaces and pages opened, should they join again.
         await tx.query("DELETE FROM workspace_keys WHERE workspace_id = $1 AND user_id = $2", [
           workspace,
           user,
         ]);
+        await tx.query(
+          `DELETE FROM unit_grants WHERE user_id = $2
+             AND unit_id IN (SELECT id FROM units WHERE workspace_id = $1)`,
+          [workspace, user],
+        );
         return undefined;
       });
       if (outcome !== undefined) return fail(reply, outcome[0], outcome[1]);
