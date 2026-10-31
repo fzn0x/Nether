@@ -52,3 +52,4 @@ record supersedes it and says so. Start a new one from
 | [0042](0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md) | Spaces and shared pages are sync units, each with its own vault document | Accepted |
 | [0043](0043-a-note-open-in-the-editor-syncs-live-with-awareness-for-carets.md) | A note open in the editor syncs live, with awareness for carets | Accepted |
 | [0044](0044-a-notes-comments-are-a-document-of-their-own-beside-it.md) | A note's comments are a document of their own beside it | Accepted |
+| [0045](0045-mentions-are-named-by-the-commenting-client-and-the-server-tells-those-who-may-open-the-note.md) | Mentions are named by the commenting client, and the server tells those who may open the note | Accepted |
