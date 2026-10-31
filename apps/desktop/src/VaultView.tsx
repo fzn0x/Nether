@@ -1070,6 +1070,7 @@ export function VaultView(props: {
         ) : state.status === "open" && selected !== undefined ? (
           noteView === undefined ? null : (
             <noteView.default
+              live={sync.live}
               vault={state.vault}
               media={state.media}
               exporter={state.exporter}

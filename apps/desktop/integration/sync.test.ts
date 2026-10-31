@@ -15,7 +15,7 @@ import { testDatabase } from "@nether/server/test/database.ts";
 import { MemoryFiles, MemoryStore, Vault } from "@nether/storage";
 import { VaultSync } from "@nether/sync-client";
 import { afterEach, describe, expect, it } from "vitest";
-import { noteDocuments } from "../src/noteDocuments.ts";
+import { noteDocuments, whenLoaded } from "../src/noteDocuments.ts";
 import { settingsStore } from "../src/sync.ts";
 import { DesktopSyncVault } from "../src/syncVault.ts";
 
@@ -91,7 +91,23 @@ async function device(served: { url: string; workspaceId: string }, files: Recor
     const file = await memory.read(path);
     return file.missing === true ? undefined : file.text;
   };
-  return { memory, vault, engine, text };
+  /** Opens a note as the editor does, syncing live; gives its hold and its live sync. */
+  const openLive = async (path: string, name: string) => {
+    const note = vault.noteAt(path);
+    if (note === undefined) throw new Error(`No note at ${path}`);
+    const hold = noteDocuments(vault).open(note.id);
+    await whenLoaded(hold.note);
+    const { state } = hold.note.snapshot;
+    if (state.status !== "ready") throw new Error(`${path} is ${state.status}`);
+    const live = engine.live(note.id, state.document, { name, color: "#1d5c94" });
+    stops.push(async () => {
+      live.stop();
+      hold.release();
+      await Promise.resolve();
+    });
+    return { hold, live };
+  };
+  return { memory, vault, engine, text, openLive };
 }
 
 /** Waits until `check` holds, letting servers store and devices write, 45 seconds at most, for slow runners. */
@@ -177,6 +193,25 @@ describe("syncing desktop vaults", () => {
     expect(await laptop.text("Kept.md")).toBeUndefined();
     // Removed elsewhere, it waits in this device's trash.
     expect(await phone.text(".trash/Gone.md")).toBe("# Gone\n");
+  });
+
+  it("keeps a note open on two computers in step as each types, without waiting for a round", async () => {
+    const served = await startServer();
+    const laptop = await device(served, { "Ideas.md": "# Ideas\n\nFirst thought.\n" });
+    await until(() => laptop.engine.status.state === "synced");
+    const phone = await device(served, {});
+    await until(async () => (await phone.text("Ideas.md")) !== undefined);
+
+    const here = await laptop.openLive("Ideas.md", "Ada");
+    const there = await phone.openLive("Ideas.md", "Ada on the phone");
+    await until(() => [...here.live.awareness.getStates().keys()].length === 2);
+    // Typed on the laptop, as source mode types: it reaches the phone's file.
+    here.hold.note.editText("# Ideas\n\nFirst thought, and a second.\n");
+    await here.hold.note.refresh();
+    await until(
+      async () => (await phone.text("Ideas.md")) === "# Ideas\n\nFirst thought, and a second.\n",
+    );
+    expect(there.live.editor.name).toBe("Ada on the phone");
   });
 
   it("writes a vault's attachments on another device, where its notes' links find them", async () => {

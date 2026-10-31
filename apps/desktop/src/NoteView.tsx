@@ -18,6 +18,7 @@ import { PropertiesPanel } from "./PropertiesPanel.tsx";
 import { UnlinkedMentions } from "./UnlinkedMentions.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
 import { useGraph } from "./useGraph.ts";
+import { type GoLive, useLive } from "./useLive.ts";
 import { useNote } from "./useNote.ts";
 
 export type NoteMode = "blocks" | "source";
@@ -80,6 +81,8 @@ export default function NoteView(props: {
   readonly sourceKeys: string | undefined;
   /** Called when the note's text shows. */
   readonly onShown: () => void;
+  /** Syncs the note live while it is open, with the others' carets, when the vault syncs. */
+  readonly live?: GoLive | undefined;
 }) {
   const {
     vault,
@@ -99,9 +102,11 @@ export default function NoteView(props: {
     renameRequest,
     sourceKeys,
     onShown,
+    live,
   } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
+  const collaboration = useLive(live, id, state.status === "ready" ? state.document : undefined);
   const [fileError, setFileError] = useState<string | undefined>();
   const [vim, setVim] = useState(storedVim);
   // The editor takes focus when the user switches modes, not when a note opens.
@@ -289,6 +294,7 @@ export default function NoteView(props: {
               previews={linkPreviews(vault)}
               autofocus={switched}
               {...(focus === undefined ? {} : { focus })}
+              {...(collaboration === undefined ? {} : { collaboration })}
             />
             <DatabaseSlot
               // Its panels, view and errors are the note's: another note starts afresh.

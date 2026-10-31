@@ -3,6 +3,8 @@
 // stops when the vault closes or is unlinked, and tells how it is going.
 import type { Vault } from "@nether/storage";
 import type { SyncStatus, VaultSync } from "@nether/sync-client";
+import { colorFor } from "./presence.ts";
+import type { GoLive } from "./useLive.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { backend } from "./backend.ts";
 import { type VaultLink, setVaultLink, settingsStore, vaultLink } from "./sync.ts";
@@ -20,6 +22,8 @@ export interface VaultSyncState {
   linkTo(link: VaultLink): Promise<void>;
   /** Stops syncing the vault, forgetting what sync knew. */
   unlink(): Promise<void>;
+  /** Syncs an open note live, with the others' carets (ADR 0043), while sync runs. */
+  readonly live: GoLive | undefined;
 }
 
 export function useSync(vault: Vault | undefined): VaultSyncState {
@@ -27,6 +31,7 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
   const [status, setStatus] = useState<SyncStatus | undefined>();
   const [signedOut, setSignedOut] = useState(false);
   const [problem, setProblem] = useState<string | undefined>();
+  const [live, setLive] = useState<GoLive | undefined>();
   // Bumped to start again, as after signing in.
   const [round, setRound] = useState(0);
   const running = useRef<VaultSync | undefined>(undefined);
@@ -102,9 +107,18 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
       }
       engine = started;
       running.current = started;
+      // Who this person is to the others editing a note with them.
+      const me = (await backend.servers()).find((account) => account.url === link.server)?.user;
+      const editor = { name: me?.name ?? "", color: colorFor(me?.id ?? link.server) };
+      if (!stopped()) {
+        setLive(
+          () => (id: string, document: Parameters<GoLive>[1]) => started.live(id, document, editor),
+        );
+      }
     })();
     return () => {
       current = false;
+      setLive(undefined);
       if (running.current === engine) running.current = undefined;
       void engine?.stop();
     };
@@ -153,5 +167,5 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
     setLink(undefined);
   }, [vault]);
 
-  return { link, status, signedOut, problem, linkTo, unlink };
+  return { link, status, signedOut, problem, linkTo, unlink, live };
 }
