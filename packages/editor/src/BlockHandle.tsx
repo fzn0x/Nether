@@ -1,7 +1,8 @@
 // The handle beside the block under the pointer: drag it to move the block,
 // or click it for the block's menu, which turns the block into another
-// type, moves it, duplicates it or deletes it. The menu works from the
-// keyboard too, and each of its actions also has a shortcut (actions.ts).
+// type, moves it, duplicates it, deletes it, or comments on it. The menu
+// works from the keyboard too, and each of its actions also has a shortcut
+// (actions.ts).
 import { DragHandle } from "@tiptap/extension-drag-handle-react";
 import { NodeSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
@@ -21,8 +22,10 @@ export function BlockHandle(props: {
   readonly editor: Editor;
   readonly commands: readonly BlockCommand[];
   readonly words: EditorWords;
+  /** Starts a comment thread on the block at a position; absent where comments are not offered. */
+  readonly onComment?: ((pos: number) => void) | undefined;
 }) {
-  const { editor, commands, words } = props;
+  const { editor, commands, words, onComment } = props;
   const [target, setTarget] = useState<BlockAt | undefined>();
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
@@ -32,10 +35,11 @@ export function BlockHandle(props: {
     editor.view.dispatch(editor.state.tr.setMeta("lockDragHandle", locked));
   };
 
-  const close = () => {
+  /** Closes the menu, and gives the editor focus back unless the action took it elsewhere. */
+  const close = (refocus = true) => {
     setOpen(false);
     lock(false);
-    editor.commands.focus();
+    if (refocus) editor.commands.focus();
   };
 
   // The first action takes focus when the menu opens; a click elsewhere closes it.
@@ -53,10 +57,12 @@ export function BlockHandle(props: {
     };
   });
 
-  const act = (action: (block: BlockAt) => boolean) => () => {
-    if (target !== undefined) action(target);
-    close();
-  };
+  const act =
+    (action: (block: BlockAt) => boolean, refocus = true) =>
+    () => {
+      if (target !== undefined) action(target);
+      close(refocus);
+    };
 
   const onMenuKey = (event: KeyboardEvent) => {
     const items = [...(menu.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
@@ -173,6 +179,20 @@ export function BlockHandle(props: {
             >
               {words.remove}
             </button>
+            {onComment === undefined ? null : (
+              <button
+                type="button"
+                role="menuitem"
+                aria-keyshortcuts="Control+Alt+M Meta+Alt+M"
+                // The comment's box takes focus, not the editor.
+                onClick={act((block) => {
+                  onComment(block.pos);
+                  return true;
+                }, false)}
+              >
+                {words.comment}
+              </button>
+            )}
           </div>
         ) : null}
       </div>

@@ -46,6 +46,8 @@ export interface EditorWords {
   readonly moveDown: string;
   readonly duplicate: string;
   readonly remove: string;
+  /** The block menu's action that starts a comment thread on the block. */
+  readonly comment: string;
   /** A field that edits math as LaTeX. */
   readonly editMath: string;
   /** Rendered math, which opens its LaTeX. */
@@ -116,6 +118,7 @@ export const englishWords: EditorWords = {
   moveDown: "Move down",
   duplicate: "Duplicate",
   remove: "Delete",
+  comment: "Comment",
   editMath: "LaTeX",
   showMath: "Math, press Enter to edit",
   codeLanguage: "Language",

@@ -24,6 +24,14 @@ export {
   startThread,
 } from "./comments.ts";
 export {
+  CommentHighlights,
+  blockAnchor,
+  commentAnchor,
+  commentHighlightsKey,
+  selectionAnchor,
+  threadRange,
+} from "./commentHighlights.ts";
+export {
   blocksFromEditor,
   blocksToEditor,
   fromEditor,
@@ -62,7 +70,12 @@ export {
   netherExtensions,
   parseLinkText,
 } from "./schema.ts";
-export { type NoteCollaboration, NoteEditor, type NoteEditorProps } from "./NoteEditor.tsx";
+export {
+  type NoteCollaboration,
+  type NoteCommentsView,
+  NoteEditor,
+  type NoteEditorProps,
+} from "./NoteEditor.tsx";
 export { SlashMenu, type SlashMenuOptions, slashMenuKey } from "./SlashMenu.tsx";
 export {
   LinkMenu,

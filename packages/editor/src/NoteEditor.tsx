@@ -3,7 +3,8 @@
 // The slash menu inserts blocks, the handle beside each block moves it or
 // opens its menu, and rich blocks such as math render in place. With others
 // editing the note at once, their carets and selections show, each with
-// their name (ADR 0043).
+// their name (ADR 0043). The text its comment threads are on is highlighted
+// (ADR 0044).
 import { type ContentBlock, newBlockId } from "@nether/core";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCaret from "@tiptap/extension-collaboration-caret";
@@ -13,6 +14,14 @@ import { useEffect, useMemo, useRef } from "react";
 import { BlockKeys } from "./actions.ts";
 import { BlockHandle } from "./BlockHandle.tsx";
 import { blockCommands } from "./commands.ts";
+import {
+  CommentHighlights,
+  blockAnchor,
+  commentHighlightsKey,
+  selectionAnchor,
+  threadRange,
+} from "./commentHighlights.ts";
+import type { CommentAnchor, CommentThread } from "./comments.ts";
 import { fromEditor, toEditor } from "./convert.ts";
 import { contentField } from "./document.ts";
 import { FileDrop, type NoteFiles } from "./files.ts";
@@ -31,6 +40,23 @@ export interface NoteCollaboration {
   /** What carries where each person is: a y-protocols awareness of the note's document. */
   readonly awareness: unknown;
   readonly user: { readonly name: string; readonly color: string };
+}
+
+/** The note's comment threads in its editor, with `document`. */
+export interface NoteCommentsView {
+  /** The threads to highlight. */
+  readonly threads: readonly CommentThread[];
+  /** The thread shown in the comments panel: highlighted more, and scrolled to. */
+  readonly active: string | undefined;
+  /** Called with a thread when its highlighted text is clicked. */
+  readonly onActivate: (thread: string) => void;
+  /**
+   * Called with an anchor to start a thread on: the selection's, or the
+   * block's. Absent where this person may not comment.
+   */
+  readonly onComment?: ((anchor: CommentAnchor) => void) | undefined;
+  /** Changes when the app asks to comment on the selection, as its command does. */
+  readonly request: number;
 }
 
 export interface NoteEditorProps {
@@ -69,6 +95,8 @@ export interface NoteEditorProps {
   readonly focus?: NotePart & { readonly key: number };
   /** Others editing at once, with `document`: the editor is made again when it changes. */
   readonly collaboration?: NoteCollaboration;
+  /** The note's comment threads, with `document`. */
+  readonly comments?: NoteCommentsView;
 }
 
 export function NoteEditor(props: NoteEditorProps) {
@@ -86,12 +114,22 @@ export function NoteEditor(props: NoteEditorProps) {
     focus,
     previews,
     collaboration,
+    comments,
   } = props;
-  // The latest callback, so the editor need not be made again when it changes.
+  // The latest callbacks, so the editor need not be made again when they change.
   const changed = useRef(onChange);
+  const commented = useRef(comments);
   useEffect(() => {
     changed.current = onChange;
-  }, [onChange]);
+    commented.current = comments;
+  }, [onChange, comments]);
+  /** Starts a thread on an anchor, where comments are offered; whether it did. */
+  const comment = (anchor: CommentAnchor | undefined): boolean => {
+    const start = commented.current?.onComment;
+    if (anchor === undefined || start === undefined) return false;
+    start(anchor);
+    return true;
+  };
 
   const commands = useMemo(() => blockCommands(words), [words]);
 
@@ -111,6 +149,16 @@ export function NoteEditor(props: NoteEditorProps) {
               CollaborationCaret.configure({
                 provider: { awareness: collaboration.awareness },
                 user: collaboration.user,
+              }),
+            ]),
+        ...(document === undefined
+          ? []
+          : [
+              CommentHighlights.configure({
+                onActivate: (thread) => {
+                  commented.current?.onActivate(thread);
+                },
+                onComment: (state) => comment(selectionAnchor(state)),
               }),
             ]),
         FileDrop.configure({ files }),
@@ -146,6 +194,34 @@ export function NoteEditor(props: NoteEditorProps) {
     [collaboration],
   );
 
+  // The threads' highlights follow the threads, and the active one is scrolled to.
+  const threads = comments?.threads;
+  const active = comments?.active;
+  useEffect(() => {
+    if (editor.isDestroyed) return;
+    editor.view.dispatch(
+      editor.state.tr.setMeta(commentHighlightsKey, { threads: threads ?? [], active }),
+    );
+  }, [editor, threads, active]);
+  useEffect(() => {
+    const thread = threads?.find((each) => each.id === active);
+    if (thread === undefined || editor.isDestroyed) return;
+    const range = threadRange(editor.state, thread.anchor);
+    if (range === undefined) return;
+    const { node } = editor.view.domAtPos(range.from);
+    (node instanceof Element ? node : node.parentElement)?.scrollIntoView({ block: "nearest" });
+    // Scrolled to when it becomes active, not as the threads change.
+  }, [editor, active]);
+
+  // The app's command comments on the selection; a request made before this editor does nothing.
+  const request = comments?.request;
+  const handledRequest = useRef(request);
+  useEffect(() => {
+    if (request === handledRequest.current) return;
+    handledRequest.current = request;
+    comment(selectionAnchor(editor.state));
+  }, [editor, request]);
+
   // Goes to the heading or block a link names.
   const focusKey = focus?.key;
   useEffect(() => {
@@ -159,7 +235,20 @@ export function NoteEditor(props: NoteEditorProps) {
   return (
     <div className="note-editor">
       <EditorContent editor={editor} />
-      {editable ? <BlockHandle editor={editor} commands={commands} words={words} /> : null}
+      {editable ? (
+        <BlockHandle
+          editor={editor}
+          commands={commands}
+          words={words}
+          onComment={
+            comments?.onComment === undefined
+              ? undefined
+              : (pos) => {
+                  comment(blockAnchor(editor.state, pos));
+                }
+          }
+        />
+      ) : null}
     </div>
   );
 }
