@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Synced blocks: a block of another note embedded by its ID,
+  `![[Roadmap#^b1]]`, edits in place, and its edits are written to the block
+  in its note, so every note that embeds it shows them. Every embed now
+  follows its note as it changes, and read-only embeds are named for screen
+  readers
+  ([ADR 0023](docs/adr/0023-synced-blocks-are-block-embeds-edited-in-place.md)).
 - A database's view exports as CSV from its toolbar: the rows it keeps, in
   its order, with the properties it shows, as UTF-8 that spreadsheets read
   ([ADR 0022](docs/adr/0022-a-database-exports-to-csv-as-its-view-shows-it.md)).

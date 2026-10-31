@@ -92,7 +92,7 @@ The Notion core, one feature per pull request, in this order:
 - [x] Formulas: a documented, sandboxed expression language ([ADR 0020](adr/0020-formulas-in-a-language-nether-reads-and-runs-itself.md))
 - [x] Query blocks: a live table or list of the notes a folder, tag or property finds ([ADR 0021](adr/0021-query-blocks-are-obsidian-bases-in-a-code-block.md))
 - [x] Databases exported to CSV ([ADR 0022](adr/0022-a-database-exports-to-csv-as-its-view-shows-it.md))
-- [ ] Synced blocks: one block embedded in several notes, the same everywhere
+- [x] Synced blocks: one block embedded in several notes, the same everywhere ([ADR 0023](adr/0023-synced-blocks-are-block-embeds-edited-in-place.md))
 - [ ] Unlinked mentions, each made a link in one click
 - [ ] The graph view, global and local, filtered by tag, folder and property, smooth at 10,000 notes
 - [ ] Themes and CSS snippets

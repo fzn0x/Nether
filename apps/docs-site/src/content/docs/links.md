@@ -40,13 +40,35 @@ note's file, as `^b1`, changing nothing else there.
 ## Embedding notes
 
 Put `!` before a link, alone on its line, to show the note it names inside
-this one, read only: `![[Roadmap]]` shows all of it, `![[Roadmap#Next
-steps]]` the heading and what follows it up to the next heading as high or
-higher, and `![[Roadmap#^b1]]` the one block. Click the embed's title to
-open the note. Embeds inside an embed show one level deeper; deeper ones
-show as their links, so notes that embed each other end. An embed within
-a line of text shows as you wrote it, and still links: the note it names
-lists this one among its backlinks, as in Obsidian.
+this one: `![[Roadmap]]` shows all of it, `![[Roadmap#Next steps]]` the
+heading and what follows it up to the next heading as high or higher, and
+`![[Roadmap#^b1]]` the one block. An embed shows the note as it is now, and
+follows it as it changes. Click the embed's title to open the note. Embeds
+inside an embed show one level deeper; deeper ones show as their links, so
+notes that embed each other end. An embed within a line of text shows as
+you wrote it, and still links: the note it names lists this one among its
+backlinks, as in Obsidian.
+
+## Synced blocks
+
+A block of another note embedded by its ID, as `![[Roadmap#^b1]]`, is a
+synced block: edit it where it is embedded, and Nether writes the edit to
+the block in its note, so every note that embeds it shows the edit. The
+block lives in its note alone, and the notes that embed it hold only the
+link, so Obsidian shows the same block in each of them. A synced block has
+a dashed line beside it.
+
+- Its edits are written half a second after you stop typing, and when you
+  leave the block. Everything else in its note's file stays as it was.
+- It holds one block. Enter in the block's own line breaks the line; to
+  sync several blocks, give a callout, a quote or a list item an ID, and
+  embed it with everything inside it.
+- While you edit a synced block, it keeps your text; once you leave it, it
+  shows what another note or another app has changed since.
+- An embed of a heading's section, of a whole note, or of a block of the
+  note it is in, is read only: open the note to edit it there.
+
+To make one, link to a block as above, then put `!` before the link.
 
 ## Outline, backlinks and tags
 
