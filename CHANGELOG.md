@@ -462,6 +462,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- In the dev server, opening the graph the first time no longer reloads
+  the page back to the start screen: the graph's layout worker's packages
+  are bundled with the rest as the server starts.
 - A person property is edited as a list of names, as its value is kept,
   where it was edited as one line of text that a database could refuse.
 - A note's properties fit the room beside the outline: in a mid-sized
