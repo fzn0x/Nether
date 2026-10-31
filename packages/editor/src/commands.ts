@@ -71,6 +71,27 @@ const runs: Readonly<Record<BuiltInBlock, Omit<BlockCommand, "id" | "title" | "k
       content: [{ type: "text", text: "flowchart LR\n  A --> B" }],
     }),
   },
+  // A base that shows something at once: the notes changed last, to filter from there.
+  query: {
+    run: insert({
+      type: "codeBlock",
+      attrs: { language: "base" },
+      content: [
+        {
+          type: "text",
+          text: [
+            "views:",
+            "  - type: table",
+            "    order: [file.name, file.folder, file.mtime]",
+            "    sort:",
+            "      - property: file.mtime",
+            "        direction: DESC",
+            "    limit: 10",
+          ].join("\n"),
+        },
+      ],
+    }),
+  },
   divider: { run: (editor) => editor.chain().focus().setHorizontalRule().run() },
   table: {
     run: (editor) =>

@@ -233,11 +233,12 @@ function MermaidPreview(props: { readonly source: string; readonly errorLabel: s
   );
 }
 
-function CodeBlockView(props: ViewProps) {
-  const { node, words, editor } = props;
+function CodeBlockView(props: ViewProps & { readonly links: NoteLinks | undefined }) {
+  const { node, words, editor, links } = props;
   const language = typeof node.attrs.language === "string" ? node.attrs.language : "";
   const name = codeLanguage(language);
   const isDiagram = name.toLowerCase() === "mermaid";
+  const isQuery = name.toLowerCase() === "base";
   return (
     <NodeViewWrapper className="code-block">
       <div className="code-tools" contentEditable={false}>
@@ -263,6 +264,12 @@ function CodeBlockView(props: ViewProps) {
       </pre>
       {isDiagram ? (
         <MermaidPreview source={node.textContent} errorLabel={words.diagramError} />
+      ) : null}
+      {isQuery && links?.renderQuery !== undefined ? (
+        // The notes a query finds are the app's to show; the editor gives it the code.
+        <div className="code-query" contentEditable={false}>
+          {links.renderQuery(node.textContent)}
+        </div>
       ) : null}
     </NodeViewWrapper>
   );

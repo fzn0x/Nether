@@ -117,6 +117,7 @@ describe("inserting blocks", () => {
     ["code", "codeBlock"],
     ["math", "mathBlock"],
     ["diagram", "codeBlock"],
+    ["query", "codeBlock"],
     ["divider", "horizontalRule"],
     ["table", "table"],
     ["columns", "columns"],
@@ -144,6 +145,15 @@ describe("inserting blocks", () => {
     command("diagram").run(editor);
     const code = editor.getJSON().content.find((node) => node.type === "codeBlock");
     expect(code?.attrs?.language).toBe("mermaid");
+  });
+
+  it("makes a query a base code block", () => {
+    const editor = editorWith({ type: "doc", content: [{ type: "paragraph" }] });
+    editor.commands.setTextSelection(1);
+    command("query").run(editor);
+    const code = editor.getJSON().content.find((node) => node.type === "codeBlock");
+    expect(code?.attrs?.language).toBe("base");
+    expect(findCommands("dataview", commands).map((item) => item.id)).toEqual(["query"]);
   });
 });
 

@@ -7,6 +7,7 @@ import { type Editor, Extension, type Range } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey } from "@tiptap/pm/state";
 import Suggestion from "@tiptap/suggestion";
+import type { ReactNode } from "react";
 import { popupMenu } from "./PopupMenu.tsx";
 import { type EditorWords, englishWords } from "./words.ts";
 
@@ -44,6 +45,11 @@ export interface NoteLinks {
   embed?(
     target: LinkTarget,
   ): Promise<{ readonly title: string; readonly blocks: readonly ContentBlock[] } | undefined>;
+  /**
+   * What a `base` code block shows below its code: the notes its query
+   * finds, as Obsidian shows a base embedded in a note.
+   */
+  renderQuery?(source: string): ReactNode;
 }
 
 export interface LinkMenuOptions {
