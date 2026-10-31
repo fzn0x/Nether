@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- A note's history on this computer: the note as it was before each spell
+  of editing, and every ten minutes during one, kept for 30 days or as many
+  as set; **Show the note's history** shows what changed since each
+  version, line by line, and restores one, keeping the note as it was
+  first ([ADR 0041](docs/adr/0041-a-notes-history-is-its-earlier-texts-kept-before-each-spell-of-editing.md)).
 - Attachments sync: a vault's images, PDFs and other files go to the
   workspace once each and come to every computer that syncs it, are kept
   twice when changed on two computers at once, are encrypted for an

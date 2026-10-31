@@ -1,6 +1,6 @@
 ---
 title: Vaults
-description: How Nether opens a folder of notes as a vault, what it adds to the folder, how deleted notes are kept and restored, and where it keeps its index.
+description: How Nether opens a folder of notes as a vault, what it adds to the folder, how deleted notes are kept and restored, how a note's earlier versions are kept, and where it keeps its index.
 ---
 
 A vault is a folder of notes on your computer. Any folder works: an empty
@@ -63,10 +63,30 @@ the Trash tab, and are deleted for good when the vault next opens after
 that. Notes another app put in `.trash`, such as Obsidian, show there too,
 and their days count from when Nether first finds them.
 
+## A note's history
+
+Nether keeps a note as it was before each spell of editing, and every ten
+minutes while one goes on, on this computer. Run **Show the note's
+history** from the command palette to see its versions, the latest first.
+Choosing one shows what changed from it to the note now: lines since
+removed, marked with a minus, and lines since added, marked with a plus,
+with long runs of unchanged lines folded away.
+
+**Restore this version** puts the note back as it was. The note as it is
+just before is kept as a version first, so a restore is undone the same
+way. A restored note is an edit like any other: it syncs to your other
+computers.
+
+Versions are kept for 30 days, or as many as you set at the bottom of the
+history, and deleted when the vault next opens after that. They are kept in
+Nether's index, not in the vault, so they stay on the computer that made
+them.
+
 ## Where the index lives
 
 To open a large vault quickly, Nether keeps an index of it: the notes, their
 sizes and dates, and the IDs that keep links working when a note moves. The
 index is a database in Nether's own data folder, not in the vault, so a
-sync tool or Git never carries it. Deleting it is safe: Nether builds it
-again the next time it opens the vault.
+sync tool or Git never carries it. Deleting it loses only the notes'
+earlier versions on this computer: Nether builds the rest again the next
+time it opens the vault.
