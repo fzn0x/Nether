@@ -4,6 +4,7 @@
 // the account's units (ADR 0042) synced while open, syncs a note's document
 // when asked, and says when the server stored a note elsewhere.
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
+import type { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 
 /** What a channel tells the engine. */
@@ -16,6 +17,11 @@ export interface ChannelEvents {
   onOffline(error?: string): void;
 }
 
+/** A note's document syncing live, while its editor is open (ADR 0043). */
+export interface LiveDocument {
+  stop(): void;
+}
+
 export interface Channel {
   /** Whether the vault documents are synced with the server's now. */
   readonly synced: boolean;
@@ -26,6 +32,12 @@ export interface Channel {
   vaults(documents: ReadonlyMap<string, Y.Doc>): void;
   /** Syncs a note's document: both sides get what the other lacks. */
   sync(id: string, document: Y.Doc): Promise<void>;
+  /**
+   * Keeps a note's document synced as it changes on either side, with the
+   * awareness that tells where each person is in it, until stopped; none
+   * where the channel cannot.
+   */
+  live(id: string, document: Y.Doc, awareness: Awareness): LiveDocument | undefined;
   /** What the channel keeps between runs, as the sync record's `channel`. */
   state(): unknown;
   close(): void;
@@ -159,6 +171,25 @@ export class HocuspocusChannel implements Channel {
       });
       provider.attach();
     });
+  }
+
+  live(id: string, document: Y.Doc, awareness: Awareness): LiveDocument | undefined {
+    if (this.#closed) return undefined;
+    const provider = new HocuspocusProvider({
+      websocketProvider: this.#socket,
+      name: `${this.#options.workspaceId}/${id}`,
+      document,
+      token: this.#options.token,
+      awareness,
+    });
+    provider.attach();
+    return {
+      stop: () => {
+        // The awareness is the caller's, which outlives the provider.
+        provider.detach();
+        provider.destroy();
+      },
+    };
   }
 
   state(): undefined {

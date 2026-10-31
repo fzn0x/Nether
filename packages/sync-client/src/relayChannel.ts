@@ -356,6 +356,11 @@ export class RelayChannel implements Channel {
     return this.#ready;
   }
 
+  /** An encrypted workspace's notes sync in rounds, for now (ADR 0043). */
+  live(): undefined {
+    return undefined;
+  }
+
   /** An encrypted workspace has General alone (ADR 0042): its vault document syncs from the start. */
   vaults(): void {
     // Nothing to add or let go.

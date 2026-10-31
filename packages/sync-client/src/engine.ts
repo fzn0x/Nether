@@ -24,8 +24,9 @@
 // notes changed here and not sent, the units and their vault documents, is
 // kept by the store it is given, so edits made offline are sent when it
 // reconnects.
+import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
-import { type Channel, HocuspocusChannel } from "./channel.ts";
+import { type Channel, HocuspocusChannel, type LiveDocument } from "./channel.ts";
 import { type WorkspaceKey, decryptFile, encryptFile } from "./crypto.ts";
 import {
   type FileHashes,
@@ -80,6 +81,22 @@ export interface SyncVault {
   moveFile(from: string, to: string): Promise<void>;
   /** Sends a file removed elsewhere to the trash. */
   removeFile(path: string): Promise<void>;
+}
+
+/** Who is editing, as others see them beside their caret. */
+export interface Editor {
+  readonly name: string;
+  readonly color: string;
+}
+
+/** A note syncing live while its editor is open (ADR 0043). */
+export interface LiveNote {
+  /** Where each person is in it: the editor shows the others' carets. */
+  readonly awareness: Awareness;
+  /** Who this person is to the others. */
+  readonly editor: Editor;
+  /** Stops syncing it live; it syncs in rounds again. */
+  stop(): void;
 }
 
 /** What a device keeps between runs. */
@@ -163,6 +180,11 @@ export class VaultSync {
   readonly #pending = new Set<string>();
   /** Notes syncing now, which do not start again until done. */
   readonly #syncing = new Set<string>();
+  /** Notes open in an editor, each live once listed: they skip rounds meanwhile. */
+  readonly #editing = new Map<
+    string,
+    { readonly document: Y.Doc; readonly awareness: Awareness; open: LiveDocument | undefined }
+  >();
   #queue: Promise<void> = Promise.resolve();
   #queued = false;
   #saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -201,8 +223,49 @@ export class VaultSync {
     return this.#stopping;
   }
 
+  /**
+   * Syncs a note's document live while its editor is open, with who is
+   * editing for the others' carets. It goes live once a vault document
+   * lists it, as a note just made once a round has placed it; in an
+   * encrypted workspace it stays in rounds, its awareness alone.
+   */
+  live(id: string, document: Y.Doc, editor: Editor): LiveNote {
+    const awareness = new Awareness(document);
+    awareness.setLocalStateField("user", editor);
+    const entry = { document, awareness, open: undefined as LiveDocument | undefined };
+    this.#editing.get(id)?.open?.stop();
+    this.#editing.set(id, entry);
+    this.#openLive();
+    return {
+      awareness,
+      editor,
+      stop: () => {
+        entry.open?.stop();
+        awareness.destroy();
+        if (this.#editing.get(id) !== entry) return;
+        this.#editing.delete(id);
+        // The next round, not one at once beside the live sync's close, takes
+        // what it may not have sent.
+        this.#pending.add(id);
+        this.#saveSoon();
+      },
+    };
+  }
+
+  /** Opens the live syncs wanted for notes now listed, and not syncing in a round. */
+  #openLive(): void {
+    const channel = this.#channel;
+    if (channel === undefined || this.#stopped || this.#editing.size === 0) return;
+    const listed = this.#listed().units;
+    for (const [id, entry] of this.#editing) {
+      if (entry.open !== undefined || !listed.has(id) || this.#syncing.has(id)) continue;
+      entry.open = channel.live(id, entry.document, entry.awareness);
+    }
+  }
+
   async #halt(): Promise<void> {
     this.#stopped = true;
+    for (const entry of this.#editing.values()) entry.open?.stop();
     clearTimeout(this.#unitsTimer);
     this.#unwatch?.();
     this.#channel?.close();
@@ -397,6 +460,7 @@ export class VaultSync {
         await this.#catchUp();
         await this.#flush();
         await this.#reconcileFiles();
+        this.#openLive();
         if (this.#live()) this.#report({ state: "synced" });
       } catch (error) {
         this.#report({
@@ -515,7 +579,14 @@ export class VaultSync {
   async #flush(): Promise<void> {
     const vault = this.#options.vault;
     await this.#each([...this.#pending], async (id) => {
-      if (!vault.paths().has(id)) {
+      // A note open in an editor syncs live, once listed: a round's sync of it
+      // beside the live one would clash on the socket. In an encrypted
+      // workspace, which has no live sync, it goes on in rounds.
+      const editing = this.#editing.get(id);
+      const live =
+        editing !== undefined &&
+        (editing.open !== undefined || this.#options.encryption === undefined);
+      if (!vault.paths().has(id) || live) {
         this.#pending.delete(id);
         return;
       }
