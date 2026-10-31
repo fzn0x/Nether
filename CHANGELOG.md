@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Attachments sync: a vault's images, PDFs and other files go to the
+  workspace once each and come to every computer that syncs it, are kept
+  twice when changed on two computers at once, are encrypted for an
+  encrypted workspace, and the sync line names any the server would not
+  take ([ADR 0040](docs/adr/0040-attachments-sync-by-path-and-hash-in-the-vault-document.md)).
 - Attachments on the server: files kept by the SHA-256 of their bytes,
   once per workspace, on the server's disk or in an S3-compatible bucket
   (MinIO, Garage, R2, S3), checked against their hash when sent, and
@@ -312,6 +317,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The desktop app keeps what the relay knows of each document of an
+  encrypted workspace between runs, where each start asked for every
+  update again.
 - A dialog opened just after a note no longer loses its focus to the
   note's editor; dialogs keep focus while they are open.
 - Every dialog opens with focus in it, so Escape closes the template

@@ -57,6 +57,15 @@ edits, with no conflict to resolve. A note moved or removed on one computer
 is moved, or sent to the trash, on the other. **Stop syncing** keeps the
 notes where they are, on the computer and on the server.
 
+The vault's other files sync too: images, PDFs, audio, video and the
+like, each sent to the server once however many notes or folders have it.
+Their bytes cannot merge, so when two computers change the same file
+before syncing, both versions are kept: the one the server had first at
+its place, and the other beside it, as `map 1.png`. Hidden folders, such as
+`.obsidian`, stay on each computer. A file larger than the server takes,
+100 MB unless its admin sets otherwise, stays on your computer, and the
+line at the foot of the sidebar names it.
+
 ## End-to-end encryption
 
 A workspace can be encrypted, so that only its members' computers can read
