@@ -3,6 +3,7 @@ import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { buildApp } from "../src/app.ts";
 import { readConfig } from "../src/config.ts";
 import type { Database } from "../src/db.ts";
+import type { Mailer, Message } from "../src/mail.ts";
 import { migrate } from "../src/migrations.ts";
 import { newSetupCode } from "../src/setup.ts";
 import { testDatabase } from "./database.ts";
@@ -19,11 +20,37 @@ const config = readConfig({
   NETHER_LOG_LEVEL: "silent",
 });
 
-export async function startServer(): Promise<TestServer> {
+/** A mailer that keeps what it is sent, for a test to read in order. */
+export class TestMailer implements Mailer {
+  readonly sent: Message[] = [];
+  private readonly unread: Message[] = [];
+  private readonly waiting: ((message: Message) => void)[] = [];
+
+  send(message: Message): Promise<void> {
+    this.sent.push(message);
+    const waiter = this.waiting.shift();
+    if (waiter === undefined) this.unread.push(message);
+    else waiter(message);
+    return Promise.resolve();
+  }
+
+  /** The next message not yet read, when it is sent. */
+  next(): Promise<Message> {
+    const message = this.unread.shift();
+    if (message !== undefined) return Promise.resolve(message);
+    return new Promise((resolve) => this.waiting.push(resolve));
+  }
+
+  close(): void {
+    // Nothing to close.
+  }
+}
+
+export async function startServer(options: { mailer?: Mailer } = {}): Promise<TestServer> {
   const db = await testDatabase();
   await migrate(db);
   const setupCode = newSetupCode();
-  const server = await buildApp(config, { db, setupCode });
+  const server = await buildApp(config, { db, setupCode, ...options });
   return {
     server,
     db,

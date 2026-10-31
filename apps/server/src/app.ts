@@ -1,11 +1,13 @@
 import { readFileSync } from "node:fs";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
+import { registerCodes } from "./codes.ts";
 import type { Config } from "./config.ts";
 import type { Database } from "./db.ts";
 import { type EnterpriseModule, enterpriseFeatures, registerEnterprise } from "./enterprise.ts";
 import { tooManyTries } from "./http.ts";
 import { registerInvitations } from "./invitations.ts";
+import type { Mailer } from "./mail.ts";
 import { registerSessions } from "./sessions.ts";
 import { registerSetup } from "./setup.ts";
 
@@ -42,6 +44,8 @@ export interface Services {
   readonly db: Database;
   /** The code first-run setup asks for, while the server has no account. */
   readonly setupCode?: string;
+  /** What sends email, when the admin has named an SMTP server. */
+  readonly mailer?: Mailer;
   /** The modules of the enterprise features this build includes; none are written yet. */
   readonly enterpriseModules?: readonly EnterpriseModule[];
 }
@@ -72,6 +76,12 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   registerSetup(app, services.db, services.setupCode);
   registerSessions(app, services.db);
   registerInvitations(app, services.db);
+  if (services.mailer !== undefined) registerCodes(app, services.db, services.mailer);
+  // How the app may offer to sign in on this server.
+  app.get("/api/sign-in-methods", () => ({
+    password: true,
+    emailCode: services.mailer !== undefined,
+  }));
   await registerEnterprise(app, config.enterprise, services.enterpriseModules ?? []);
   return app;
 }

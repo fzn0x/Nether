@@ -37,6 +37,7 @@ describe("readConfig", () => {
       logLevel: "info",
       databaseUrl: database.NETHER_DATABASE_URL,
       trustProxy: false,
+      mail: null,
       enterprise: {
         sso: false,
         scim: false,
@@ -71,6 +72,21 @@ describe("readConfig", () => {
     expect(readConfig({ ...database, NETHER_TRUST_PROXY: value }).trustProxy).toEqual(trustProxy);
   });
 
+  it("reads the SMTP server and the sender together", () => {
+    const mail = {
+      url: "smtps://nether:secret@mail.example.org:465",
+      from: "Nether <nether@example.org>",
+    };
+    expect(
+      readConfig({ ...database, NETHER_SMTP_URL: ` ${mail.url} `, NETHER_MAIL_FROM: mail.from })
+        .mail,
+    ).toEqual(mail);
+    expect(
+      readConfig({ ...database, NETHER_SMTP_URL: mail.url, NETHER_MAIL_FROM: "nether@example.org" })
+        .mail?.from,
+    ).toBe("nether@example.org");
+  });
+
   it.each([
     [{ NETHER_PORT: "80a" }, 'NETHER_PORT must be a port number from 0 to 65535, not "80a"'],
     [{ NETHER_PORT: "65536" }, "NETHER_PORT must be a port number"],
@@ -92,6 +108,16 @@ describe("readConfig", () => {
     [{ NETHER_TRUST_PROXY: "proxy.example.org" }, "NETHER_TRUST_PROXY must be on, off"],
     [{ NETHER_TRUST_PROXY: "10.0.0.0/33" }, "NETHER_TRUST_PROXY must be on, off"],
     [{ NETHER_TRUST_PROXY: "10.0.0.1," }, "NETHER_TRUST_PROXY must be on, off"],
+    [{ NETHER_MAIL_FROM: "nether@example.org" }, "NETHER_MAIL_FROM is set without NETHER_SMTP_URL"],
+    [
+      { NETHER_SMTP_URL: "http://mail.example.org", NETHER_MAIL_FROM: "nether@example.org" },
+      "NETHER_SMTP_URL must be an smtp:// or smtps:// address",
+    ],
+    [{ NETHER_SMTP_URL: "smtp://mail.example.org" }, "NETHER_MAIL_FROM must be the address"],
+    [
+      { NETHER_SMTP_URL: "smtp://mail.example.org", NETHER_MAIL_FROM: "Nether" },
+      "NETHER_MAIL_FROM must be the address",
+    ],
   ])("rejects %j", (env, message) => {
     expect(() => readConfig({ ...database, ...env })).toThrow(message);
   });

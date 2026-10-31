@@ -4,6 +4,7 @@
 import { buildApp } from "./app.ts";
 import { readConfig } from "./config.ts";
 import { connectPostgres } from "./db.ts";
+import { smtpMailer } from "./mail.ts";
 import { migrate } from "./migrations.ts";
 import { newSetupCode, setupNeeded } from "./setup.ts";
 
@@ -13,11 +14,19 @@ async function main(): Promise<void> {
   try {
     const migrated = await migrate(db);
     const setupCode = (await setupNeeded(db)) ? newSetupCode() : undefined;
-    const app = await buildApp(config, { db, ...(setupCode === undefined ? {} : { setupCode }) });
+    const mailer = config.mail === null ? undefined : smtpMailer(config.mail.url, config.mail.from);
+    const app = await buildApp(config, {
+      db,
+      ...(setupCode === undefined ? {} : { setupCode }),
+      ...(mailer === undefined ? {} : { mailer }),
+    });
     if (migrated.from !== migrated.to) {
       app.log.info(migrated, "Migrated the database to the server's schema");
     }
-    app.addHook("onClose", () => db.close());
+    app.addHook("onClose", async () => {
+      mailer?.close();
+      await db.close();
+    });
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       process.once(signal, () => {
         app.log.info(`Received ${signal}, shutting down`);

@@ -45,6 +45,7 @@ describe("migrate", () => {
       "memberships",
       "schema_migrations",
       "sessions",
+      "sign_in_codes",
       "users",
       "workspaces",
     ]);

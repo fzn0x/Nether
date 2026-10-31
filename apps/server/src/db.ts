@@ -24,6 +24,13 @@ export function readTextOrNull(row: Row | undefined, column: string): string | n
   return readText(row, column);
 }
 
+/** An `integer` column, which both drivers return as a number. */
+export function readNumber(row: Row | undefined, column: string): number {
+  const value = row?.[column];
+  if (typeof value !== "number") throw unexpected(column, value, "a number");
+  return value;
+}
+
 export function readBoolean(row: Row | undefined, column: string): boolean {
   const value = row?.[column];
   if (typeof value !== "boolean") throw unexpected(column, value, "a boolean");

@@ -18,7 +18,16 @@ export interface Config {
    * address: none, all, or their addresses and ranges.
    */
   readonly trustProxy: boolean | readonly string[];
+  /** The SMTP server to send email through, if any; without one the server sends none. */
+  readonly mail: MailConfig | null;
   readonly enterprise: EnterpriseSwitches;
+}
+
+export interface MailConfig {
+  /** As `smtp://user:password@host:587` or `smtps://user:password@host:465`. */
+  readonly url: string;
+  /** The sender, as `Nether <nether@example.org>`. */
+  readonly from: string;
 }
 
 /** A configuration value that cannot be used, with the variable that holds it. */
@@ -99,6 +108,30 @@ function readTrustProxy(env: NodeJS.ProcessEnv): boolean | readonly string[] {
   return proxies;
 }
 
+function readMail(env: NodeJS.ProcessEnv): MailConfig | null {
+  const url = env.NETHER_SMTP_URL?.trim() ?? "";
+  const from = env.NETHER_MAIL_FROM?.trim() ?? "";
+  if (url === "") {
+    if (from !== "") {
+      throw new ConfigError(
+        "NETHER_MAIL_FROM",
+        "is set without NETHER_SMTP_URL: set both to send email",
+      );
+    }
+    return null;
+  }
+  if (!/^smtps?:\/\//i.test(url)) {
+    throw new ConfigError("NETHER_SMTP_URL", "must be an smtp:// or smtps:// address");
+  }
+  if (!/^[^@\s]+@[^@\s]+$|<[^@\s]+@[^@\s]+>$/.test(from)) {
+    throw new ConfigError(
+      "NETHER_MAIL_FROM",
+      "must be the address email comes from, as Nether <nether@example.org>",
+    );
+  }
+  return { url, from };
+}
+
 /** Reads the configuration, throwing a ConfigError that names the variable at fault. */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
   const enterprise = Object.fromEntries(
@@ -111,6 +144,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     logLevel: readLogLevel(env),
     databaseUrl: readDatabaseUrl(env),
     trustProxy: readTrustProxy(env),
+    mail: readMail(env),
     enterprise,
   };
 }

@@ -82,6 +82,23 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX invitations_by_workspace ON invitations (workspace_id);
     `,
   },
+  {
+    version: 3,
+    name: "sign-in codes",
+    sql: `
+      -- A code emailed to sign in with, kept as its SHA-256; one per account at a time.
+      CREATE TABLE sign_in_codes (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        code_hash text NOT NULL,
+        tries integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL
+      );
+
+      CREATE INDEX sign_in_codes_by_user ON sign_in_codes (user_id);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */
