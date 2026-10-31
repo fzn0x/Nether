@@ -224,7 +224,9 @@ describe("an encrypted workspace", () => {
     await writer.sync(id, note);
     const state = writer.state();
     writer.close();
-    const again = new RelayChannel({ ...where, token: served.token }, new Y.Doc(), events, state);
+    // As read back from disk, with what is not a document's state left out.
+    const kept = { ...state, broken: null, partial: { cursor: 1 } };
+    const again = new RelayChannel({ ...where, token: served.token }, new Y.Doc(), events, kept);
     await until(() => again.synced);
     await again.sync(id, note);
     expect(again.state()).toEqual(state);

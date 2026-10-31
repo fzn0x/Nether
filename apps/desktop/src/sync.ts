@@ -72,6 +72,7 @@ export function settingsStore(vault: Vault): SyncStore {
         base: typeof record.base === "object" ? record.base : {},
         pending: Array.isArray(record.pending) ? record.pending : [],
         vault: (await vault.settings.setting(vaultKey)) ?? null,
+        ...(record.channel === undefined ? {} : { channel: record.channel }),
       };
     },
     async save(record: SyncRecord): Promise<void> {

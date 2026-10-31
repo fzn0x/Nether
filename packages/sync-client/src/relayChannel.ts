@@ -60,6 +60,13 @@ function sentVector(state: DocumentState | undefined): Uint8Array | undefined {
 
 type Message = Readonly<Record<string, unknown>>;
 
+/** Whether a document's state, as read back from where it was kept, is whole. */
+function isDocumentState(value: unknown): value is DocumentState {
+  if (typeof value !== "object" || value === null) return false;
+  const { cursor, sent } = value as Record<string, unknown>;
+  return typeof cursor === "number" && typeof sent === "string";
+}
+
 /** A document's own changes, and the snapshot they were taken at. */
 interface Changes {
   readonly own: Uint8Array | undefined;
@@ -108,8 +115,8 @@ export class RelayChannel implements Channel {
     this.#vaultDocument = vaultDocument;
     this.#events = events;
     this.#documents = new Map(
-      Object.entries((saved ?? {}) as Record<string, DocumentState>).filter(
-        ([, state]) => typeof state.cursor === "number" && typeof state.sent === "string",
+      Object.entries((saved ?? {}) as Record<string, unknown>).filter(
+        (entry): entry is [string, DocumentState] => isDocumentState(entry[1]),
       ),
     );
     vaultDocument.on("update", (_update: Uint8Array, origin: unknown) => {

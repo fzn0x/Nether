@@ -30,9 +30,15 @@ describe("a vault's link and sync record", () => {
       base: { a: "A.md" },
       pending: ["b"],
       vault: new Uint8Array([1, 2]),
+      channel: { a: { cursor: 3, sent: "AA==" } },
     });
     const loaded = await store.load();
-    expect(loaded).toMatchObject({ cursor: 7, base: { a: "A.md" }, pending: ["b"] });
+    expect(loaded).toMatchObject({
+      cursor: 7,
+      base: { a: "A.md" },
+      pending: ["b"],
+      channel: { a: { cursor: 3, sent: "AA==" } },
+    });
     expect([...(loaded?.vault ?? [])]).toEqual([1, 2]);
 
     await setVaultLink(vault, undefined);
