@@ -59,3 +59,4 @@ record supersedes it and says so. Start a new one from
 | [0049](0049-built-in-themes-draw-an-effect-behind-the-app.md) | Built-in themes draw an effect behind the app | Accepted |
 | [0050](0050-the-server-searches-what-it-can-read-indexed-as-notes-are-stored.md) | The server searches what it can read, indexed as notes are stored | Accepted |
 | [0051](0051-canvases-are-json-canvas-files-drawn-with-the-page-s-own-elements.md) | Canvases are JSON Canvas files, drawn with the page's own elements | Accepted |
+| [0052](0052-backups-are-the-server-s-own-files-restored-at-their-schema-then-migrated.md) | Backups are the server's own files, restored at their schema, then migrated | Accepted |
