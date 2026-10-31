@@ -14,6 +14,22 @@ open it. Without a vault open, Nether follows your system.
 **As the system** follows your system's setting as it changes, **Light** and
 **Dark** keep to one whatever the system does.
 
+## Built-in themes
+
+Nether comes with two themes of its own, listed under **Built in**, each in
+light and dark:
+
+- **Anime**: violet nights or pastel mornings, with katakana and hiragana
+  drifting up behind the app in rainbow colors.
+- **Pixel grid**: a grid behind the app whose cells light up around the
+  pointer, each in a color of its own, scattering pixels as it moves.
+
+Your notes sit on a panel the effect shows through faintly, so text stays
+easy to read; the margins show it whole. If your system asks for reduced
+motion, the kana stand still and no pixels fly. The effects pause while
+Nether's window is hidden. Anime keeps drawing while it shows, so on a
+laptop running on battery, Nether's own theme uses less power.
+
 ## Themes
 
 A theme is a CSS file in the vault's `.nether/themes` folder: `Ocean.css` is

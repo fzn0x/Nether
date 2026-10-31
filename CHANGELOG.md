@@ -8,6 +8,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Two built-in themes: Anime, with katakana and hiragana drifting up in
+  rainbow colors, and Pixel grid, whose cells light up around the pointer
+  in colors of their own; both keep text readable on panels, and respect
+  reduced motion
+  ([ADR 0049](docs/adr/0049-built-in-themes-draw-an-effect-behind-the-app.md)).
 - Icons before the names of the desktop app's menus and every menu item,
   from Lucide (ISC), which the sidebar's buttons use too; the sidebar
   starts a little wider, 336 pixels, so the menus fit on one line.
