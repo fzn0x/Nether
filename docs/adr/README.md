@@ -46,3 +46,4 @@ record supersedes it and says so. Start a new one from
 | [0036](0036-the-desktop-app-reaches-servers-through-go-and-keeps-tokens-in-the-keychain.md) | The desktop app reaches servers through Go, and keeps their tokens in the system's keychain | Accepted |
 | [0037](0037-a-vault-syncs-through-a-document-of-its-paths-and-its-notes-documents.md) | A vault syncs through a document of its paths and its notes' documents, by what each device last agreed | Accepted |
 | [0038](0038-encrypted-workspaces-seal-a-key-to-each-member-and-relay-updates-the-server-cannot-read.md) | Encrypted workspaces seal a key to each member, and the server relays updates it cannot read | Accepted |
+| [0039](0039-attachments-are-kept-by-their-hash-on-disk-or-in-an-s3-bucket.md) | Attachments are kept by their hash, on disk or in an S3-compatible bucket | Accepted |

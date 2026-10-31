@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Attachments on the server: files kept by the SHA-256 of their bytes,
+  once per workspace, on the server's disk or in an S3-compatible bucket
+  (MinIO, Garage, R2, S3), checked against their hash when sent, and
+  served so they cannot run scripts
+  ([ADR 0039](docs/adr/0039-attachments-are-kept-by-their-hash-on-disk-or-in-an-s3-bucket.md)).
 - End-to-end encryption in `@nether/sync-client`: a 24-word recovery
   phrase that opens an account's private key, workspace keys sealed to
   each member, and every update of an encrypted workspace encrypted with
