@@ -23,6 +23,8 @@ import { BookmarkList } from "./BookmarkList.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
 import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
 import { type Menu, MenuBar } from "./MenuBar.tsx";
+import { IconButton } from "./IconButton.tsx";
+import { NewFolderDialog } from "./NewFolderDialog.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { MergeNoteDialog } from "./MergeNoteDialog.tsx";
@@ -69,7 +71,7 @@ import { useTemplateSettings } from "./useTemplateSettings.ts";
 import { useSync } from "./useSync.ts";
 import { usePeople, useNotifications } from "./useNotifications.ts";
 import { queueMention } from "./notify.ts";
-import { useNotes, useVault } from "./useVault.ts";
+import { useFolders, useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
 // show while they do. Not through lazy(): a lazy component waits on its
@@ -250,6 +252,7 @@ export function VaultView(props: {
   const appearance = useAppearance(vault);
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
+  const folders = useFolders(vault);
   const bookmarks = useBookmarks(vault);
   // Where notes are open: tabs in one pane or two (ADR 0046). Commands
   // about a note act on the note the focused pane shows.
@@ -339,6 +342,12 @@ export function VaultView(props: {
   }, []);
   // The folder a new note goes in, when made from the tree.
   const [newIn, setNewIn] = useState("");
+  // The folder a new folder goes in, while its dialog is open.
+  const [newFolderIn, setNewFolderIn] = useState<string | undefined>();
+  // A folder's menu, open at a point.
+  const [folderMenu, setFolderMenu] = useState<
+    { readonly path: string; readonly at: MenuPoint } | undefined
+  >();
   const [notesView, setNotesView] = useState<NotesView>(storedView);
   // What happened to a note: a template the vault no longer has, or the note moved to the trash.
   const [notice, setNotice] = useState<
@@ -452,7 +461,8 @@ export function VaultView(props: {
       if (state.status !== "open") return;
       const note = state.vault.note(id);
       if (note === undefined) return;
-      const { moveFiles, pageMoves, renamedPath } = await loadRenameNote();
+      const { carryFolder, moveFiles, pageMoves, pagesFolder, renamedPath } =
+        await loadRenameNote();
       const target = renamedPath(note.path, name);
       if ("error" in target) {
         throw new Error(target.error === "empty" ? t("noteNameEmpty") : t("noteNameUnsafe"));
@@ -464,6 +474,7 @@ export function VaultView(props: {
         state.indexer.graph,
         pageMoves(state.vault, note.path, target.path),
       );
+      await carryFolder(state.vault, pagesFolder(note.path), pagesFolder(target.path));
     },
     [state],
   );
@@ -477,7 +488,8 @@ export function VaultView(props: {
       const to = folder === "" ? name : `${folder}/${name}`;
       setNotice(undefined);
       void (async () => {
-        const { folderMoves, moveFiles, pageMoves } = await loadRenameNote();
+        const { carryFolder, folderMoves, moveFiles, pageMoves, pagesFolder } =
+          await loadRenameNote();
         const moves =
           dragged.kind === "note"
             ? pageMoves(open, dragged.path, to)
@@ -489,6 +501,9 @@ export function VaultView(props: {
               ];
         await indexer.idle();
         await moveFiles(open, indexer.graph, moves);
+        // The folder goes too, with the folders in it no note is in.
+        if (dragged.kind === "folder") await carryFolder(open, dragged.path, to);
+        else await carryFolder(open, pagesFolder(dragged.path), pagesFolder(to));
       })().catch((error: unknown) => {
         setNotice({ text: error instanceof Error ? error.message : String(error) });
       });
@@ -539,6 +554,61 @@ export function VaultView(props: {
   const closeMenu = useCallback(() => {
     setMenu(undefined);
   }, []);
+  const openFolderMenu = useCallback((path: string, at: MenuPoint) => {
+    setFolderMenu({ path, at });
+  }, []);
+  const closeFolderMenu = useCallback(() => {
+    setFolderMenu(undefined);
+  }, []);
+
+  /** Whether the vault has a folder or file at a path, as Windows and macOS compare names. */
+  const pathTaken = useCallback(
+    (path: string) => {
+      const wanted = path.toLowerCase();
+      return (
+        folders.some((folder) => folder.toLowerCase() === wanted) ||
+        (vault?.files().some((file) => file.toLowerCase() === wanted) ?? false)
+      );
+    },
+    [folders, vault],
+  );
+
+  /** A folder's menu: notes and folders made in it, and deleting it while it is empty. */
+  const folderEntries = (path: string): MenuEntry[] => {
+    const inside = (other: string) => other.startsWith(`${path}/`);
+    const empty = !notes.some((note) => inside(note.path)) && !folders.some(inside);
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    return [
+      {
+        label: t("newNoteHere"),
+        run: () => {
+          newNoteIn(path);
+        },
+      },
+      {
+        label: t("newFolderHere"),
+        run: () => {
+          setNewFolderIn(path);
+        },
+      },
+      "separator",
+      {
+        label: t("deleteFolder"),
+        danger: true,
+        disabled: !empty,
+        run: () => {
+          vault?.removeFolder(path).then(
+            () => {
+              setNotice({ text: t("deletedFolder", { name }) });
+            },
+            () => {
+              setNotice({ text: t("folderNotEmpty") });
+            },
+          );
+        },
+      },
+    ];
+  };
 
   /** Copies text, and says so in the sidebar. */
   const copyText = useCallback((text: string, done: string) => {
@@ -731,6 +801,11 @@ export function VaultView(props: {
         ? () => {
             setNewIn("");
             setDialog("newNote");
+          }
+        : undefined,
+      newFolder: open
+        ? () => {
+            setNewFolderIn("");
           }
         : undefined,
       newDatabase: open
@@ -1035,6 +1110,7 @@ export function VaultView(props: {
   const menus: readonly Menu[] = [
     menuOf(t("menuFile"), [
       "newNote",
+      "newFolder",
       "newDatabase",
       "dayNote",
       "weekNote",
@@ -1101,40 +1177,50 @@ export function VaultView(props: {
         ) : (
           <>
             <div className="sidebar-actions">
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                aria-keyshortcuts={ariaOf("newNote")}
-                title={t("newNoteHint")}
+              <IconButton
+                icon="newNote"
+                label={t("newNote")}
+                keys={keysOf("newNote")}
+                ariaKeys={ariaOf("newNote")}
+                hasPopup="dialog"
                 onClick={() => {
                   setNewIn("");
                   setDialog("newNote");
                 }}
-              >
-                {t("newNote")}
-              </button>
-              <button
-                type="button"
+              />
+              <IconButton
+                icon="newFolder"
+                label={t("newFolder")}
+                keys={keysOf("newFolder")}
+                ariaKeys={ariaOf("newFolder")}
+                hasPopup="dialog"
+                onClick={() => {
+                  setNewFolderIn("");
+                }}
+              />
+              <IconButton
+                icon="newDatabase"
+                label={t("newDatabase")}
+                keys={keysOf("newDatabase")}
+                ariaKeys={ariaOf("newDatabase")}
                 disabled={run.newDatabase === undefined}
                 onClick={() => {
                   run.newDatabase?.();
                 }}
-              >
-                {t("newDatabase")}
-              </button>
+              />
               {periods
                 .filter((period) => settings[period].enabled)
                 .map((period) => (
-                  <button
+                  <IconButton
                     key={period}
-                    type="button"
-                    title={t(`${period}NoteHint`)}
+                    icon={`${period}Note`}
+                    label={t(`${period}Note`)}
+                    keys={keysOf(`${period}Note`)}
+                    ariaKeys={ariaOf(`${period}Note`)}
                     onClick={() => {
                       openPeriodic(period);
                     }}
-                  >
-                    {t(`${period}Note`)}
-                  </button>
+                  />
                 ))}
             </div>
             {notice === undefined ? null : (
@@ -1288,6 +1374,9 @@ export function VaultView(props: {
                     onMove={moveInTree}
                     onNewIn={newNoteIn}
                     onMenu={openMenu}
+                    folders={folders}
+                    onFolderMenu={openFolderMenu}
+                    folderMenuFor={folderMenu?.path}
                     onOpenInNewTab={openInTab}
                     menuFor={menu?.id}
                     label={t("notes")}
@@ -1492,6 +1581,24 @@ export function VaultView(props: {
           }}
         />
       ) : null}
+      {folderMenu === undefined || state.status !== "open" ? null : (
+        <ContextMenu
+          label={t("folderMenu", { name: folderMenu.path })}
+          at={folderMenu.at}
+          entries={folderEntries(folderMenu.path)}
+          onClose={closeFolderMenu}
+        />
+      )}
+      {newFolderIn === undefined || state.status !== "open" ? null : (
+        <NewFolderDialog
+          folder={newFolderIn}
+          taken={pathTaken}
+          onCreate={(path) => state.vault.makeFolder(path)}
+          onClose={() => {
+            setNewFolderIn(undefined);
+          }}
+        />
+      )}
       {menu === undefined || state.status !== "open" ? null : (
         <ContextMenu
           label={t("noteMenu", { name: state.vault.note(menu.id)?.title ?? "" })}

@@ -319,11 +319,6 @@ button {
   color: var(--text);
 }
 
-.sidebar-actions button:disabled {
-  color: var(--muted);
-  cursor: default;
-}
-
 /* New note, and the periodic notes, above the tabs. */
 .sidebar-actions {
   display: flex;
@@ -332,19 +327,54 @@ button {
   padding: 0 0.75rem 0.5rem;
 }
 
-.sidebar-actions button {
-  padding: 0.25rem 0.6rem;
+/* A button that is an icon, named by its tooltip. */
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   border: 1px solid var(--rule);
-  border-radius: 5px;
+  border-radius: 6px;
   background: none;
   color: var(--text);
-  font: inherit;
-  font-size: 0.8125rem;
   cursor: pointer;
 }
 
-.sidebar-actions button:hover {
+.icon-button:hover:not(:disabled) {
   border-color: var(--muted);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.icon-button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.icon-button .icon {
+  display: block;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: var(--panel-shadow);
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.tooltip kbd {
+  color: var(--muted);
+  font: inherit;
 }
 
 .sidebar-notice {
@@ -3289,6 +3319,7 @@ kbd {
 .notifications-dialog,
 .note-tags-dialog,
 .rename-note-dialog,
+.new-folder-dialog,
 .move-note-dialog {
   align-self: flex-start;
 }
