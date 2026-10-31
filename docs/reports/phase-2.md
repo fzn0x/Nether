@@ -38,7 +38,7 @@ now.
   vault of the reference generator's notes, written as Obsidian writes
   them, through the app's own import, and compares every note in the
   vault afterwards with its file: with `NETHER_GATE_NOTES=50000`, all
-  50,000 come over byte for byte, in 3.7 s.
+  50,000 come over byte for byte, in 3.4 s.
 - **A Notion export.** `packages/markdown/test/notion.test.ts` imports an
   export laid out as Notion writes one: nested pages, a database with its
   `_all` table and its rows' pages, links in text, in a table and to a
@@ -70,7 +70,7 @@ notes, and for the graph a reference vault of 10,000 notes and their
 | The graph, frames while zooming, p95 | 16.7 ms | | 33.4 ms |
 
 The graph was drawn with the GPU, an RTX 3060, as WebView2 draws it. The
-gate's import of the 50,000 notes took 3.7 s.
+gate's import of the 50,000 notes took 3.4 s.
 
 ## Deferred
 
