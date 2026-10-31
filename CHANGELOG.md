@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Spaces and sharing in the desktop app: **Spaces** makes teamspaces,
+  from a folder of the vault or anew, with their members and levels, and
+  a private space; **Share this page** shares a page on its own with its
+  subpages, restricted to its own people or not, gives members access and
+  invites guests by a link ([ADR 0042](docs/adr/0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md)).
 - Sync units in `@nether/sync-client`: the engine syncs the vault document
   of each unit the account opens, puts each note and file in the unit
   whose area holds its path, asks the server before moving a note from one

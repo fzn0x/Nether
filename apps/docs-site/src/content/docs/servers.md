@@ -91,6 +91,36 @@ this vault** with the workspace to fetch its notes.
 **Leave the workspace** takes you out of it. The vault keeps its notes and
 stops syncing.
 
+## Spaces and sharing
+
+A workspace's notes are in spaces, which **Spaces**, in the command palette,
+lists:
+
+- **General** holds every note in no other space, and every member opens
+  it.
+- A **teamspace** is a folder at the top of the vault, opened by the
+  members its makers add, each with **Full access**, **Can edit**, **Can
+  comment** or **Can view**. Naming a new teamspace after a folder you
+  have makes that folder the teamspace's: its notes leave General, and
+  only the teamspace's members still open them. Those with full access add
+  and remove its members, rename it, which renames its folder in every
+  member's vault, and delete it once it is empty.
+- Your **private space** is the `Private` folder, which only you open.
+
+A note moved into a space's folder joins that space, and leaves the vaults
+of those who do not open it.
+
+**Share this page**, with a note open, shares it on its own, with its
+subpages, the notes in the folder beside it. A page shared on its own
+keeps everyone who opens the space it is in, unless you choose **Only the
+people below**. Those with full access give members access to it, and
+invite a guest by a link: a guest opens the pages shared with them, and
+nothing else of the workspace. **Stop sharing it on its own** puts it back
+with its space.
+
+An encrypted workspace has no spaces or shared pages yet: everyone in it
+opens all of it.
+
 ## End-to-end encryption
 
 A workspace can be encrypted, so that only its members' computers can read
