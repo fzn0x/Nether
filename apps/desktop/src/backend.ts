@@ -1,6 +1,7 @@
 // Where the page gets its vaults: the Go services and the SQLite plugin in
-// the desktop app, or a sample vault in memory when the page runs in a
-// browser, as in the dev server's preview and the end-to-end tests.
+// the desktop app, the server's workspaces in the web app (webBackend.ts),
+// or a sample vault in memory when the page runs in a browser otherwise, as
+// in the dev server's preview and the end-to-end tests.
 import { fetch as goFetch } from "@mygo-plugins/fetch";
 import { open } from "@mygo-plugins/sqlite";
 import {
@@ -117,8 +118,8 @@ function base64(data: Uint8Array): string {
 }
 
 export interface Backend {
-  /** The desktop app, or a browser showing the sample vault. */
-  readonly kind: "desktop" | "preview";
+  /** The desktop app, the web app, or a browser showing the sample vault. */
+  readonly kind: "desktop" | "web" | "preview";
   /** The vault the app was started with, as `nether ~/Notes`; null when none. */
   startup(): Promise<Startup | null>;
   recent(): Promise<VaultInfo[]>;
@@ -473,10 +474,7 @@ const preview: Backend = {
   kind: "preview",
   fetchPreview(url) {
     const hooks = (globalThis as { netherPreview?: PreviewHooks }).netherPreview;
-    return (
-      hooks?.fetchPreview?.(url) ??
-      Promise.reject(new Error("Link previews are fetched by the desktop app."))
-    );
+    return hooks?.fetchPreview?.(url) ?? Promise.reject(new Error(t("previewNeedsApp")));
   },
   openUrl(url) {
     window.open(url, "_blank", "noopener");
@@ -562,5 +560,12 @@ const preview: Backend = {
   },
 };
 
+/**
+ * The web app's backend, loaded in its build alone: the target is fixed as
+ * the page is built, so the desktop app's leaves it and its index out.
+ */
+const web =
+  import.meta.env.VITE_NETHER_TARGET === "web" ? (await import("./webBackend.ts")).web : undefined;
+
 /** The backend for where the page runs. */
-export const backend: Backend = isMyGo() ? desktop : preview;
+export const backend: Backend = isMyGo() ? desktop : (web ?? preview);

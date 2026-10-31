@@ -2,7 +2,7 @@
 // the workspace it is linked to, what this device knows of its sync, in
 // the vault's index outside its folder, and how it is going, in words. The
 // engine and the vault it sees (syncVault.ts) load only for a linked vault.
-import type { Vault } from "@nether/storage";
+import type { Vault, VaultSettings } from "@nether/storage";
 import type { SyncRecord, SyncStatus, SyncStore } from "@nether/sync-client";
 import { t } from "./messages.ts";
 
@@ -71,6 +71,16 @@ export async function setVaultLink(vault: Vault, link: VaultLink | undefined): P
     linkKey,
     link === undefined ? undefined : encoder.encode(JSON.stringify(link)),
   );
+}
+
+/**
+ * Links a vault to a workspace in its index before it opens, as each of
+ * the web app's vaults is its workspace (ADR 0053); one linked already is
+ * left as it is.
+ */
+export async function linkVaultStore(store: VaultSettings, link: VaultLink): Promise<void> {
+  if ((await store.setting(linkKey)) !== undefined) return;
+  await store.setSetting(linkKey, encoder.encode(JSON.stringify(link)));
 }
 
 /** What sync knows between runs, in the vault's index on this device. */

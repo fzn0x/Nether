@@ -184,7 +184,9 @@ function userOf(answer: unknown, base: string): ServerUser {
 
 function signedIn(answer: unknown, base: string): SignedIn {
   const body = record(answer);
-  return { token: text(body.token, base), user: userOf(body.user, base) };
+  // The web app's answer has none: the session is in a cookie (ADR 0053).
+  const token = body.token === undefined && "expiresAt" in body ? "" : text(body.token, base);
+  return { token, user: userOf(body.user, base) };
 }
 
 /** How a server offers to sign in; it throws when the address is not a Nether server's. */
