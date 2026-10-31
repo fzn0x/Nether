@@ -86,6 +86,7 @@ export {
   type RollupFunction,
   type SelectOption,
   checkPropertyValue,
+  formulaLength,
   isPropertyKey,
   optionColors,
   propertyTypes,

@@ -172,6 +172,32 @@ describe("checkRow", () => {
   });
 });
 
+describe("formulas", () => {
+  const schema = (property: Record<string, unknown>) =>
+    readDatabaseSchema({ properties: [{ key: "total", ...property }], views: [] }, "schema");
+
+  it("read an expression on one line, and refuse one missing, empty, too long or elsewhere", () => {
+    expect(schema({ type: "formula", formula: "price * 2" }).properties[0]).toEqual({
+      key: "total",
+      type: "formula",
+      formula: "price * 2",
+    });
+    expect(() => schema({ type: "formula" })).toThrow("schema.properties[0].formula is missing");
+    expect(() => schema({ type: "formula", formula: "  " })).toThrow(
+      "schema.properties[0].formula is empty",
+    );
+    expect(() => schema({ type: "formula", formula: "1+".repeat(1001) })).toThrow(
+      "is longer than 2000 characters",
+    );
+    expect(() => schema({ type: "formula", formula: "a\nb" })).toThrow(
+      "schema.properties[0].formula",
+    );
+    expect(() => schema({ type: "text", formula: "1" })).toThrow(
+      "schema.properties[0].formula is only for formula properties",
+    );
+  });
+});
+
 describe("rollups", () => {
   const clients = "01929f4c-7b00-7a00-8000-000000000001";
   const schema = (rollup: unknown, type = "rollup") =>

@@ -93,7 +93,7 @@ describe("property definitions", () => {
 
   it.each([
     [{ key: "$x", type: "text" }, "p.key must be a property key"],
-    [{ key: "x", type: "formula" }, "p.type must be one of"],
+    [{ key: "x", type: "chart" }, "p.type must be one of"],
     [{ key: "x", type: "text", options: [] }, "p.options is only for select properties"],
     [
       { key: "x", type: "select", relation: { database: ids.database } },

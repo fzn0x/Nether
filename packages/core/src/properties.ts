@@ -25,6 +25,7 @@ export const propertyTypes = [
   "relation",
   "file",
   "rollup",
+  "formula",
 ] as const;
 
 export type PropertyType = (typeof propertyTypes)[number];
@@ -85,7 +86,12 @@ export interface PropertyDefinition {
   readonly relation?: { readonly database: NoteId; readonly backlink?: string };
   /** For a rollup: what it works out, never written to the rows. */
   readonly rollup?: Rollup;
+  /** For a formula: its expression, worked out for each row and never written (ADR 0020). */
+  readonly formula?: string;
 }
+
+/** The longest a formula's expression can be. */
+export const formulaLength = 2000;
 
 /** A property of a note: a frontmatter key and its value. */
 export interface PropertyEntry {
@@ -126,7 +132,12 @@ function readSelectOption(value: unknown, path: string): SelectOption {
 }
 
 export function readPropertyDefinition(value: unknown, path: string): PropertyDefinition {
-  const fields = readFields(value, path, ["key", "type"], ["options", "relation", "rollup"]);
+  const fields = readFields(
+    value,
+    path,
+    ["key", "type"],
+    ["options", "relation", "rollup", "formula"],
+  );
   const key = readPropertyKey(fields.key, `${path}.key`);
   const type = readOneOf(fields.type, `${path}.type`, propertyTypes);
   const definition: PropertyDefinition = { key, type };
@@ -165,6 +176,18 @@ export function readPropertyDefinition(value: unknown, path: string): PropertyDe
     };
   }
   if (fields.rollup !== undefined) fail(`${path}.rollup`, "is only for rollup properties");
+
+  if (type === "formula") {
+    if (fields.relation !== undefined) fail(`${path}.relation`, "is only for relation properties");
+    if (fields.formula === undefined) fail(`${path}.formula`, "is missing");
+    const formula = readLine(fields.formula, `${path}.formula`);
+    if (formula.trim() === "") fail(`${path}.formula`, "is empty");
+    if (formula.length > formulaLength) {
+      fail(`${path}.formula`, `is longer than ${String(formulaLength)} characters`);
+    }
+    return { ...definition, formula };
+  }
+  if (fields.formula !== undefined) fail(`${path}.formula`, "is only for formula properties");
 
   if (type === "relation") {
     if (fields.relation === undefined) fail(`${path}.relation`, "is missing");
@@ -228,7 +251,8 @@ export function checkPropertyValue(type: PropertyType, value: JsonValue, path: s
       case "relation":
         return isStringList(value, isUuid);
       case "rollup":
-        // Worked out from the related rows, never held: what a file has is not read.
+      case "formula":
+        // Worked out, never held: what a file has under the key is not read.
         return true;
     }
   })();
