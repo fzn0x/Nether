@@ -35,12 +35,9 @@ test("a folder is made, shown while empty, and deleted", async ({ page }) => {
   const later = tree.getByRole("treeitem", { name: "Later" });
   await expect(later).toBeVisible();
 
-  // Inbox holds a folder, so only Later can be deleted.
+  // Inbox holds a folder, so deleting it asks first; Later, empty, goes at once.
   await inbox.click({ button: "right" });
-  await expect(menu.getByRole("menuitem", { name: "Delete folder" })).toHaveAttribute(
-    "aria-disabled",
-    "true",
-  );
+  await expect(menu.getByRole("menuitem", { name: "Delete folder…" })).toBeVisible();
   await page.keyboard.press("Escape");
   await later.click({ button: "right" });
   await page
@@ -119,4 +116,40 @@ test("a vault with folders and no notes shows its folders, and a new one at once
     page.getByRole("tree", { name: "Notes" }).getByRole("treeitem", { name: "First" }),
   ).toBeVisible();
   await expect(page.getByText("This vault has no notes yet.")).toBeHidden();
+});
+
+test("a folder with notes in it goes to the trash, asked first, and comes back", async ({
+  page,
+}) => {
+  const tree = await openSampleTree(page);
+  const projects = tree.getByRole("treeitem", { name: "Projects" });
+  await projects.click();
+  await tree.getByRole("treeitem", { name: /Roadmap/ }).click();
+  await expect(page.getByRole("tab", { name: "Roadmap" })).toBeVisible();
+
+  await projects.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete folder…" }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Delete the folder Projects?" });
+  await expect(dialog).toContainText("2 notes and 0 other files");
+  // The focus starts on Cancel, which deletes nothing.
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+  expect(await violations(page)).toEqual([]);
+  await page.keyboard.press("Enter");
+  await expect(dialog).toBeHidden();
+  await expect(projects).toBeVisible();
+
+  await projects.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete folder…" }).click();
+  await dialog.getByRole("button", { name: "Move to trash" }).click();
+  await expect(projects).toBeHidden();
+  // Its notes' tabs close with them.
+  await expect(page.getByRole("tab", { name: "Roadmap" })).toBeHidden();
+  const notice = page.getByRole("status").filter({ hasText: "Deleted the folder Projects" });
+  await expect(notice).toContainText("the 2 notes and files in it are in the trash");
+
+  // Restore puts each back where it was, the folder with them.
+  await notice.getByRole("button", { name: "Restore" }).click();
+  // It opens as it was, its notes showing.
+  await expect(projects).toHaveAttribute("aria-expanded", "true");
+  await expect(tree.getByRole("treeitem", { name: /Roadmap/ })).toBeVisible();
 });
