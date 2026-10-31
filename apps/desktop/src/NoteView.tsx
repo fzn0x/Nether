@@ -16,6 +16,7 @@ import { noteFiles } from "./noteFiles.ts";
 import { DatabaseView } from "./DatabaseView.tsx";
 import { PropertiesPanel } from "./PropertiesPanel.tsx";
 import { QueryView } from "./QueryView.tsx";
+import { UnlinkedMentions } from "./UnlinkedMentions.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
 import { useGraph } from "./useGraph.ts";
 import { useNote } from "./useNote.ts";
@@ -399,7 +400,10 @@ function useBacklinkContexts(
   return contexts;
 }
 
-/** Beside the note: its outline, and the notes that link to it with the text around each link. */
+/**
+ * Beside the note: its outline, the notes that link to it with the text
+ * around each link, and the notes that mention it without a link.
+ */
 function NotePanel(props: {
   readonly vault: Vault;
   readonly graph: LinkGraph;
@@ -467,6 +471,14 @@ function NotePanel(props: {
           </ul>
         )}
       </section>
+      <UnlinkedMentions
+        vault={vault}
+        graph={graph}
+        id={id}
+        onOpenNote={(note) => {
+          onOpenNote(note);
+        }}
+      />
     </aside>
   );
 }

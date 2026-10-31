@@ -444,6 +444,45 @@ button {
   overflow-wrap: anywhere;
 }
 
+/* Unlinked mentions: a heading that opens the list, and a mention with its Link button. */
+.note-panel .panel-disclosure {
+  min-block-size: 1.5rem;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.note-panel .panel-disclosure::before {
+  display: inline-block;
+  margin-inline-end: 0.35rem;
+  content: "\25B8" / "";
+}
+
+.note-panel .panel-disclosure[aria-expanded="true"]::before {
+  content: "\25BE" / "";
+}
+
+.backlink-context.mention {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.backlink-context.mention mark {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+
+.note-panel .mention-link {
+  flex: none;
+  min-block-size: 1.5rem;
+  min-inline-size: 1.5rem;
+  color: var(--accent);
+}
+
 /* Below this width the panel goes under the note. */
 @media (max-width: 64rem) {
   .note-layout {
