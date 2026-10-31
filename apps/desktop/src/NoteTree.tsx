@@ -4,22 +4,31 @@
 // Enter opens a note. A note or folder dragged onto a folder or a page, or
 // onto the space below the rows, moves there; the + beside a folder or a
 // page makes a note in it. A right click on a note, or the menu key, opens
-// its menu. What is open is remembered for the vault.
+// its menu. What is open is remembered for the vault. Canvases show beside
+// the notes, and open as notes do (ADR 0051).
 import type { NoteId } from "@nether/core";
 import { type NoteEntry, folderOf } from "@nether/storage";
 import { type DragEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { type MenuPoint, isMenuKey, pointBelow } from "./ContextMenu.tsx";
 import { t } from "./messages.ts";
-import { type TreeNode, type TreeRow, folderTree, pageTree, pathTo, visibleRows } from "./tree.ts";
+import {
+  type TreeNode,
+  type TreeRow,
+  fileKey,
+  folderTree,
+  pageTree,
+  pathTo,
+  visibleRows,
+} from "./tree.ts";
 
 const rowHeight = 28;
 const overscan = 8;
 const indent = 14;
 const dragType = "application/x-nether-path";
 
-/** What is dragged: a note by its path, or a folder. */
+/** What is dragged: a note or a file by its path, or a folder. */
 export interface Dragged {
-  readonly kind: "note" | "folder";
+  readonly kind: "note" | "folder" | "file";
   readonly path: string;
 }
 
@@ -41,18 +50,24 @@ function store(key: string, expanded: ReadonlySet<string>): void {
 }
 
 function nameOf(node: TreeNode): string {
-  return node.kind === "folder" ? node.name : node.note.title;
+  return node.kind === "note" ? node.note.title : node.name;
 }
 
-/** The folder a drop on a row puts things in: the folder, a page's pages, or a note's folder. */
+/** A row's path: a folder's, a note's or a file's. */
+function pathOf(node: TreeNode): string {
+  return node.kind === "note" ? node.note.path : node.path;
+}
+
+/** The folder a drop on a row puts things in: the folder, a page's pages, or a note's or file's folder. */
 function dropFolder(node: TreeNode, mode: "folders" | "pages"): string {
   if (node.kind === "folder") return node.path;
+  if (node.kind === "file") return folderOf(node.path);
   return mode === "pages" ? node.note.path.replace(/\.md$/i, "") : folderOf(node.note.path);
 }
 
 /** Whether a drop would move something into itself, or where it already is. */
 function pointless(dragged: Dragged, folder: string): boolean {
-  const own = dragged.kind === "folder" ? dragged.path : dragged.path.replace(/\.md$/i, "");
+  const own = dragged.kind === "note" ? dragged.path.replace(/\.md$/i, "") : dragged.path;
   return folder === own || folder.startsWith(`${own}/`) || folderOf(dragged.path) === folder;
 }
 
@@ -69,6 +84,15 @@ export function NoteTree(props: {
   readonly onNewIn: (folder: string) => void;
   /** Opens a note's menu at a point. */
   readonly onMenu?: (id: NoteId, at: MenuPoint) => void;
+  /** Canvases, by their paths, which show beside the notes. */
+  readonly files?: readonly string[];
+  /** Opens a file, as a canvas, in place of what the pane shows, or in a new tab. */
+  readonly onOpenFile?: (path: string, newTab: boolean) => void;
+  /** Opens a file's menu at a point. */
+  readonly onFileMenu?: (path: string, at: MenuPoint) => void;
+  /** The file the focused pane shows, which shows so; and the file whose menu is open. */
+  readonly selectedFile?: string | undefined;
+  readonly fileMenuFor?: string | undefined;
   /** Folders no note is in, which show too. */
   readonly folders?: readonly string[];
   /** Opens a folder's menu at a point. */
@@ -92,6 +116,11 @@ export function NoteTree(props: {
     onNewIn,
     onMenu,
     folders = noFolders,
+    files = noFolders,
+    onOpenFile,
+    onFileMenu,
+    selectedFile,
+    fileMenuFor,
     onFolderMenu,
     folderMenuFor,
     onOpenInNewTab,
@@ -105,8 +134,8 @@ export function NoteTree(props: {
   const [focusKey, setFocusKey] = useState<string | undefined>();
   const [dropKey, setDropKey] = useState<string | undefined>();
   const roots = useMemo(
-    () => (mode === "pages" ? pageTree(notes, folders) : folderTree(notes, folders)),
-    [notes, folders, mode],
+    () => (mode === "pages" ? pageTree(notes, folders, files) : folderTree(notes, folders, files)),
+    [notes, folders, files, mode],
   );
   const rows = useMemo(() => visibleRows(roots, expanded), [roots, expanded]);
 
@@ -119,13 +148,14 @@ export function NoteTree(props: {
     store(storageKey, next);
   };
 
-  // The selected note shows, its folders or pages open.
+  // The selected note or file shows, its folders or pages open.
+  const shownKey = selectedFile === undefined ? selected : fileKey(selectedFile);
   useEffect(() => {
-    if (selected === undefined) return;
-    const trail = pathTo(roots, selected);
+    if (shownKey === undefined) return;
+    const trail = pathTo(roots, shownKey);
     if (trail.every((key) => expanded.has(key))) return;
     change(new Set([...expanded, ...trail]));
-  }, [selected, roots]);
+  }, [shownKey, roots]);
 
   useEffect(() => {
     const element = scroller.current;
@@ -143,8 +173,11 @@ export function NoteTree(props: {
     };
   }, []);
 
-  const selectedKey = rows.find((row) => row.node.kind === "note" && row.node.note.id === selected)
-    ?.node.key;
+  const selectedKey = rows.find((row) =>
+    row.node.kind === "note"
+      ? row.node.note.id === selected
+      : row.node.kind === "file" && row.node.path === selectedFile,
+  )?.node.key;
   const current =
     focusKey !== undefined && rows.some((row) => row.node.key === focusKey)
       ? focusKey
@@ -181,6 +214,7 @@ export function NoteTree(props: {
 
   const open = (row: TreeRow) => {
     if (row.node.kind === "note") onSelect(row.node.note.id);
+    else if (row.node.kind === "file") onOpenFile?.(row.node.path, false);
     else toggle(row);
   };
 
@@ -193,6 +227,8 @@ export function NoteTree(props: {
       if (row.node.kind === "note" && onMenu !== undefined) onMenu(row.node.note.id, at);
       else if (row.node.kind === "folder" && onFolderMenu !== undefined) {
         onFolderMenu(row.node.path, at);
+      } else if (row.node.kind === "file" && onFileMenu !== undefined) {
+        onFileMenu(row.node.path, at);
       } else return;
       event.preventDefault();
       return;
@@ -294,7 +330,10 @@ export function NoteTree(props: {
         {rows.slice(first, last).map((row, offset) => {
           const position = first + offset;
           const { node } = row;
-          const isSelected = node.kind === "note" && node.note.id === selected;
+          const isSelected =
+            node.kind === "note"
+              ? node.note.id === selected
+              : node.kind === "file" && node.path === selectedFile;
           const target = dropFolder(node, mode);
           return (
             <div
@@ -303,7 +342,8 @@ export function NoteTree(props: {
               data-key={node.key}
               className={`tree-row${dropKey === node.key ? " drop-target" : ""}${
                 (node.kind === "note" && node.note.id === menuFor) ||
-                (node.kind === "folder" && node.path === folderMenuFor)
+                (node.kind === "folder" && node.path === folderMenuFor) ||
+                (node.kind === "file" && node.path === fileMenuFor)
                   ? " menu-open"
                   : ""
               }`}
@@ -315,14 +355,14 @@ export function NoteTree(props: {
               aria-selected={isSelected}
               aria-current={isSelected ? "page" : undefined}
               tabIndex={node.key === current ? 0 : -1}
-              title={node.kind === "folder" ? node.path : node.note.path}
+              title={pathOf(node)}
               draggable
               onDragStart={(event) => {
                 event.dataTransfer.setData(
                   dragType,
                   JSON.stringify({
                     kind: node.kind,
-                    path: node.kind === "folder" ? node.path : node.note.path,
+                    path: pathOf(node),
                   } satisfies Dragged),
                 );
                 event.dataTransfer.effectAllowed = "move";
@@ -335,28 +375,34 @@ export function NoteTree(props: {
               }}
               onClick={(event) => {
                 setFocusKey(node.key);
-                if (
-                  node.kind === "note" &&
-                  onOpenInNewTab !== undefined &&
-                  (event.ctrlKey || event.metaKey)
-                ) {
+                const newTab = event.ctrlKey || event.metaKey;
+                if (node.kind === "note" && onOpenInNewTab !== undefined && newTab) {
                   onOpenInNewTab(node.note.id);
+                  return;
+                }
+                if (node.kind === "file") {
+                  onOpenFile?.(node.path, newTab);
                   return;
                 }
                 open(row);
               }}
               onAuxClick={(event) => {
-                if (event.button !== 1 || node.kind !== "note" || onOpenInNewTab === undefined) {
-                  return;
+                if (event.button !== 1) return;
+                if (node.kind === "note" && onOpenInNewTab !== undefined) {
+                  event.preventDefault();
+                  onOpenInNewTab(node.note.id);
+                } else if (node.kind === "file" && onOpenFile !== undefined) {
+                  event.preventDefault();
+                  onOpenFile(node.path, true);
                 }
-                event.preventDefault();
-                onOpenInNewTab(node.note.id);
               }}
               onContextMenu={(event) => {
                 const at = { x: event.clientX, y: event.clientY };
                 if (node.kind === "note" && onMenu !== undefined) onMenu(node.note.id, at);
                 else if (node.kind === "folder" && onFolderMenu !== undefined) {
                   onFolderMenu(node.path, at);
+                } else if (node.kind === "file" && onFileMenu !== undefined) {
+                  onFileMenu(node.path, at);
                 } else return;
                 event.preventDefault();
                 setFocusKey(node.key);
@@ -375,10 +421,16 @@ export function NoteTree(props: {
               >
                 {node.children.length === 0 ? "" : row.expanded ? "▾" : "▸"}
               </span>
-              <span className={node.kind === "folder" ? "tree-folder" : "note-title"}>
+              <span
+                className={
+                  node.kind === "folder"
+                    ? "tree-folder"
+                    : `note-title${node.kind === "file" ? " tree-canvas" : ""}`
+                }
+              >
                 {nameOf(node)}
               </span>
-              {node.kind === "folder" || mode === "pages" ? (
+              {node.kind === "folder" || (mode === "pages" && node.kind === "note") ? (
                 <button
                   type="button"
                   className="tree-add"

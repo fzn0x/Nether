@@ -89,6 +89,34 @@ export function useVault(info: VaultInfo): VaultState {
 const none: readonly NoteEntry[] = [];
 const noFolders: readonly string[] = [];
 
+/**
+ * The vault's canvases, `.canvas` files (ADR 0051), by path, sorted, kept
+ * current: read when the vault changes, from the files that are not notes,
+ * not on every render, and the same list until one is added, moved or removed.
+ */
+export function useCanvasFiles(vault: Vault | undefined): readonly string[] {
+  const [files, setFiles] = useState<readonly string[]>(noFolders);
+  useEffect(() => {
+    if (vault === undefined) {
+      setFiles(noFolders);
+      return;
+    }
+    let last: readonly string[] = noFolders;
+    const read = () => {
+      const found = vault
+        .attachments()
+        .filter((path) => /\.canvas$/i.test(path))
+        .sort();
+      if (found.length === last.length && found.every((path, at) => path === last[at])) return;
+      last = found;
+      setFiles(found);
+    };
+    read();
+    return vault.subscribe(read);
+  }, [vault]);
+  return files;
+}
+
 /** The vault's folders, empty ones too, kept current as they change. */
 export function useFolders(vault: Vault | undefined): readonly string[] {
   return useSyncExternalStore(

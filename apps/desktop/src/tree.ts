@@ -3,6 +3,7 @@
 // are the notes in the folder beside it with its name, `Plan/` beside
 // `Plan.md`, as Notion exports pages; a folder no note names shows as a
 // folder. Both are made from the notes' paths alone, so they always agree.
+// Canvases, files of the vault (ADR 0051), show beside the notes.
 import type { NoteEntry } from "@nether/storage";
 
 export type TreeNode =
@@ -18,6 +19,14 @@ export type TreeNode =
       readonly key: string;
       readonly note: NoteEntry;
       /** Its pages, in the page tree; none in the file tree. */
+      readonly children: readonly TreeNode[];
+    }
+  | {
+      /** A file that opens in a tab, as a canvas. */
+      readonly kind: "file";
+      readonly key: string;
+      readonly path: string;
+      readonly name: string;
       readonly children: readonly TreeNode[];
     };
 
@@ -35,7 +44,7 @@ export interface TreeRow {
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function nameOf(node: TreeNode): string {
-  return node.kind === "folder" ? node.name : node.note.title;
+  return node.kind === "note" ? node.note.title : node.name;
 }
 
 export function folderKey(path: string): string {
@@ -46,15 +55,26 @@ export function noteKey(note: NoteEntry): string {
   return `n:${note.id}`;
 }
 
+export function fileKey(path: string): string {
+  return `c:${path}`;
+}
+
 interface Building {
   readonly path: string;
   readonly name: string;
   readonly folders: Map<string, Building>;
   readonly notes: NoteEntry[];
+  readonly files: string[];
 }
 
 function building(path: string): Building {
-  return { path, name: path.slice(path.lastIndexOf("/") + 1), folders: new Map(), notes: [] };
+  return {
+    path,
+    name: path.slice(path.lastIndexOf("/") + 1),
+    folders: new Map(),
+    notes: [],
+    files: [],
+  };
 }
 
 /** Folders first, then notes, each by name as a file explorer sorts them. */
@@ -69,12 +89,25 @@ function folderChildren(folder: Building): TreeNode[] {
       children: folderChildren(child),
     }));
   const notes = [...folder.notes]
-    .sort((a, b) => collator.compare(a.title, b.title))
-    .map((note): TreeNode => ({ kind: "note", key: noteKey(note), note, children: [] }));
+    .map((note): TreeNode => ({ kind: "note", key: noteKey(note), note, children: [] }))
+    .concat(
+      folder.files.map((path): TreeNode => ({
+        kind: "file",
+        key: fileKey(path),
+        path,
+        name: path.slice(path.lastIndexOf("/") + 1).replace(/\.canvas$/i, ""),
+        children: [],
+      })),
+    )
+    .sort((a, b) => collator.compare(nameOf(a), nameOf(b)));
   return [...folders, ...notes];
 }
 
-function root(notes: readonly NoteEntry[], folders: readonly string[]): Building {
+function root(
+  notes: readonly NoteEntry[],
+  folders: readonly string[],
+  files: readonly string[],
+): Building {
   const top = building("");
   const into = (parts: readonly string[]): Building => {
     let folder = top;
@@ -91,6 +124,7 @@ function root(notes: readonly NoteEntry[], folders: readonly string[]): Building
   };
   for (const folder of folders) into(folder.split("/"));
   for (const note of notes) into(note.path.split("/").slice(0, -1)).notes.push(note);
+  for (const path of files) into(path.split("/").slice(0, -1)).files.push(path);
   return top;
 }
 
@@ -98,14 +132,16 @@ function root(notes: readonly NoteEntry[], folders: readonly string[]): Building
 export function folderTree(
   notes: readonly NoteEntry[],
   folders: readonly string[] = [],
+  files: readonly string[] = [],
 ): readonly TreeNode[] {
-  return folderChildren(root(notes, folders));
+  return folderChildren(root(notes, folders, files));
 }
 
 /** The page tree: a folder beside a note with its name holds the note's pages. */
 export function pageTree(
   notes: readonly NoteEntry[],
   folders: readonly string[] = [],
+  files: readonly string[] = [],
 ): readonly TreeNode[] {
   const pages = (children: readonly TreeNode[]): TreeNode[] => {
     const byPath = new Map<string, TreeNode & { kind: "note" }>();
@@ -134,7 +170,7 @@ export function pageTree(
       })
       .sort((a, b) => collator.compare(nameOf(a), nameOf(b)));
   };
-  return pages(folderTree(notes, folders));
+  return pages(folderTree(notes, folders, files));
 }
 
 /** The rows shown: every node whose parents are all expanded, in order. */
@@ -151,11 +187,11 @@ export function visibleRows(roots: readonly TreeNode[], expanded: ReadonlySet<st
   return rows;
 }
 
-/** The keys of the nodes a note is in, outermost first, to show it. */
+/** The keys of the nodes a note, or a file by its key, is in, outermost first, to show it. */
 export function pathTo(roots: readonly TreeNode[], note: string): string[] {
   const search = (nodes: readonly TreeNode[], trail: string[]): string[] | undefined => {
     for (const node of nodes) {
-      if (node.kind === "note" && node.note.id === note) return trail;
+      if ((node.kind === "note" && node.note.id === note) || node.key === note) return trail;
       const found = search(node.children, [...trail, node.key]);
       if (found !== undefined) return found;
     }

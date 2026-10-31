@@ -16,7 +16,12 @@ function notes(...paths: string[]): NoteEntry[] {
 /** A tree as nested names: folders end with `/`. */
 function shape(nodes: readonly TreeNode[]): unknown[] {
   return nodes.map((node) => {
-    const name = node.kind === "folder" ? `${node.name}/` : node.note.title;
+    const name =
+      node.kind === "folder"
+        ? `${node.name}/`
+        : node.kind === "file"
+          ? `${node.name} (canvas)`
+          : node.note.title;
     return node.children.length === 0 ? name : { [name]: shape(node.children) };
   });
 }
@@ -48,6 +53,22 @@ describe("folderTree", () => {
   });
 });
 
+describe("canvases in the trees", () => {
+  it("show beside the notes of their folder, sorted with them, and in the page tree too", () => {
+    const files = ["Projects/Board.canvas", "Map.canvas"];
+    expect(shape(folderTree(notes("Projects/Plan.md", "Welcome.md"), [], files))).toEqual([
+      { "Projects/": ["Board (canvas)", "Plan"] },
+      "Map (canvas)",
+      "Welcome",
+    ]);
+    expect(shape(pageTree(notes("Projects.md"), [], files))).toEqual([
+      "Map (canvas)",
+      { Projects: ["Board (canvas)"] },
+    ]);
+    expect(pathTo(folderTree([], [], files), "c:Projects/Board.canvas")).toEqual(["f:Projects"]);
+  });
+});
+
 describe("pageTree", () => {
   it("puts a folder's notes under the note beside it with its name, and keeps other folders", () => {
     expect(shape(pageTree(vault))).toEqual([
@@ -69,7 +90,7 @@ describe("visibleRows", () => {
     const rows = visibleRows(tree, new Set(["n:Projects.md", "n:Projects/Plan.md"]));
     expect(
       rows.map((row) => [
-        row.node.kind === "folder" ? row.node.name : row.node.note.title,
+        row.node.kind === "note" ? row.node.note.title : row.node.name,
         row.depth,
         row.expanded,
         `${String(row.position + 1)}/${String(row.siblings)}`,
