@@ -39,3 +39,4 @@ record supersedes it and says so. Start a new one from
 | [0029](0029-a-logseq-graph-keeps-its-folders-and-is-written-as-obsidian-writes.md) | A Logseq graph keeps its folders, and is written as Obsidian writes | Accepted |
 | [0030](0030-web-pages-import-through-the-syntax-tree-tools.md) | Web pages import through the syntax-tree project's HTML tools | Accepted |
 | [0031](0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md) | The server keeps its data in PostgreSQL, and is set up with a code from its log | Accepted |
+| [0032](0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md) | Sessions are bearer tokens kept as hashes, and accounts come by invitation | Accepted |

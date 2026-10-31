@@ -142,6 +142,14 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Signing in to the server: an email address and password give a session
+  token, which lasts 30 days unused and 90 at most and is kept only as its
+  hash. People see and end their sessions and change their passwords, and
+  a workspace's owners and admins invite others, who accept with a new
+  account or the one they are signed in to. Signing in is limited by
+  address and by account, and `NETHER_TRUST_PROXY` names the proxies whose
+  forwarded addresses to believe
+  ([ADR 0032](docs/adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md)).
 - The server keeps its data in PostgreSQL, set by `NETHER_DATABASE_URL`,
   and brings the database to its schema as it starts. A server with no
   account writes a setup code to its log, and `POST /api/setup` with that
