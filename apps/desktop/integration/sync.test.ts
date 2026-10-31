@@ -1,8 +1,12 @@
 // Two desktop vaults syncing through a real Nether server, on PGlite: the
 // sync engine with the vault the desktop app gives it, its open notes and
 // what it keeps in the vault's index, checked by the files each writes.
+import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildApp } from "@nether/server/src/app.ts";
+import { DiskBlobs } from "@nether/server/src/blobs.ts";
 import { readConfig } from "@nether/server/src/config.ts";
 import type { Database } from "@nether/server/src/db.ts";
 import { migrate } from "@nether/server/src/migrations.ts";
@@ -23,21 +27,25 @@ const config = readConfig({
 
 let server: Awaited<ReturnType<typeof buildApp>> | undefined;
 let db: Database | undefined;
+let attachments: string | undefined;
 const stops: (() => Promise<void>)[] = [];
 
 afterEach(async () => {
   for (const stop of stops.splice(0)) await stop();
   await server?.close();
   await db?.close();
+  if (attachments !== undefined) await rm(attachments, { recursive: true, force: true });
   server = undefined;
   db = undefined;
+  attachments = undefined;
 });
 
 async function startServer() {
   db = await testDatabase();
   await migrate(db);
   const setupCode = newSetupCode();
-  server = await buildApp(config, { db, setupCode });
+  attachments = await mkdtemp(join(tmpdir(), "nether-attachments-"));
+  server = await buildApp(config, { db, setupCode, blobs: new DiskBlobs(attachments) });
   await server.listen({ host: "127.0.0.1", port: 0 });
   const url = `http://127.0.0.1:${String((server.server.address() as AddressInfo).port)}`;
   const response = await fetch(`${url}/api/setup`, {
@@ -169,5 +177,34 @@ describe("syncing desktop vaults", () => {
     expect(await laptop.text("Kept.md")).toBeUndefined();
     // Removed elsewhere, it waits in this device's trash.
     expect(await phone.text(".trash/Gone.md")).toBe("# Gone\n");
+  });
+
+  it("writes a vault's attachments on another device, where its notes' links find them", async () => {
+    const served = await startServer();
+    const laptop = await device(served, { "Trip.md": "# Trip\n\n![[photo.png]]\n" });
+    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0, 255]);
+    await laptop.vault.attach("attachments/photo.png", png);
+    await laptop.vault.writeFile("Packing.txt", "socks\n", "");
+    await until(() => laptop.engine.status.state === "synced");
+
+    const phone = await device(served, {});
+    await until(
+      () =>
+        phone.memory.bytes("attachments/photo.png") !== undefined &&
+        phone.memory.bytes("Packing.txt") !== undefined,
+    );
+    expect(phone.memory.bytes("attachments/photo.png")).toEqual(png);
+    expect(phone.vault.resolveFile("photo.png", "Trip.md")).toBe("attachments/photo.png");
+
+    // Changed by another app on the phone, and removed on the laptop.
+    phone.memory.edit("Packing.txt", "socks\nboots\n");
+    await laptop.vault.removeFile("attachments/photo.png");
+    await until(
+      async () =>
+        (await laptop.text("Packing.txt")) === "socks\nboots\n" &&
+        phone.memory.bytes("attachments/photo.png") === undefined,
+    );
+    // Removed elsewhere, it waits in this device's trash.
+    expect(phone.memory.bytes(".trash/photo.png")).toEqual(png);
   });
 });

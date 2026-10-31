@@ -424,6 +424,9 @@ export const messages = {
   syncSyncing: "Syncing with {workspace}…",
   syncPending: "Syncing with {workspace}: {count} to send.",
   syncSynced: "Synced with {workspace}.",
+  syncRefused: "Synced with {workspace}, but for {file}, which the server would not take.",
+  syncRefusedMore:
+    "Synced with {workspace}, but for {file} and {count} other files, which the server would not take.",
   encryptionOffHint: "End-to-end encryption is off.",
   encryptionLockedHint: "Encrypted workspaces are locked on this device.",
   encryptionOnHint: "End-to-end encryption is on.",

@@ -71,6 +71,7 @@ export function settingsStore(vault: Vault): SyncStore {
         cursor: record.cursor,
         base: typeof record.base === "object" ? record.base : {},
         pending: Array.isArray(record.pending) ? record.pending : [],
+        ...(typeof record.files === "object" ? { files: record.files } : {}),
         vault: (await vault.settings.setting(vaultKey)) ?? null,
         ...(record.channel === undefined ? {} : { channel: record.channel }),
       };
@@ -108,6 +109,12 @@ export function syncSummary(
     return status.pending === 0
       ? t("syncSyncing", values)
       : t("syncPending", { ...values, count: status.pending });
+  }
+  const [file, ...others] = status.refused ?? [];
+  if (file !== undefined) {
+    return others.length === 0
+      ? t("syncRefused", { ...values, file })
+      : t("syncRefusedMore", { ...values, file, count: others.length });
   }
   return t("syncSynced", values);
 }

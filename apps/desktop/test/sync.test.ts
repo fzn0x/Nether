@@ -29,6 +29,7 @@ describe("a vault's link and sync record", () => {
       cursor: 7,
       base: { a: "A.md" },
       pending: ["b"],
+      files: { "photo.png": "ab" },
       vault: new Uint8Array([1, 2]),
       channel: { a: { cursor: 3, sent: "AA==" } },
     });
@@ -37,6 +38,7 @@ describe("a vault's link and sync record", () => {
       cursor: 7,
       base: { a: "A.md" },
       pending: ["b"],
+      files: { "photo.png": "ab" },
       channel: { a: { cursor: 3, sent: "AA==" } },
     });
     expect([...(loaded?.vault ?? [])]).toEqual([1, 2]);
@@ -70,5 +72,15 @@ describe("syncSummary", () => {
       "Syncing with Team: 3 to send.",
     );
     expect(syncSummary(link, { state: "synced", pending: 0 }, false)).toBe("Synced with Team.");
+    expect(syncSummary(link, { state: "synced", pending: 0, refused: ["video.mp4"] }, false)).toBe(
+      "Synced with Team, but for video.mp4, which the server would not take.",
+    );
+    expect(
+      syncSummary(
+        link,
+        { state: "synced", pending: 0, refused: ["a.mp4", "b.mp4", "c.mp4"] },
+        false,
+      ),
+    ).toBe("Synced with Team, but for a.mp4 and 2 other files, which the server would not take.");
   });
 });
