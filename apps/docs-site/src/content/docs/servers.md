@@ -7,6 +7,13 @@ Nether works without a server: a vault is a folder of Markdown files on your
 computer. A Nether server, which you or your organization runs, adds sync
 between devices, sharing and collaboration. The app signs in to it first.
 
+:::note
+Sync and collaboration are not in Nether's first releases yet: they wait
+until the server can be started with one `docker compose up`. Until then,
+the Sync menu and its commands show only in an app built with
+`VITE_NETHER_SYNC=on`, as `VITE_NETHER_SYNC=on pnpm --filter @nether/desktop dev`.
+:::
+
 ## Connecting to a server
 
 Run **Servers and signing in** from the command palette (Ctrl+P, or Cmd+P on

@@ -402,6 +402,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Sync and collaboration (the Sync menu, servers, members, spaces, sharing
+  and notifications) are left out of the desktop app until the server is
+  ready to run with `docker compose up`; a build made with
+  `VITE_NETHER_SYNC=on` shows them, as the tests do.
 - The database view, query blocks, and the import and appearance dialogs
   with the importers, load when a note or the user first needs them, not
   when the app opens: what it loads at start is 52 kB smaller, below
