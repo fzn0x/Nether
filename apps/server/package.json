@@ -16,6 +16,7 @@
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/websocket": "^11.3.4",
     "@hocuspocus/server": "~4.7.1",
+    "aws4fetch": "^1.0.20",
     "fastify": "^5.12.7",
     "hash-wasm": "^4.12.0",
     "nodemailer": "^10.2.1",
