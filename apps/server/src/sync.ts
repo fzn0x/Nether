@@ -186,17 +186,34 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
   );
 
   // Closing the server stores every document first, as Hocuspocus's own does.
+  // A few seconds at most: a server stopping does not wait on a document
+  // that will not unload, and says so.
   app.addHook("onClose", async () => {
     if (hocuspocus.getDocumentsCount() === 0) return;
-    await new Promise<void>((resolve) => {
-      hocuspocus.configuration.extensions.push({
-        async afterUnloadDocument({ instance }) {
-          if (instance.getDocumentsCount() === 0) resolve();
-          return Promise.resolve();
-        },
-      });
-      hocuspocus.closeConnections();
-      hocuspocus.flushPendingStores();
-    });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unloaded = await Promise.race([
+      new Promise<boolean>((resolve) => {
+        hocuspocus.configuration.extensions.push({
+          async afterUnloadDocument({ instance }) {
+            if (instance.getDocumentsCount() === 0) resolve(true);
+            return Promise.resolve();
+          },
+        });
+        hocuspocus.closeConnections();
+        hocuspocus.flushPendingStores();
+      }),
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => {
+          resolve(false);
+        }, 5000);
+      }),
+    ]);
+    clearTimeout(timer);
+    if (!unloaded) {
+      app.log.warn(
+        { documents: hocuspocus.getDocumentsCount() },
+        "Stopped after five seconds of waiting for open documents to be stored and closed",
+      );
+    }
   });
 }
