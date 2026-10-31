@@ -2,17 +2,15 @@
   <img src="docs/assets/mark.svg" width="96" height="96" alt="Nether's mark: an N whose diagonal links two notes">
 </p>
 
-# Nether: Notion and Obsidian in one open-source workspace
+# Nether: Local-first note taking app that you truly own
 
 [![CI](https://github.com/fzn0x/Nether/actions/workflows/ci.yml/badge.svg)](https://github.com/fzn0x/Nether/actions/workflows/ci.yml)
 [![Docs](https://github.com/fzn0x/Nether/actions/workflows/pages.yml/badge.svg)](https://fzn0x.github.io/Nether/)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](#license)
 
-Nether is an open-source, self-hostable workspace that joins **Obsidian's
-local-first, linked Markdown notes** with **Notion's databases and
-real-time collaboration**, so you don't have to choose between them. Notes
-are plain files you own; the same notes can become databases, wikis and
-shared projects, synced through **a server you control**, or through none.
+Nether is self-hostable and local-first note taking app combining both
+Notion and Obsidian features. You can import your Obsidian vaults and
+Notion exports. Self-hosting is available for enterprise.
 
 > [!NOTE]
 > Nether is in early development, and nothing is ready to install yet.
