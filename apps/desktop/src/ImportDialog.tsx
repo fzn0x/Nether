@@ -28,6 +28,7 @@ const choices: readonly {
   readonly hint: MessageKey;
 }[] = [
   { value: "folder", label: "importFolder", hint: "importFolderHint" },
+  { value: "notion", label: "importNotion", hint: "importNotionHint" },
   { value: "markdown", label: "importMarkdown", hint: "importMarkdownHint" },
   { value: "csv", label: "importCsv", hint: "importCsvHint" },
 ];

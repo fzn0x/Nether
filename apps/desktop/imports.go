@@ -36,7 +36,10 @@ type importSource struct {
 	mu sync.Mutex
 	// files are the source's files by their paths in it: on disk, or in the ZIP.
 	files map[string]importEntry
-	zip   *zip.ReadCloser
+	// zips are the ZIP files read: the one chosen, and those it holds, as
+	// Notion splits a large export into, each copied to a temporary file.
+	zips  []*zip.ReadCloser
+	temps []string
 }
 
 type importEntry struct {
@@ -206,8 +209,11 @@ func (s *importSource) read(entry importEntry) ([]byte, error) {
 }
 
 func (s *importSource) close() {
-	if s.zip != nil {
-		_ = s.zip.Close()
+	for _, reader := range s.zips {
+		_ = reader.Close()
+	}
+	for _, temp := range s.temps {
+		_ = os.Remove(temp)
 	}
 }
 
@@ -255,13 +261,24 @@ func folderSource(root string) (*importSource, error) {
 }
 
 // zipSource lists a ZIP file's files by their paths in it, leaving out
-// folders, hidden files and any path that would climb out of it.
+// folders, hidden files and any path that would climb out of it. The ZIP
+// files it holds are opened in turn and their files listed as its own, as
+// Notion splits a large export into parts, each a ZIP in the ZIP.
 func zipSource(file string) (*importSource, error) {
-	reader, err := zip.OpenReader(file)
-	if err != nil {
+	source := &importSource{files: map[string]importEntry{}}
+	if err := source.addZip(file, true); err != nil {
+		source.close()
 		return nil, err
 	}
-	source := &importSource{files: map[string]importEntry{}, zip: reader}
+	return source, nil
+}
+
+func (s *importSource) addZip(file string, outer bool) error {
+	reader, err := zip.OpenReader(file)
+	if err != nil {
+		return err
+	}
+	s.zips = append(s.zips, reader)
 	for _, entry := range reader.File {
 		name := strings.ReplaceAll(entry.Name, "\\", "/")
 		clean := path.Clean(name)
@@ -269,13 +286,45 @@ func zipSource(file string) (*importSource, error) {
 			strings.HasPrefix(clean, "../") || path.IsAbs(clean) || hiddenPath(clean) {
 			continue
 		}
-		if len(source.files) >= maxImportFiles {
-			source.close()
-			return nil, errors.New("the ZIP file has too many files")
+		if outer && strings.EqualFold(path.Ext(clean), ".zip") {
+			temp, err := copyToTemp(entry)
+			if err != nil {
+				return err
+			}
+			s.temps = append(s.temps, temp)
+			if err := s.addZip(temp, false); err != nil {
+				return err
+			}
+			continue
 		}
-		source.files[clean] = importEntry{zip: entry, size: int64(entry.UncompressedSize64)}
+		if len(s.files) >= maxImportFiles {
+			return errors.New("the ZIP file has too many files")
+		}
+		s.files[clean] = importEntry{zip: entry, size: int64(entry.UncompressedSize64)}
 	}
-	return source, nil
+	return nil
+}
+
+// copyToTemp copies a ZIP's entry to a temporary file, and returns its path.
+func copyToTemp(entry *zip.File) (string, error) {
+	reader, err := entry.Open()
+	if err != nil {
+		return "", err
+	}
+	defer reader.Close()
+	temp, err := os.CreateTemp("", "nether-import-*.zip")
+	if err != nil {
+		return "", err
+	}
+	_, err = io.Copy(temp, reader)
+	if closeErr := temp.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(temp.Name())
+		return "", err
+	}
+	return temp.Name(), nil
 }
 
 // filesSource holds the files the user chose, by their names.

@@ -85,6 +85,44 @@ test("an Obsidian vault imports byte for byte into a folder of its own, and agai
   expect(errors).toEqual([]);
 });
 
+test("a Notion export imports as pages and databases, its links made wiki links", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  const id = (digit: string) => digit.repeat(32);
+  await willImport(page, `Export-${id("0")}`, {
+    [`Home ${id("1")}.md`]: `# Home\n\nSee [Tasks](Tasks%20${id("2")}.csv) and [Write](Tasks%20${id("2")}/Write%20${id("3")}.md).\n`,
+    [`Tasks ${id("2")}.csv`]: 'Name,Status,Due\nWrite,Doing,"October 30, 2026"\n',
+    [`Tasks ${id("2")}/Write ${id("3")}.md`]:
+      "# Write\n\nStatus: Doing\nDue: October 30, 2026\n\nThe draft.\n",
+  });
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("import");
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Import" });
+  await dialog.getByRole("radio", { name: /A Notion export/ }).check();
+  await dialog.getByRole("button", { name: "Choose and import…" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("Imported 3 notes into Notion.");
+  expect(await fileText(page, "Notion/Home.md")).toBe(
+    "See [[Notion/Tasks]] and [[Notion/Tasks/Write]].\n",
+  );
+  expect(await fileText(page, "Notion/Tasks/Write.md")).toBe(
+    "---\nStatus: Doing\nDue: 2026-10-30\n---\nThe draft.\n",
+  );
+
+  await dialog.getByRole("button", { name: "Open Home" }).click();
+  await page
+    .getByRole("textbox", { name: "Home, note text" })
+    .getByText("Notion/Tasks", { exact: true })
+    .click();
+  await expect(page.locator("#note-title")).toHaveText("Tasks");
+  const database = page.getByRole("region", { name: "Database" });
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveText(["Write"]);
+  await expect(database.getByLabel("Due of Write", { exact: true })).toHaveValue("2026-10-30");
+  expect(errors).toEqual([]);
+});
+
 test("a CSV table imports as a database, a note for each line", async ({ page }) => {
   const errors = errorsOf(page);
   await openSample(page);

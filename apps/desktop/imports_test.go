@@ -129,6 +129,65 @@ func TestImportReadsAZipLeavingOutWhatIsNotItsFiles(t *testing.T) {
 	}
 }
 
+// zipOf writes a ZIP file of the given files, and returns its bytes' path.
+func zipOf(t *testing.T, file string, files map[string]string) string {
+	t.Helper()
+	out, err := os.Create(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer := zip.NewWriter(out)
+	for name, text := range files {
+		w, err := writer.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(text)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := out.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return file
+}
+
+func TestImportReadsTheZipsInAZipAsItsOwnFiles(t *testing.T) {
+	vaults, _ := newVault(t, map[string]string{"Mine.md": "Mine"})
+	dir := t.TempDir()
+	part1, _ := os.ReadFile(zipOf(t, filepath.Join(dir, "p1.zip"), map[string]string{"Export/A 01.md": "A"}))
+	part2, _ := os.ReadFile(zipOf(t, filepath.Join(dir, "p2.zip"), map[string]string{"Export/B 02.md": "B"}))
+	file := zipOf(t, filepath.Join(dir, "Export.zip"), map[string]string{
+		"Export-Part-1.zip": string(part1),
+		"Export-Part-2.zip": string(part2),
+		"index.html":        "<p>Index</p>",
+	})
+	imports := NewImports(vaults)
+	imports.dialog = picker{paths: []string{file}}
+	source, err := imports.Choose(context.Background(), "zip")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Export/A 01.md", "Export/B 02.md", "index.html"}
+	if got := paths(source.Files); !reflect.DeepEqual(got, want) {
+		t.Fatalf("listed %v, want %v", got, want)
+	}
+	if text, err := imports.ReadText(source.Token, "Export/B 02.md"); err != nil || text != "B" {
+		t.Fatalf("read %q, %v", text, err)
+	}
+	opened := imports.open[source.Token]
+	temps := append([]string(nil), opened.temps...)
+	imports.Close(source.Token)
+	for _, temp := range temps {
+		if _, err := os.Stat(temp); !os.IsNotExist(err) {
+			t.Fatalf("left %s behind", temp)
+		}
+	}
+}
+
 func TestImportReadsChosenFilesAndKnowsWhenNothingWasChosen(t *testing.T) {
 	vaults, _ := newVault(t, map[string]string{"Mine.md": "Mine"})
 	folder := writeFiles(t, map[string]string{"a.csv": "Name\nA\n", "b.csv": "Name\nB\n"})

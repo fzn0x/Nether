@@ -287,6 +287,9 @@ export const messages = {
   importFolder: "An Obsidian vault, or a folder of Markdown",
   importFolderHint:
     "Its notes as they are, with their images and other files, in a folder of their own.",
+  importNotion: "A Notion export",
+  importNotionHint:
+    "The ZIP file Notion exports as Markdown and CSV: its pages, and its databases with their rows, in a folder named Notion.",
   importMarkdown: "Markdown files",
   importMarkdownHint: "Each one a note, in a folder named Imported.",
   importCsv: "CSV tables",
