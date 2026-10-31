@@ -2529,3 +2529,93 @@ kbd {
   color: var(--accent);
   font-size: 0.8125rem;
 }
+
+/* A note's history: its versions beside what changed since the one chosen. */
+.history-dialog {
+  width: min(56rem, calc(100vw - 2rem));
+  max-height: 80vh;
+}
+
+.history-body {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: 1rem;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.history-versions {
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.history-diff {
+  overflow: auto;
+  max-height: 55vh;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.history-diff pre {
+  margin: 0;
+  padding: 0 0.75rem 0 1.5rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.history-diff del,
+.history-diff ins {
+  display: block;
+  position: relative;
+  text-decoration: none;
+}
+
+/* A sign beside each changed run, so color is not all that tells them apart. */
+.history-diff del::before,
+.history-diff ins::before {
+  position: absolute;
+  inset-inline-start: 0.5rem;
+}
+
+.history-diff del {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.history-diff del::before {
+  content: "\2212";
+}
+
+.history-diff ins {
+  background: color-mix(in srgb, var(--code-string) 16%, transparent);
+}
+
+.history-diff ins::before {
+  content: "+";
+}
+
+.diff-folded {
+  margin: 0;
+  padding: 0.125rem 1.5rem;
+  color: var(--muted);
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+}
+
+.history-days {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.history-days input {
+  width: 4.5rem;
+}
+
+@media (max-width: 40rem) {
+  .history-body {
+    grid-template-columns: 1fr;
+  }
+}

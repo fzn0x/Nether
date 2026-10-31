@@ -87,6 +87,9 @@ const ServersDialog = lazy(() =>
 const SyncDialog = lazy(() =>
   import("./SyncDialog.tsx").then(({ SyncDialog: dialog }) => ({ default: dialog })),
 );
+const HistoryDialog = lazy(() =>
+  import("./HistoryDialog.tsx").then(({ HistoryDialog: dialog }) => ({ default: dialog })),
+);
 
 const numbers = new Intl.NumberFormat();
 
@@ -218,6 +221,7 @@ export function VaultView(props: {
     | "appearance"
     | "servers"
     | "sync"
+    | "history"
     | "export"
     | "import"
     | "palette"
@@ -473,6 +477,12 @@ export function VaultView(props: {
           ? undefined
           : () => {
               setRenameRequest((count) => count + 1);
+            },
+      history:
+        note === undefined
+          ? undefined
+          : () => {
+              setDialog("history");
             },
       export:
         note === undefined
@@ -905,6 +915,22 @@ export function VaultView(props: {
                   setDialog(undefined);
                 }}
               />
+            );
+          })()
+        : null}
+      {dialog === "history" && state.status === "open" && selected !== undefined
+        ? (() => {
+            const note = state.vault.note(selected);
+            return note === undefined ? null : (
+              <Suspense fallback={null}>
+                <HistoryDialog
+                  vault={state.vault}
+                  note={note}
+                  onClose={() => {
+                    setDialog(undefined);
+                  }}
+                />
+              </Suspense>
             );
           })()
         : null}

@@ -61,6 +61,8 @@ export function useVault(info: VaultInfo): VaultState {
         }
         // What has been in the trash too long goes; what cannot is tried again next time.
         vault.purgeTrash().catch(() => undefined);
+        // And notes' versions older than this device keeps them (ADR 0041).
+        vault.purgeHistory().catch(() => undefined);
         // When another app's change is in the index, for measuring how soon.
         await vault.watch(controller.signal, () => {
           backend.mark("change-applied");

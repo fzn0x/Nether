@@ -14,6 +14,7 @@ export const commandIds = [
   "monthNote",
   "toggleSource",
   "rename",
+  "history",
   "export",
   "import",
   "trashNote",
