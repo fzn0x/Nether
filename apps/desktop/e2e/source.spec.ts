@@ -54,7 +54,10 @@ test("a line break written in source stays a new line when its paragraph is edit
   const editor = page.getByRole("textbox", { name: "Roadmap, note text" });
   // The block editor takes focus a frame after it shows; a click before then loses its caret.
   await expect(editor).toBeFocused();
-  await editor.getByText("second line").click();
+  // The paragraph holds both lines: a click low in it is on the second.
+  const paragraph = editor.getByText("second line");
+  const box = await paragraph.boundingBox();
+  await paragraph.click({ position: { x: 8, y: (box?.height ?? 40) - 6 } });
   await settle(page);
   await page.keyboard.press("End");
   await page.keyboard.type(" more");
