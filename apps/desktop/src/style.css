@@ -1759,6 +1759,24 @@ button {
   overflow-y: auto;
 }
 
+/* The servers the app is signed in to, each with its account and a way out. */
+.server-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.server-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
 .settings-dialog {
   max-height: 80vh;
 }

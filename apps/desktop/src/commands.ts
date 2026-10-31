@@ -23,6 +23,7 @@ export const commandIds = [
   "openGraph",
   "templateSettings",
   "appearance",
+  "servers",
   "shortcuts",
   "checkUpdates",
   "updateChecks",

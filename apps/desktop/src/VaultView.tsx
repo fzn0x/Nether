@@ -72,12 +72,15 @@ const loadRenameNote = () => import("./renameNote.ts");
 const loadDatabases = () => import("./databases.ts");
 // The graph, with Sigma and its layout, loads the first time it opens.
 const GraphView = lazy(() => import("./GraphView.tsx"));
-// The import and appearance dialogs, with the importers, load when they open.
+// The import, appearance and servers dialogs, with the importers, load when they open.
 const ImportDialog = lazy(() =>
   import("./ImportDialog.tsx").then(({ ImportDialog: dialog }) => ({ default: dialog })),
 );
 const AppearanceDialog = lazy(() =>
   import("./AppearanceDialog.tsx").then(({ AppearanceDialog: dialog }) => ({ default: dialog })),
+);
+const ServersDialog = lazy(() =>
+  import("./ServersDialog.tsx").then(({ ServersDialog: dialog }) => ({ default: dialog })),
 );
 
 const numbers = new Intl.NumberFormat();
@@ -207,6 +210,7 @@ export function VaultView(props: {
     | "newNote"
     | "settings"
     | "appearance"
+    | "servers"
     | "export"
     | "import"
     | "palette"
@@ -498,6 +502,9 @@ export function VaultView(props: {
             setDialog("appearance");
           }
         : undefined,
+      servers: () => {
+        setDialog("servers");
+      },
       shortcuts: open
         ? () => {
             setDialog("shortcuts");
@@ -815,6 +822,15 @@ export function VaultView(props: {
           <AppearanceDialog
             vault={state.vault}
             state={appearance}
+            onClose={() => {
+              setDialog(undefined);
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {dialog === "servers" ? (
+        <Suspense fallback={null}>
+          <ServersDialog
             onClose={() => {
               setDialog(undefined);
             }}

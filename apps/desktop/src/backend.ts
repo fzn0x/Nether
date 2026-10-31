@@ -1,6 +1,7 @@
 // Where the page gets its vaults: the Go services and the SQLite plugin in
 // the desktop app, or a sample vault in memory when the page runs in a
 // browser, as in the dev server's preview and the end-to-end tests.
+import { fetch as goFetch } from "@mygo-plugins/fetch";
 import { open } from "@mygo-plugins/sqlite";
 import {
   ChangedOnDisk,
@@ -22,6 +23,8 @@ import {
   type LinkPreview,
   type PDFPage,
   Previews,
+  type ServerAccount,
+  Servers,
   type UpdateSettings,
   Updates,
   type Startup,
@@ -29,7 +32,9 @@ import {
   Vaults,
 } from "./mygo.ts";
 import type { ImportSource } from "@nether/markdown";
+import { t } from "./messages.ts";
 import { sampleVault } from "./sample.ts";
+import type { LoopbackWait } from "./server.ts";
 
 /** Where the page loads a vault's files from, and how it hands them to the system's apps. */
 export interface VaultMedia {
@@ -118,6 +123,21 @@ export interface Backend {
   fetchPreview(url: string): Promise<LinkPreview>;
   /** Opens a web address in the system's browser. */
   openUrl(url: string): Promise<void>;
+  /**
+   * fetch for a Nether server's API: Go makes the request in the desktop
+   * app, outside the page's CORS, and the browser does in the preview.
+   */
+  readonly serverFetch: typeof fetch;
+  /** The servers signed in to, the latest first. */
+  servers(): Promise<ServerAccount[]>;
+  /** Records a server signed in to, its session's token kept in the system's keychain. */
+  saveServer(account: ServerAccount, token: string): Promise<void>;
+  /** A server's session token; undefined when signed out of it. */
+  serverToken(url: string): Promise<string | undefined>;
+  /** Signs out of a server on this device, forgetting its token. */
+  forgetServer(url: string): Promise<void>;
+  /** Waits on a loopback address for the browser to come back from a provider. */
+  loopback(): Promise<LoopbackWait>;
   /** Whether the app updates itself, and checks on its own. */
   updateSettings(): Promise<UpdateSettings>;
   /** Turns the automatic update checks on or off. */
@@ -197,6 +217,18 @@ const desktop: Backend = {
   kind: "desktop",
   fetchPreview: (url) => Previews.fetch(url),
   openUrl: (url) => Previews.open(url),
+  serverFetch: goFetch,
+  servers: () => Servers.list(),
+  saveServer: (account, token) => Servers.save(account, token),
+  async serverToken(url) {
+    const token = await Servers.token(url);
+    return token === "" ? undefined : token;
+  },
+  forgetServer: (url) => Servers.forget(url),
+  async loopback() {
+    const { id, redirect } = await Servers.listen();
+    return { redirect, wait: () => Servers.wait(id), close: () => Servers.close(id) };
+  },
   updateSettings: () => Updates.settings(),
   mark(name) {
     void Desktop.mark(name);
@@ -377,7 +409,12 @@ const sample: VaultInfo = {
 /** What the end-to-end tests give the preview: a fetcher of link previews in place of the app's. */
 interface PreviewHooks {
   fetchPreview?: (url: string) => Promise<LinkPreview>;
+  /** Stands in for the browser coming back from a provider, in the end-to-end tests. */
+  loopback?: () => LoopbackWait;
 }
+
+/** The servers signed in to in the preview, which forgets them when the page closes. */
+const previewServers = new Map<string, { account: ServerAccount; token: string }>();
 
 const preview: Backend = {
   kind: "preview",
@@ -391,6 +428,26 @@ const preview: Backend = {
   openUrl(url) {
     window.open(url, "_blank", "noopener");
     return Promise.resolve();
+  },
+  serverFetch: (input, init) => fetch(input, init),
+  servers: () =>
+    Promise.resolve([...previewServers.values()].map((item) => item.account).reverse()),
+  saveServer(account, token) {
+    previewServers.delete(account.url);
+    previewServers.set(account.url, { account, token });
+    return Promise.resolve();
+  },
+  serverToken: (url) => Promise.resolve(previewServers.get(url)?.token),
+  forgetServer(url) {
+    previewServers.delete(url);
+    return Promise.resolve();
+  },
+  loopback() {
+    const hooks = (globalThis as { netherPreview?: PreviewHooks }).netherPreview;
+    const loopback = hooks?.loopback?.();
+    return loopback === undefined
+      ? Promise.reject(new Error(t("providerNeedsApp")))
+      : Promise.resolve(loopback);
   },
   // A page in a browser updates with its server.
   updateSettings: () => Promise.resolve({ available: false, automatic: false }),
