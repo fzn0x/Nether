@@ -4,7 +4,12 @@ import type { NoteId } from "@nether/core";
 import { describe, expect, it } from "vitest";
 import {
   type Layout,
+  type Opened,
   activeNote,
+  activeTab,
+  filePathOf,
+  fileTab,
+  noteOf,
   chooseTab,
   closeNote,
   closeTab,
@@ -108,7 +113,7 @@ describe("following merges", () => {
 });
 
 describe("readLayout", () => {
-  const has = (id: NoteId) => id !== d;
+  const has = (id: Opened) => id !== d;
 
   it("reads back a layout, leaving out notes the vault no longer has", () => {
     const layout = {
@@ -143,5 +148,34 @@ describe("readLayout", () => {
       ],
       focused: 0,
     });
+  });
+});
+
+describe("canvases in tabs", () => {
+  const canvas = fileTab("Boards/Plan.canvas");
+
+  it("open beside notes, by path, and are never taken for a note", () => {
+    expect(canvas).toBe("file:Boards/Plan.canvas");
+    expect(filePathOf(canvas)).toBe("Boards/Plan.canvas");
+    expect(filePathOf(a)).toBeUndefined();
+    expect(noteOf(canvas)).toBeUndefined();
+    expect(noteOf(a)).toBe(a);
+    const layout = openInNewTab(openHere(emptyLayout, a), canvas);
+    expect(activeTab(layout)).toBe(canvas);
+    // Commands about a note have none while a canvas shows.
+    expect(activeNote(layout)).toBeUndefined();
+    expect(activeNote(chooseTab(layout, 0, 0))).toBe(a);
+  });
+
+  it("follow a move, close when gone, and are remembered while the vault has them", () => {
+    const moved = fileTab("Archive/Plan.canvas");
+    const layout = openInNewTab(openHere(emptyLayout, a), canvas);
+    expect(replaceNote(layout, canvas, moved).panes[0]?.tabs).toEqual([a, moved]);
+    expect(closeNote(layout, canvas).panes[0]?.tabs).toEqual([a]);
+    const kept = readLayout(
+      { panes: [{ tabs: [a, canvas, fileTab("Gone.canvas")], active: 1 }] },
+      (id) => id !== fileTab("Gone.canvas"),
+    );
+    expect(kept.panes[0]).toMatchObject({ tabs: [a, canvas], active: 1 });
   });
 });

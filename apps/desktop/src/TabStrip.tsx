@@ -3,11 +3,10 @@
 // or a middle click closes it. From the keyboard, the arrows, Home and End
 // move between tabs and show them, and Delete closes one; the note's menu
 // opens on a right click or the menu key, as in the sidebar.
-import type { NoteId } from "@nether/core";
 import type { KeyboardEvent } from "react";
 import { type MenuPoint, isMenuKey, pointBelow } from "./ContextMenu.tsx";
 import { t } from "./messages.ts";
-import type { Pane } from "./tabs.ts";
+import type { Opened, Pane } from "./tabs.ts";
 
 export function TabStrip(props: {
   readonly pane: Pane;
@@ -16,14 +15,15 @@ export function TabStrip(props: {
   /** The ID of the panel that shows the chosen note, and of each tab, which the panel is named by. */
   readonly panelId: string;
   readonly tabId: (tab: number) => string;
-  readonly titleOf: (id: NoteId) => string;
+  readonly titleOf: (id: Opened) => string;
   readonly onChoose: (tab: number) => void;
   readonly onClose: (tab: number) => void;
-  readonly onMenu: (id: NoteId, at: MenuPoint) => void;
+  /** Opens the menu of what a tab holds, a note's or a canvas's. */
+  readonly onMenu: (id: Opened, at: MenuPoint) => void;
 }) {
   const { pane, label, panelId, tabId, titleOf, onChoose, onClose, onMenu } = props;
 
-  const onKeyDown = (event: KeyboardEvent<HTMLElement>, tab: number, id: NoteId) => {
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>, tab: number, id: Opened) => {
     const last = pane.tabs.length - 1;
     // Right to left, the tabs run towards the left, and so do the arrows.
     const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
