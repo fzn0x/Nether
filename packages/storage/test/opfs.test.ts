@@ -246,6 +246,17 @@ describe("OpfsFiles", () => {
     expect(await files.folders("Nowhere")).toEqual([]);
   });
 
+  it("gives a file as the browser keeps it, for a URL to it", async () => {
+    const files = new OpfsFiles(new FakeDirectory());
+    await files.writeBytes("attachments/cat.png", bytes(1, 2, 3), "");
+    const file = await files.file("attachments/cat.png");
+    expect(file?.size).toBe(3);
+    expect([...new Uint8Array((await file?.arrayBuffer()) ?? new ArrayBuffer(0))]).toEqual([
+      1, 2, 3,
+    ]);
+    expect(await files.file("attachments/dog.png")).toBeUndefined();
+  });
+
   it("stops watching when asked", async () => {
     const files = new OpfsFiles(new FakeDirectory());
     const stop = new AbortController();

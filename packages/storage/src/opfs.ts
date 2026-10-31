@@ -208,6 +208,15 @@ export class OpfsFiles implements VaultFiles {
     }
   }
 
+  /**
+   * A file as the browser keeps it, a `File` there, which reads from the
+   * disk only when read, as a URL made of it does; undefined when it is not
+   * there. A later write leaves it unreadable: ask again after one.
+   */
+  async file(path: string): Promise<Awaited<ReturnType<OpfsFile["getFile"]>> | undefined> {
+    return (await this.#file(path))?.getFile();
+  }
+
   async readMany(paths: readonly string[], each: (file: FileText) => void): Promise<void> {
     for (const path of paths) each(await this.read(path));
   }
