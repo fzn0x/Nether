@@ -31,12 +31,12 @@ How you edit a value depends on its type:
 
 | Type | Edited as |
 | --- | --- |
-| Text, select, person, file | A line of text |
+| Text, select, file | A line of text |
 | Number | A number field |
 | Checkbox | A checkbox |
 | Date | A date picker; the file gets `2026-11-06` |
 | URL | A web address |
-| Multi-select, relation | A list: type a value and press Enter or a comma to add it, click its × or press Backspace in an empty field to remove the last one |
+| Multi-select, relation, person | A list: type a value and press Enter or a comma to add it, click its × or press Backspace in an empty field to remove the last one |
 
 In source mode, Ctrl+/, the properties are the frontmatter at the top of
 the note, and you edit the YAML yourself.

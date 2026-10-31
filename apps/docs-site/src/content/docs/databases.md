@@ -67,6 +67,24 @@ Rows with no date are listed under a calendar or a timeline. To move a
 row to another day, change its date in a table or in the row's
 properties. Lists and galleries group by a property too.
 
+## Assigning work
+
+A **person** property says who works on a row: a list of names, as
+`owner: [Ana, Ben]`, or links to people's notes, as `[[Ana]]`. As you type
+in one, Nether offers the names already used in the vault's person
+properties.
+
+To see what is assigned to you, choose **Settings**, then **Your name…**,
+and give the name others write for you. The **Assigned** tab in the
+sidebar, or **View**, then **Show what is assigned to me**, lists every row
+whose person properties name you, in every database, grouped by database:
+the soonest date first, with the row's first select property, as its
+status, and its first date. Notes outside databases are listed too, under
+**Other notes**, when the property is typed person for the whole vault.
+
+Names are matched however they are written: `Ana`, `ana` and `[[Ana]]`
+are one person. Your name is kept on this device, not in the vault.
+
 ## Relations
 
 A relation links rows to the rows of another database, or of the same one:

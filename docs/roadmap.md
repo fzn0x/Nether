@@ -121,6 +121,6 @@ The first public release, one feature per pull request, in this order:
 - [ ] The web app, served by the server, installable as a PWA, with its content security policy, its sessions in a cookie with a CSRF defence, and the link to sign in by email.
 - [x] Workspace search on the server, by permission: PostgreSQL full text over what the server can read, indexed as notes are stored, and only the units an account opens ([ADR 0050](adr/0050-the-server-searches-what-it-can-read-indexed-as-notes-are-stored.md)).
 - [x] The canvas, in the JSON Canvas format: `.canvas` files read and written as Obsidian keeps them, opened in tabs, edited by pointer and keyboard, with text, note, image, link and group cards ([ADR 0051](adr/0051-canvases-are-json-canvas-files-drawn-with-the-page-s-own-elements.md)).
-- [ ] Task assignment: the person property, and "assigned to me".
+- [x] Task assignment: the person property, and "assigned to me": names in person properties, offered as they are typed, and every row and note assigned to the name this device goes by, by database.
 - [ ] Backups to disk or S3, with the restore tested in CI; migrations safe across versions.
 - [ ] `docker compose up` with PostgreSQL, Redis and storage.

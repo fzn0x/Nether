@@ -8,6 +8,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Task assignment: **Your name…** in Settings, and an **Assigned** tab in
+  the sidebar listing every row and note whose person properties name you,
+  across all databases, by database, the soonest first, with each row's
+  status and date; person fields offer the names the vault uses.
 - Canvas cards show Markdown, notes' openings and links' sites; links,
   groups and notes are added from the toolbar, notes and canvases dragged
   from the sidebar, and images dropped from the computer; a note opened
@@ -451,6 +455,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A person property is edited as a list of names, as its value is kept,
+  where it was edited as one line of text that a database could refuse.
+- A note's properties fit the room beside the outline: in a mid-sized
+  window their values no longer shrink to a sliver.
 - A vault with folders and no notes shows its folders, so the first folder
   made in an empty vault appears at once, rather than "This vault has no
   notes yet." until a note is made.
