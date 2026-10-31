@@ -123,6 +123,33 @@ test("a Notion export imports as pages and databases, its links made wiki links"
   expect(errors).toEqual([]);
 });
 
+test("a Logseq graph imports with its properties, tasks and block references as Obsidian writes them", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  const block = "64f1c2d3-0a1b-4c2d-8e3f-123456789abc";
+  await willImport(page, "my graph", {
+    "pages/Plan.md": `status:: active\n\n- TODO Write it\n  id:: ${block}\n`,
+    "journals/2026_10_30.md": `- Started ((${block}))\n`,
+    "logseq/config.edn": "{}",
+  });
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("import");
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Import" });
+  await dialog.getByRole("radio", { name: /A Logseq graph/ }).check();
+  await dialog.getByRole("button", { name: "Choose and import…" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("Imported 2 notes into my graph.");
+  expect(await fileText(page, "my graph/pages/Plan.md")).toBe(
+    `---\nstatus: active\n---\n\n- [ ] Write it ^${block}\n`,
+  );
+  expect(await fileText(page, "my graph/journals/2026-10-30.md")).toBe(
+    `---\naliases:\n  - Oct 30th, 2026\n---\n- Started [[my graph/pages/Plan#^${block}]]\n`,
+  );
+  expect(errors).toEqual([]);
+});
+
 test("a CSV table imports as a database, a note for each line", async ({ page }) => {
   const errors = errorsOf(page);
   await openSample(page);

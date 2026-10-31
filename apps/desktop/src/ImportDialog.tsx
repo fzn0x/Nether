@@ -29,6 +29,7 @@ const choices: readonly {
 }[] = [
   { value: "folder", label: "importFolder", hint: "importFolderHint" },
   { value: "notion", label: "importNotion", hint: "importNotionHint" },
+  { value: "logseq", label: "importLogseq", hint: "importLogseqHint" },
   { value: "markdown", label: "importMarkdown", hint: "importMarkdownHint" },
   { value: "csv", label: "importCsv", hint: "importCsvHint" },
 ];

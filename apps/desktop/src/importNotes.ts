@@ -3,7 +3,14 @@
 // vault, in a folder named after what was chosen that the vault does not
 // have yet, or under names it does not have: nothing already in the vault
 // is changed.
-import { type ImportPlan, planCsv, planFolder, planNotion, safeName } from "@nether/markdown";
+import {
+  type ImportPlan,
+  planCsv,
+  planFolder,
+  planLogseq,
+  planNotion,
+  safeName,
+} from "@nether/markdown";
 import type { Vault } from "@nether/storage";
 import type { ImportKind, OpenedImport } from "./backend.ts";
 
@@ -11,6 +18,7 @@ import type { ImportKind, OpenedImport } from "./backend.ts";
 export const importChoices = {
   folder: "folder",
   notion: "zip",
+  logseq: "folder",
   markdown: "markdown",
   csv: "csv",
 } as const satisfies Readonly<Record<string, ImportKind>>;
@@ -69,6 +77,10 @@ export async function planImport(
       },
       folder: "",
     };
+  }
+  if (choice === "logseq") {
+    const folder = freeTop(vault, safeName(opened.name, "Logseq"));
+    return { plan: await planLogseq(opened, folder), folder };
   }
   if (choice === "notion") {
     // Notion names its exports by IDs: the folder is named after Notion instead.

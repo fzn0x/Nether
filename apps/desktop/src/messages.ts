@@ -290,6 +290,9 @@ export const messages = {
   importNotion: "A Notion export",
   importNotionHint:
     "The ZIP file Notion exports as Markdown and CSV: its pages, and its databases with their rows, in a folder named Notion.",
+  importLogseq: "A Logseq graph",
+  importLogseqHint:
+    "Its folder: its pages and journals, their properties, block references and tasks written as Obsidian writes them.",
   importMarkdown: "Markdown files",
   importMarkdownHint: "Each one a note, in a folder named Imported.",
   importCsv: "CSV tables",
