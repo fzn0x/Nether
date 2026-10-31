@@ -907,6 +907,56 @@ button {
   white-space: pre-wrap;
 }
 
+/* A query block's notes below its code: a database view's, not the note's tables and headings. */
+.nether-editor .code-query {
+  margin-top: 0.5rem;
+}
+
+.nether-editor .code-query .database {
+  margin-block: 0;
+}
+
+.nether-editor .code-query table {
+  table-layout: auto;
+}
+
+.nether-editor .code-query th,
+.nether-editor .code-query td {
+  padding: 0.15rem 0.35rem;
+  border: 0;
+  border-block-end: 1px solid var(--rule);
+  vertical-align: middle;
+}
+
+.nether-editor .code-query thead th {
+  font-weight: 500;
+}
+
+.nether-editor .code-query tbody th {
+  font-weight: inherit;
+}
+
+.nether-editor .code-query h3 {
+  margin: 0;
+  line-height: inherit;
+}
+
+.nether-editor .code-query ul {
+  padding-inline-start: 0;
+}
+
+.query-problem,
+.query-count {
+  color: var(--muted);
+}
+
+.query-count {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
 /* Files in a note: images, PDFs, players, and cards for the rest. */
 .nether-editor .file-block img.image {
   display: block;
@@ -1952,6 +2002,8 @@ kbd {
 }
 
 .database-row-title {
+  /* A short name, as "Site", is still a target big enough to click. */
+  min-inline-size: 1.5rem;
   padding: 0;
   border: 0;
   background: none;

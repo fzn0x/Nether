@@ -80,7 +80,7 @@ function Title(props: { readonly row: Row; readonly onOpen: (row: NoteId) => voi
 }
 
 /** Rows in sections, one for each group when the view groups. */
-function Sections(props: {
+export function Sections(props: {
   readonly rows: readonly Row[];
   readonly groups?: readonly Group[];
   readonly render: (rows: readonly Row[]) => ReactNode;

@@ -20,7 +20,7 @@ test("the slash menu inserts blocks, and math opens for its LaTeX", async ({ pag
   await page.keyboard.press("Enter");
   await page.keyboard.type("/");
   const menu = page.getByRole("listbox", { name: "Blocks" });
-  await expect(menu.getByRole("option")).toHaveCount(18);
+  await expect(menu.getByRole("option")).toHaveCount(19);
   await page.keyboard.type("mat");
   await expect(menu.getByRole("option")).toHaveText(["Math"]);
   // The note keeps focus and points at the highlighted block.

@@ -15,6 +15,7 @@ import { linkPreviews } from "./linkPreviews.ts";
 import { noteFiles } from "./noteFiles.ts";
 import { DatabaseView } from "./DatabaseView.tsx";
 import { PropertiesPanel } from "./PropertiesPanel.tsx";
+import { QueryView } from "./QueryView.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
 import { useGraph } from "./useGraph.ts";
 import { useNote } from "./useNote.ts";
@@ -105,8 +106,8 @@ export default function NoteView(props: {
     [vault, media, id],
   );
   const links = useMemo(
-    () =>
-      noteLinks(
+    () => ({
+      ...noteLinks(
         vault,
         graph,
         id,
@@ -116,7 +117,20 @@ export default function NoteView(props: {
         },
         onOpenTag,
       ),
-    [vault, graph, id, onOpenNote, onOpenTag],
+      // A `base` code block shows the notes its query finds.
+      renderQuery: (source: string) => (
+        <QueryView
+          source={source}
+          vault={vault}
+          media={media}
+          graph={graph}
+          onOpen={(note) => {
+            onOpenNote(note);
+          }}
+        />
+      ),
+    }),
+    [vault, media, graph, id, onOpenNote, onOpenTag],
   );
 
   const toggle = async () => {

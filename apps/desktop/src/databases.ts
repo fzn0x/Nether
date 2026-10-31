@@ -1,6 +1,7 @@
-// The app's side of databases (ADR 0018): a database's rows, from the
-// vault's notes and what the link index read of them; a row's value
-// written to its file; and new databases and rows.
+// The app's side of databases (ADR 0018): a database's rows, and the
+// notes a query block reads (ADR 0021), from the vault's notes and what
+// the link index read of them; a row's value written to its file; and new
+// databases and rows.
 import type { DatabaseSchema, JsonValue, NoteId } from "@nether/core";
 import {
   type Row,
@@ -14,6 +15,7 @@ import {
 import type { GraphNote, LinkGraph } from "@nether/graph";
 import { parseMarkdown, serializeMarkdown } from "@nether/markdown";
 import { ChangedOnDisk, type NoteEntry, type Vault } from "@nether/storage";
+import type { VaultMedia } from "./backend.ts";
 
 /** A new database, as its note's frontmatter holds it: no properties yet, and a table. */
 const newDatabase: JsonValue = {
@@ -21,14 +23,53 @@ const newDatabase: JsonValue = {
   views: [{ name: "Table", layout: "table", visible: [] }],
 };
 
-/** The rows of the database at `path`, with the properties the link index read of each. */
-export function databaseRows(notes: readonly NoteEntry[], graph: LinkGraph, path: string): Row[] {
-  return rowsOf(notes, path).map((note) => ({
+/** A note as a row, with the properties and tags the link index read of it. */
+function rowOf(note: NoteEntry, graph: LinkGraph): Row {
+  const index = graph.note(note.id)?.index;
+  return {
     id: note.id,
     path: note.path,
     updated: note.modified,
-    properties: graph.note(note.id)?.index.properties ?? [],
-  }));
+    properties: index?.properties ?? [],
+    tags: index?.tags ?? [],
+  };
+}
+
+/** The rows of the database at `path`, with the properties the link index read of each. */
+export function databaseRows(notes: readonly NoteEntry[], graph: LinkGraph, path: string): Row[] {
+  return rowsOf(notes, path).map((note) => rowOf(note, graph));
+}
+
+/** Every note of the vault as a row, for a query block to find among. */
+export function queryNotes(notes: readonly NoteEntry[], graph: LinkGraph): Row[] {
+  return notes.map((note) => rowOf(note, graph));
+}
+
+/**
+ * The address of the image a value names, as a gallery's cover or a
+ * card's image: a web address, or a file of the vault linked from `from`.
+ */
+export function imageUrl(
+  vault: Vault,
+  media: VaultMedia,
+  value: JsonValue | undefined,
+  from: string,
+): string | undefined {
+  const values: readonly JsonValue[] = Array.isArray(value)
+    ? value
+    : value === undefined
+      ? []
+      : [value];
+  const first = values[0];
+  if (typeof first !== "string" || first.trim() === "") return undefined;
+  const link =
+    first
+      .trim()
+      .replace(/^!?\[\[|\]\]$/g, "")
+      .split("|")[0] ?? "";
+  if (/^https?:\/\//i.test(link)) return link;
+  const file = vault.resolveFile(link, from);
+  return file === undefined ? undefined : media.url(file);
 }
 
 /** The link that names a note from anywhere: its path, without `.md`. */

@@ -53,6 +53,7 @@ import {
   createRow,
   databaseNotes,
   databaseRows,
+  imageUrl,
   linkToNote,
   resolveLink,
   setNoteProperty,
@@ -939,18 +940,8 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
   /** A gallery card's cover: the file or address its cover property names. */
   const coverOf = (row: Row): string | undefined => {
     const key = view?.cover;
-    const raw = row.properties.find((entry) => entry.key === key)?.value;
-    const values: readonly JsonValue[] = Array.isArray(raw) ? raw : raw === undefined ? [] : [raw];
-    const first = values[0];
-    if (typeof first !== "string" || first.trim() === "") return undefined;
-    const link =
-      first
-        .trim()
-        .replace(/^!?\[\[|\]\]$/g, "")
-        .split("|")[0] ?? "";
-    if (/^https?:\/\//i.test(link)) return link;
-    const file = vault.resolveFile(link, row.path);
-    return file === undefined ? undefined : media.url(file);
+    const value = row.properties.find((entry) => entry.key === key)?.value;
+    return imageUrl(vault, media, value, row.path);
   };
 
   // Each related row as the link index read it, for the rollups to work out from.
