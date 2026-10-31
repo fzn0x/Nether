@@ -443,7 +443,7 @@ export class VaultSync {
         if (local.get(id) !== path) continue;
         const from = this.#unit(listed.units.get(id));
         const to = placer(path);
-        if (from === undefined || to === undefined || from.id === to.id) continue;
+        if (!narrows(from, to) || from === undefined) continue;
         await this.#move(id, path, from, to);
       }
       for (const { id, path } of plan.moveLocal) {
@@ -580,7 +580,7 @@ export class VaultSync {
       for (const [path, file] of remote) {
         const from = this.#unit(listed.units.get(path));
         const to = placer(path);
-        if (from === undefined || to === undefined || from.id === to.id) continue;
+        if (!narrows(from, to) || from === undefined || to === undefined) continue;
         if (local.get(path) !== file.hash || !writes(from) || !writes(to)) continue;
         removeVaultFile(this.#documentOf(from.id), path);
         setVaultFile(this.#documentOf(to.id), path, file);
@@ -755,6 +755,17 @@ export class VaultSync {
       channel: this.#channel?.state(),
     });
   }
+}
+
+/**
+ * Whether a note or file listed in one unit is moved, unasked, to the unit
+ * its path is in: only into somewhere narrower, out of General or into a
+ * shared page. A teamspace's note never goes to General so, as when this
+ * app learns of the teamspace's new name before its notes' new paths.
+ */
+function narrows(from: SyncUnit | undefined, to: SyncUnit | undefined): boolean {
+  if (from === undefined || to === undefined || from.id === to.id) return false;
+  return from.id === general || to.kind === "page";
 }
 
 /** Files by path: each one's hash. */

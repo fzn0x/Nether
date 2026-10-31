@@ -134,6 +134,74 @@ describe("syncing units", () => {
     );
   });
 
+  it("keeps a renamed teamspace's notes in it, at their new paths, on every device", async () => {
+    const served = await startServer();
+    const bea = await invitee(served, "Bea");
+    const cal = await invitee(served, "Cal");
+    const design = await teamspace(served, "Design");
+    await grant(served, design, bea.id, "edit");
+    const laptop = new MemoryVault();
+    const plan = laptop.write("Design/Plan.md", "the plan");
+    laptop.write("Ideas.md", "for everyone");
+    await device(served, served.token, laptop);
+    const beas = await device(served, bea.token);
+    const cals = await device(served, cal.token);
+    await until(() => beas.vault.text(plan) === "the plan" && cals.vault.notes.size === 1);
+
+    await api(
+      served,
+      served.token,
+      "PATCH",
+      `/api/workspaces/${served.workspaceId}/teamspaces/${design}`,
+      {
+        name: "Studio",
+      },
+    );
+    await until(
+      () =>
+        laptop.paths().get(plan) === "Studio/Plan.md" &&
+        beas.vault.paths().get(plan) === "Studio/Plan.md",
+    );
+    await settle();
+    expect([...cals.vault.paths().values()]).toEqual(["Ideas.md"]);
+    expect(beas.vault.text(plan)).toBe("the plan");
+  });
+
+  it("keeps a page's notes on every device when it is no longer shared on its own", async () => {
+    const served = await startServer();
+    const bea = await invitee(served, "Bea");
+    const laptop = new MemoryVault();
+    const launch = laptop.write("Projects/Launch.md", "the launch");
+    const tasks = laptop.write("Projects/Launch/Tasks.md", "the tasks");
+    const first = await device(served, served.token, laptop);
+    const beas = await device(served, bea.token);
+    await until(() => beas.vault.text(tasks) === "the tasks");
+
+    const page = await api(
+      served,
+      served.token,
+      "POST",
+      `/api/workspaces/${served.workspaceId}/pages`,
+      {
+        note: launch,
+      },
+    );
+    // Once the page's unit has its notes, it stops being shared on its own.
+    await until(() => first.store.record?.vaults?.[page.id as string] !== undefined);
+    await settle();
+    await api(
+      served,
+      served.token,
+      "DELETE",
+      `/api/workspaces/${served.workspaceId}/pages/${String(page.id)}`,
+    );
+    await settle();
+    await settle();
+    expect(beas.vault.text(launch)).toBe("the launch");
+    expect(beas.vault.text(tasks)).toBe("the tasks");
+    expect(laptop.text(tasks)).toBe("the tasks");
+  });
+
   it("gives a guest the page shared with them and its subpages, to edit and add to", async () => {
     const served = await startServer();
     const laptop = new MemoryVault();
