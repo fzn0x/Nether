@@ -1,13 +1,14 @@
 // The vault as the sync engine sees it in the desktop app (ADR 0037): its
-// notes, the documents its open notes share with the editor, and its other
-// files (ADR 0040). It loads with the engine, only for a vault linked to a
-// workspace.
+// notes, the documents its open notes share with the editor, their comments
+// (ADR 0044), and its other files (ADR 0040). It loads with the engine, only
+// for a vault linked to a workspace.
 import { type NoteId, newBlockId } from "@nether/core";
 import { documentBlocks, documentProperties } from "@nether/editor";
 import { serializeMarkdown } from "@nether/markdown";
 import { type Vault, numberedPath } from "@nether/storage";
 import type { HeldDocument, SyncVault } from "@nether/sync-client";
 import * as Y from "yjs";
+import type { NoteComments } from "./noteComments.ts";
 import { type NoteDocuments, whenLoaded } from "./noteDocuments.ts";
 
 /** The first path like `path` that no note has, but `id`'s own. */
@@ -23,10 +24,12 @@ function freePath(vault: Vault, path: string, id: string): string {
 export class DesktopSyncVault implements SyncVault {
   readonly #vault: Vault;
   readonly #documents: NoteDocuments;
+  readonly #comments: NoteComments;
 
-  constructor(vault: Vault, documents: NoteDocuments) {
+  constructor(vault: Vault, documents: NoteDocuments, comments: NoteComments) {
     this.#vault = vault;
     this.#documents = documents;
+    this.#comments = comments;
   }
 
   paths(): Map<string, string> {
@@ -40,7 +43,10 @@ export class DesktopSyncVault implements SyncVault {
       );
     let last = snapshot();
     let lastFiles = this.#filesSnapshot();
-    return this.#vault.subscribe(() => {
+    const stopComments = this.#comments.subscribe((id) => {
+      listener(`${id}.comments`);
+    });
+    const stopVault = this.#vault.subscribe(() => {
       const next = snapshot();
       let listed = next.size !== last.size;
       for (const [id, entry] of next) {
@@ -54,6 +60,10 @@ export class DesktopSyncVault implements SyncVault {
       lastFiles = files;
       if (listed) listener();
     });
+    return () => {
+      stopComments();
+      stopVault();
+    };
   }
 
   /** The vault's other files, with their sizes and times, as one text to compare. */
@@ -80,6 +90,17 @@ export class DesktopSyncVault implements SyncVault {
     }
     return {
       document: state.document,
+      release: () => {
+        hold.release();
+      },
+    };
+  }
+
+  /** Holds the note's comments as the comments panel does. */
+  async holdComments(id: string): Promise<HeldDocument> {
+    const hold = await this.#comments.hold(id as NoteId);
+    return {
+      document: hold.document,
       release: () => {
         hold.release();
       },

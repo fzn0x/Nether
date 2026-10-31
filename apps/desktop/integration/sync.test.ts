@@ -1,6 +1,7 @@
 // Two desktop vaults syncing through a real Nether server, on PGlite: the
-// sync engine with the vault the desktop app gives it, its open notes and
-// what it keeps in the vault's index, checked by the files each writes.
+// sync engine with the vault the desktop app gives it, its open notes, their
+// comments and what it keeps in the vault's index, checked by the files
+// each writes.
 import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -12,9 +13,11 @@ import type { Database } from "@nether/server/src/db.ts";
 import { migrate } from "@nether/server/src/migrations.ts";
 import { newSetupCode } from "@nether/server/src/setup.ts";
 import { testDatabase } from "@nether/server/test/database.ts";
-import { MemoryFiles, MemoryStore, Vault } from "@nether/storage";
+import { MemoryFiles, MemoryStore, Vault, commentsDocument } from "@nether/storage";
 import { VaultSync } from "@nether/sync-client";
 import { afterEach, describe, expect, it } from "vitest";
+import * as Y from "yjs";
+import { noteComments } from "../src/noteComments.ts";
 import { noteDocuments, whenLoaded } from "../src/noteDocuments.ts";
 import { settingsStore } from "../src/sync.ts";
 import { DesktopSyncVault } from "../src/syncVault.ts";
@@ -73,7 +76,8 @@ async function device(served: { url: string; workspaceId: string }, files: Recor
   });
   const { token } = (await signedIn.json()) as { token: string };
   const memory = new MemoryFiles(files);
-  const vault = new Vault(memory, new MemoryStore());
+  const store = new MemoryStore();
+  const vault = new Vault(memory, store);
   await vault.open();
   const watching = new AbortController();
   void vault.watch(watching.signal);
@@ -81,7 +85,7 @@ async function device(served: { url: string; workspaceId: string }, files: Recor
     server: served.url,
     token,
     workspaceId: served.workspaceId,
-    vault: new DesktopSyncVault(vault, noteDocuments(vault)),
+    vault: new DesktopSyncVault(vault, noteDocuments(vault), noteComments(vault)),
     store: settingsStore(vault),
   });
   stops.push(async () => {
@@ -108,7 +112,7 @@ async function device(served: { url: string; workspaceId: string }, files: Recor
     });
     return { hold, live };
   };
-  return { memory, vault, engine, text, openLive };
+  return { memory, store, vault, engine, text, openLive };
 }
 
 /** Waits until `check` holds, as `until` does, saying which step it waited for when it times out. */
@@ -153,6 +157,42 @@ describe("syncing desktop vaults", () => {
     expect(phone.vault.noteAt("Projects/Plan.md")?.id).toBe(
       laptop.vault.noteAt("Projects/Plan.md")?.id,
     );
+  });
+
+  it("syncs a note's comments both ways, keeping them in the index and out of the file", async () => {
+    const served = await startServer();
+    const ideas = "# Ideas\n\nFirst thought.\n";
+    const laptop = await device(served, { "Ideas.md": ideas });
+    await until(() => laptop.engine.status.state === "synced");
+    const phone = await device(served, {});
+    await until(async () => (await phone.text("Ideas.md")) !== undefined);
+    const id = phone.vault.noteAt("Ideas.md")?.id;
+    if (id === undefined) throw new Error("No Ideas.md on the phone");
+
+    // Held as the comments panel holds them, on both.
+    const onLaptop = await noteComments(laptop.vault).hold(id);
+    const onPhone = await noteComments(phone.vault).hold(id);
+    onLaptop.document.getMap("threads").set("t1", "from the laptop");
+    await step("the laptop's comment on the phone", () =>
+      onPhone.document.getMap("threads").has("t1"),
+    );
+    onPhone.document.getMap("threads").set("t2", "from the phone");
+    await step("the phone's comment on the laptop", () =>
+      onLaptop.document.getMap("threads").has("t2"),
+    );
+    onLaptop.release();
+    onPhone.release();
+
+    // Let go, they stay in each device's index, and the note's file is its own.
+    await step("the comments in the phone's index", async () => {
+      const stored = await phone.store.document(commentsDocument(id));
+      if (stored.updates.length === 0) return false;
+      const document = new Y.Doc();
+      for (const update of stored.updates) Y.applyUpdate(document, update.data);
+      return document.getMap("threads").size === 2;
+    });
+    expect(await phone.text("Ideas.md")).toBe(ideas);
+    expect(await laptop.text("Ideas.md")).toBe(ideas);
   });
 
   it("brings an edit another app makes to a file on one device to the other's file", async () => {

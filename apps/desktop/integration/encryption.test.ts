@@ -22,6 +22,7 @@ import {
   unlockKeys,
   workspaceEncryption,
 } from "../src/encryption.ts";
+import { noteComments } from "../src/noteComments.ts";
 import { noteDocuments } from "../src/noteDocuments.ts";
 import { settingsStore } from "../src/sync.ts";
 import { DesktopSyncVault } from "../src/syncVault.ts";
@@ -91,7 +92,7 @@ async function device(
     server: url,
     token,
     workspaceId,
-    vault: new DesktopSyncVault(vault, noteDocuments(vault)),
+    vault: new DesktopSyncVault(vault, noteDocuments(vault), noteComments(vault)),
     store: settingsStore(vault),
     encryption: await workspaceEncryption(url, token, workspaceId),
   });

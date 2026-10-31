@@ -64,12 +64,14 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
         return;
       }
       // The engine, and the editor's code it needs, load for a linked vault only.
-      const [{ VaultSync }, { DesktopSyncVault }, { noteDocuments }, socket] = await Promise.all([
-        import("@nether/sync-client"),
-        import("./syncVault.ts"),
-        import("./noteDocuments.ts"),
-        backend.syncSocket(),
-      ]);
+      const [{ VaultSync }, { DesktopSyncVault }, { noteDocuments }, { noteComments }, socket] =
+        await Promise.all([
+          import("@nether/sync-client"),
+          import("./syncVault.ts"),
+          import("./noteDocuments.ts"),
+          import("./noteComments.ts"),
+          backend.syncSocket(),
+        ]);
       if (stopped()) return;
       // An encrypted workspace's key, opened with this device's private key;
       // members waiting for it get it from whoever has it and is here.
@@ -92,7 +94,7 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
         server: link.server,
         token,
         workspaceId: link.workspaceId,
-        vault: new DesktopSyncVault(vault, noteDocuments(vault)),
+        vault: new DesktopSyncVault(vault, noteDocuments(vault), noteComments(vault)),
         store: settingsStore(vault),
         fetch: backend.serverFetch,
         WebSocket: socket,
