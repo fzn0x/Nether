@@ -12,7 +12,7 @@ import { readConfig } from "../src/config.ts";
 import { type Database, readBytes } from "../src/db.ts";
 import { migrate } from "../src/migrations.ts";
 import { newSetupCode } from "../src/setup.ts";
-import type { Stored } from "../src/sync.ts";
+import { type Stored, storeDocument } from "../src/sync.ts";
 import { type SetUp, admin, bearer, setUp, signIn } from "./app.ts";
 import { testDatabase } from "./database.ts";
 import { freePort } from "./ports.ts";
@@ -236,6 +236,99 @@ describe("sync", () => {
     Y.applyUpdate(stored, readBytes(rows[0], "state"));
     expect(stored.getText("content").toJSON()).toBe("Read me.");
     expect(text(owner).toJSON()).toBe("Read me.");
+  });
+
+  it("lets those who may comment write a note's comments, and only read the note", async () => {
+    const test = await start();
+    const invited = await test.server.inject({
+      method: "POST",
+      url: `/api/workspaces/${test.workspaceId}/invitations`,
+      headers: bearer(test.token),
+      payload: { role: "member" },
+    });
+    const accepted = await test.server.inject({
+      method: "POST",
+      url: "/api/invitations/accept",
+      payload: {
+        token: invited.json<{ token: string }>().token,
+        name: "Cora",
+        email: "cora@example.org",
+        password: "cora's long password",
+      },
+    });
+    const cora = accepted.json<{ token: string; user: { id: string } }>();
+    const made = await test.server.inject({
+      method: "POST",
+      url: `/api/workspaces/${test.workspaceId}/teamspaces`,
+      headers: bearer(test.token),
+      payload: { name: "Review" },
+    });
+    const unit = made.json<{ id: string }>().id;
+    await test.server.inject({
+      method: "PUT",
+      url: `/api/workspaces/${test.workspaceId}/units/${unit}/grants/${cora.user.id}`,
+      headers: bearer(test.token),
+      payload: { level: "comment" },
+    });
+    const note = randomUUID();
+    await test.server.inject({
+      method: "PUT",
+      url: `/api/workspaces/${test.workspaceId}/notes/${note}/unit`,
+      headers: bearer(test.token),
+      payload: { unit },
+    });
+
+    const comments = await connect(test.url, `${test.workspaceId}/${note}.comments`, cora.token);
+    const text = await connect(test.url, `${test.workspaceId}/${note}`, cora.token);
+    expect(comments.authorizedScope).toBe("read-write");
+    expect(text.authorizedScope).toBe("readonly");
+    comments.document.getMap("threads").set("t1", "a comment");
+    // Closing stores what is waiting; the comments are kept, and keep no versions.
+    comments.destroy();
+    await test.server.close();
+    const { rows } = await database().query(
+      "SELECT name FROM documents WHERE workspace_id = $1 ORDER BY name",
+      [test.workspaceId],
+    );
+    expect(rows.map((row) => row.name)).toContain(`${note}.comments`);
+    const versions = await database().query("SELECT 1 FROM document_versions WHERE name = $1", [
+      `${note}.comments`,
+    ]);
+    expect(versions.rows).toEqual([]);
+  });
+
+  it("lists a note's comments with the note, for those who open its unit alone", async () => {
+    const test = await start();
+    const made = await test.server.inject({
+      method: "POST",
+      url: `/api/workspaces/${test.workspaceId}/teamspaces`,
+      headers: bearer(test.token),
+      payload: { name: "Hidden" },
+    });
+    const unit = made.json<{ id: string }>().id;
+    const note = randomUUID();
+    await test.server.inject({
+      method: "PUT",
+      url: `/api/workspaces/${test.workspaceId}/notes/${note}/unit`,
+      headers: bearer(test.token),
+      payload: { unit },
+    });
+    await storeDocument(database(), test.workspaceId, `${note}.comments`, new Uint8Array([0, 0]));
+    const other = await newSession(test.server);
+    const listed = async (token: string) =>
+      (
+        await test.server.inject({
+          method: "GET",
+          url: `/api/workspaces/${test.workspaceId}/documents`,
+          headers: bearer(token),
+        })
+      )
+        .json<{ documents: { name: string }[] }>()
+        .documents.map((document) => document.name);
+    expect(await listed(test.token)).toContain(`${note}.comments`);
+    // Removed from the teamspace, the owner no longer opens it, nor its comments.
+    await database().query("DELETE FROM unit_grants WHERE unit_id = $1", [unit]);
+    expect(await listed(other)).not.toContain(`${note}.comments`);
   });
 
   it("lists the documents stored since a number, and tells the vault's clients", async () => {

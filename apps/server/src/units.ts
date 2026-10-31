@@ -117,9 +117,11 @@ export async function unitOfDocument(
 ): Promise<string> {
   if (document === "vault") return general;
   if (document.startsWith("vault.")) return document.slice("vault.".length);
+  // A note's comments are in the note's unit.
+  const note = document.endsWith(".comments") ? document.slice(0, -".comments".length) : document;
   const { rows } = await db.query(
     "SELECT unit_id FROM note_units WHERE workspace_id = $1 AND note = $2",
-    [workspaceId, document],
+    [workspaceId, note],
   );
   return rows.length === 0 ? general : readText(rows[0], "unit_id");
 }

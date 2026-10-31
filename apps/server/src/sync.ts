@@ -28,9 +28,12 @@ import {
 import { membership } from "./workspaces.ts";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-const namePattern = new RegExp(`^(${uuid})/(vault|vault\\.${uuid}|${uuid})$`);
+const namePattern = new RegExp(`^(${uuid})/(vault|vault\\.${uuid}|${uuid}(?:\\.comments)?)$`);
 
-/** A document's name: its workspace's ID, then `vault`, `vault.` and a unit's ID, or the note's ID. */
+/**
+ * A document's name: its workspace's ID, then `vault`, `vault.` and a unit's
+ * ID, a note's ID, or a note's ID and `.comments` for its comments (ADR 0044).
+ */
 export interface DocumentName {
   readonly workspaceId: string;
   readonly document: string;
@@ -40,6 +43,11 @@ export function parseDocumentName(name: string): DocumentName | undefined {
   const match = namePattern.exec(name);
   if (match?.[1] === undefined || match[2] === undefined) return undefined;
   return { workspaceId: match[1], document: match[2] };
+}
+
+/** Whether a document is a note's comments, beside it (ADR 0044). */
+export function isComments(document: string): boolean {
+  return document.endsWith(".comments");
 }
 
 /** What a sync connection knows of who opened it. */
@@ -74,7 +82,7 @@ export async function storeDocument(
   state: Uint8Array,
 ): Promise<number> {
   return db.transaction(async (tx) => {
-    if (!document.startsWith("vault")) {
+    if (!document.startsWith("vault") && !isComments(document)) {
       await tx.query(
         `INSERT INTO document_versions (workspace_id, name, state)
          SELECT workspace_id, name, state FROM documents
@@ -157,7 +165,9 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
       // A document of a unit the account may not open is refused as one not there.
       if (level === undefined)
         throw new Error("Sign in, as a member of this document's workspace.");
-      if (!writesAt(level)) connectionConfig.readOnly = true;
+      // A note's comments take comments from those who may comment, and edit or more.
+      const writes = isComments(name.document) ? level !== "view" : writesAt(level);
+      if (!writes) connectionConfig.readOnly = true;
       return { userId: account.id };
     },
 
@@ -241,7 +251,8 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
                  WHEN name LIKE 'vault.%' THEN substr(name, 7)
                  ELSE coalesce(
                    (SELECT unit_id::text FROM note_units n
-                     WHERE n.workspace_id = $1 AND n.note = stored.name),
+                     WHERE n.workspace_id = $1
+                       AND n.note = regexp_replace(stored.name, '[.]comments$', '')),
                    $4)
                END = ANY($5::text[])
          ORDER BY seq LIMIT $3`,
