@@ -142,6 +142,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Sync this vault, in the desktop app's command palette: a vault syncs
+  with a workspace on a server it is signed in to, its notes sent there and
+  made on every computer that opens the workspace into an empty folder,
+  with their IDs, links and history. Edits made on two computers merge, a
+  note moved or removed on one is moved or trashed on the other, edits made
+  offline wait to be sent, and the foot of the sidebar tells how sync is
+  going. The sync engine loads only for a linked vault.
 - `@nether/sync-client`, which syncs a vault with a workspace: a document
   listing the workspace's notes by ID and path, compared with the vault's
   notes by what the two last agreed on, and each note's document, synced

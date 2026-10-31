@@ -1,6 +1,6 @@
 ---
 title: Servers and signing in
-description: How to connect the Nether app to a Nether server and sign in with a password, a code sent by email, or your organization's single sign-on.
+description: How to connect the Nether app to a Nether server, sign in with a password, a code sent by email, or your organization's single sign-on, and sync a vault between computers.
 ---
 
 Nether works without a server: a vault is a folder of Markdown files on your
@@ -37,6 +37,25 @@ vault or another file.
 A session lasts 30 days without use and 90 days in all; after that, sign in
 again. **Sign out** ends the session on the server and removes it from the
 app; if the server cannot be reached, the app forgets it anyway.
+
+## Syncing a vault
+
+Open the vault, run **Sync this vault** from the command palette, and
+choose a server you are signed in to and one of your workspaces. The vault's
+notes go to the workspace, and a line at the foot of the sidebar tells how
+sync is going: synced, notes still to send, or offline, when changes wait
+on your computer until it is back.
+
+To have the vault on another computer, open an empty folder there as a
+vault, run **Sync this vault**, and choose the same workspace: every note
+comes from the server with its links, properties and history.
+
+A vault syncs with a workspace that has no notes, or into a vault that has
+none, so no note is ever made twice. Each note's text merges character by
+character, so two computers editing one note, even offline, keep both
+edits, with no conflict to resolve. A note moved or removed on one computer
+is moved, or sent to the trash, on the other. **Stop syncing** keeps the
+notes where they are, on the computer and on the server.
 
 ## For admins
 
