@@ -520,3 +520,39 @@ func TestNewUUIDv7SortsByTime(t *testing.T) {
 		t.Fatal("isUUID accepted a non-UUID")
 	}
 }
+
+func TestFoldersAreMadeListedAndRemovedWhenEmpty(t *testing.T) {
+	vaults, info := newVault(t, map[string]string{"a/note.md": "A", ".hidden/x.md": "X"})
+	if err := vaults.MakeFolder(info.ID, "b/c"); err != nil {
+		t.Fatalf("make: %v", err)
+	}
+	folders, err := vaults.Folders(info.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(folders)
+	if strings.Join(folders, ",") != "a,b,b/c" {
+		t.Fatalf("folders: %v", folders)
+	}
+	if below, _ := vaults.Folders(info.ID, "b"); strings.Join(below, ",") != "b/c" {
+		t.Fatalf("folders below b: %v", below)
+	}
+	if err := vaults.MakeFolder(info.ID, "b"); !errors.Is(err, ErrExists) {
+		t.Fatalf("made a folder twice: %v", err)
+	}
+	if err := vaults.MakeFolder(info.ID, "x/.secret"); err == nil {
+		t.Fatal("made a hidden folder")
+	}
+	if err := vaults.RemoveFolder(info.ID, "a"); err == nil {
+		t.Fatal("removed a folder with a note in it")
+	}
+	if err := vaults.RemoveFolder(info.ID, "a/note.md"); err == nil {
+		t.Fatal("removed a file as a folder")
+	}
+	if err := vaults.RemoveFolder(info.ID, "b/c"); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if folders, _ := vaults.Folders(info.ID, ""); len(folders) != 2 {
+		t.Fatalf("after removing: %v", folders)
+	}
+}

@@ -616,6 +616,89 @@ func (v *Vaults) Erase(id string, rel string) error {
 	return os.Remove(full)
 }
 
+// Folders lists every folder in the vault, or below one folder, leaving out
+// hidden ones and what is in them, as List does. Empty folders are listed
+// too: the sidebar shows them, where the files alone would not.
+func (v *Vaults) Folders(id string, folder string) ([]string, error) {
+	root, err := v.root(id)
+	if err != nil {
+		return nil, err
+	}
+	start := root
+	if folder != "" {
+		if start, err = resolve(root, folder); err != nil {
+			return nil, err
+		}
+		if stat, err := os.Stat(start); err != nil || !stat.IsDir() {
+			return []string{}, nil
+		}
+	}
+	folders := []string{}
+	err = filepath.WalkDir(start, func(full string, entry fs.DirEntry, err error) error {
+		if full == start || entry == nil || !entry.IsDir() {
+			return nil
+		}
+		if err != nil || hidden(entry.Name()) {
+			return fs.SkipDir
+		}
+		if rel, err := filepath.Rel(root, full); err == nil {
+			folders = append(folders, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	return folders, err
+}
+
+// MakeFolder makes a folder, and the folders it is in. It refuses a hidden
+// name, which the vault would not show, and a path a file or folder has.
+func (v *Vaults) MakeFolder(id string, rel string) error {
+	root, err := v.root(id)
+	if err != nil {
+		return err
+	}
+	full, err := resolve(root, rel)
+	if err != nil {
+		return err
+	}
+	for _, part := range strings.Split(rel, "/") {
+		if hidden(part) {
+			return fmt.Errorf("%q is a hidden name", part)
+		}
+	}
+	if _, err := os.Lstat(full); err == nil {
+		return fmt.Errorf("%s: %w", rel, ErrExists)
+	}
+	return os.MkdirAll(full, 0o755)
+}
+
+// RemoveFolder deletes an empty folder. A folder with anything in it, even
+// a hidden file, stays: notes go to the trash one by one, not with it.
+func (v *Vaults) RemoveFolder(id string, rel string) error {
+	root, err := v.root(id)
+	if err != nil {
+		return err
+	}
+	full, err := resolve(root, rel)
+	if err != nil {
+		return err
+	}
+	info, err := os.Lstat(full)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%q is not a folder", rel)
+	}
+	entries, err := os.ReadDir(full)
+	if err != nil {
+		return err
+	}
+	if len(entries) > 0 {
+		return fmt.Errorf("%q is not empty", rel)
+	}
+	return os.Remove(full)
+}
+
 // Watch sends the changes to the vault's files until the page stops it.
 // Where the system cannot follow every file, it sends FileRescan events
 // that name the folders to list again.

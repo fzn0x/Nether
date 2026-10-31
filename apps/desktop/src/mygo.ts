@@ -235,6 +235,14 @@ export const Vaults = {
   erase(id: string, rel: string): Promise<void> {
     return call("Vaults.Erase", id, rel);
   },
+  /**
+   * Folders lists every folder in the vault, or below one folder, leaving out
+   * hidden ones and what is in them, as List does. Empty folders are listed
+   * too: the sidebar shows them, where the files alone would not.
+   */
+  folders(id: string, folder: string): Promise<string[]> {
+    return call("Vaults.Folders", id, folder);
+  },
   /** Forget removes a vault from the recent list; its folder stays as it is. */
   forget(id: string): Promise<void> {
     return call("Vaults.Forget", id);
@@ -246,6 +254,13 @@ export const Vaults = {
    */
   list(id: string, folder: string, files: Channel<FileInfo[]>): Promise<void> {
     return call("Vaults.List", id, folder, files);
+  },
+  /**
+   * MakeFolder makes a folder, and the folders it is in. It refuses a hidden
+   * name, which the vault would not show, and a path a file or folder has.
+   */
+  makeFolder(id: string, rel: string): Promise<void> {
+    return call("Vaults.MakeFolder", id, rel);
   },
   /**
    * MediaURL returns the URL the page loads a vault's media from: a file's
@@ -291,6 +306,13 @@ export const Vaults = {
    */
   remove(id: string, rel: string): Promise<string> {
     return call("Vaults.Remove", id, rel);
+  },
+  /**
+   * RemoveFolder deletes an empty folder. A folder with anything in it, even
+   * a hidden file, stays: notes go to the trash one by one, not with it.
+   */
+  removeFolder(id: string, rel: string): Promise<void> {
+    return call("Vaults.RemoveFolder", id, rel);
   },
   /** Rename moves a file within the vault, making the folders it needs. */
   rename(id: string, from: string, to: string): Promise<FileInfo> {

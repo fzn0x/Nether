@@ -234,6 +234,18 @@ class DesktopFiles implements VaultFiles {
     return Vaults.erase(this.#id, path);
   }
 
+  folders(folder: string) {
+    return Vaults.folders(this.#id, folder);
+  }
+
+  makeFolder(path: string) {
+    return Vaults.makeFolder(this.#id, path);
+  }
+
+  removeFolder(path: string) {
+    return Vaults.removeFolder(this.#id, path);
+  }
+
   async watch(each: (events: readonly FileEvent[]) => void, signal: AbortSignal): Promise<void> {
     if (signal.aborted) return;
     const channel = new Channel<FileEvent[]>(each);
