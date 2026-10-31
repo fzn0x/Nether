@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- The server keeps its data in PostgreSQL, set by `NETHER_DATABASE_URL`,
+  and brings the database to its schema as it starts. A server with no
+  account writes a setup code to its log, and `POST /api/setup` with that
+  code makes the admin account, its password an argon2id hash, and the
+  first workspace
+  ([ADR 0031](docs/adr/0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md)).
 - Web pages import as notes named by their titles, their text as
   Markdown, their styles and scripts left behind; the HTML parser loads
   only to import

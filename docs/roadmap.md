@@ -109,7 +109,7 @@ The Notion core, one feature per pull request, in this order:
 The first public release, one feature per pull request, in this order:
 
 - [x] Headroom in the desktop app's memory: find what Phase 2 added to it at idle, before sync adds its own. Phase 2's code added about 5 MB, now 2.5 MB with the database, query and dialog code loaded when used; the rest of the rise was the machine, where the Phase 1 build itself now idles at 287 MB. The page's renderer, 208 MB of 291, is where more must come from.
-- [ ] The server's data model in PostgreSQL, with migrations that run on start, and the first-run setup that makes the admin account.
+- [x] The server's data model in PostgreSQL, with migrations that run on start, and the first-run setup that makes the admin account ([ADR 0031](adr/0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md)).
 - [ ] Accounts: email and password with argon2id, magic links and OIDC, with rate limits.
 - [ ] Sync: the Hocuspocus server, Yjs updates kept in PostgreSQL, and the desktop app's provider with its offline queue, so a vault syncs between devices with no conflict dialogs for text.
 - [ ] End-to-end encryption, per vault, with libsodium and a recovery phrase.
