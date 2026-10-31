@@ -4,6 +4,7 @@
 // longer shared on its own goes back where it sits.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
+import { storeDocument } from "../src/sync.ts";
 import { type SetUp, type TestServer, bearer, setUp, startServer } from "./app.ts";
 
 let running: TestServer | undefined;
@@ -193,5 +194,18 @@ describe("shared pages", () => {
     expect(await levels(test, gus.token)).toEqual({ [page.id]: "comment" });
     const listed = await call(test, "GET", "/members", gus.token);
     expect(listed.statusCode).toBe(403);
+
+    // Given edit, the guest makes a page inside it: a new note, which leaves nothing.
+    await call(test, "PUT", `/units/${page.id}/grants/${gus.id}`, test.token, { level: "edit" });
+    const fresh = randomUUID();
+    expect(
+      (await call(test, "PUT", `/notes/${fresh}/unit`, gus.token, { unit: page.id })).statusCode,
+    ).toBe(200);
+    // A note of General's the server has stored is not new: the guest takes none of it.
+    const stored = randomUUID();
+    await storeDocument(test.db, test.workspaceId, stored, new Uint8Array([0, 0]));
+    expect(
+      (await call(test, "PUT", `/notes/${stored}/unit`, gus.token, { unit: page.id })).statusCode,
+    ).toBe(403);
   });
 });

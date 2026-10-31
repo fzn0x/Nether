@@ -636,8 +636,15 @@ export function registerUnits(
       const { levels: found } = await accessible(db, accountOf(request).id, workspace);
       if (found.size === 0) return fail(reply, 404, noWorkspace);
       const current = await unitOfDocument(db, workspace, note);
+      // A note the server has neither placed nor stored is new, as a guest's
+      // page made inside a page shared with them: it leaves nothing.
+      const { rows: stored } = await db.query(
+        "SELECT 1 FROM documents WHERE workspace_id = $1 AND name = $2",
+        [workspace, note],
+      );
+      const leaves = current !== general || stored.length > 0;
       // Leaving one unit and entering another both change notes.
-      if (!writesAt(found.get(current)) || !writesAt(found.get(target))) {
+      if ((leaves && !writesAt(found.get(current))) || !writesAt(found.get(target))) {
         return fail(reply, 403, "Moving a note takes edit access where it is and where it goes.");
       }
       if (target === general) {
