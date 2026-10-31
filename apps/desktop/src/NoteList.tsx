@@ -1,9 +1,11 @@
 // The list of a vault's notes. It draws only the rows in view, so a vault of
 // 50,000 notes scrolls as smoothly as one of fifty, and moves between notes
-// with the arrow keys.
+// with the arrow keys. A right click on a note, or the menu key, opens its
+// menu.
 import type { NoteId } from "@nether/core";
 import { type NoteEntry, folderOf } from "@nether/storage";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
+import { type MenuPoint, isMenuKey, pointBelow } from "./ContextMenu.tsx";
 
 const rowHeight = 30;
 const overscan = 8;
@@ -12,9 +14,13 @@ export function NoteList(props: {
   readonly notes: readonly NoteEntry[];
   readonly selected: NoteId | undefined;
   readonly onSelect: (id: NoteId) => void;
+  /** Opens a note's menu at a point. */
+  readonly onMenu?: (id: NoteId, at: MenuPoint) => void;
+  /** The note whose menu is open, which shows so. */
+  readonly menuFor?: NoteId | undefined;
   readonly label: string;
 }) {
-  const { notes, selected, onSelect, label } = props;
+  const { notes, selected, onSelect, onMenu, menuFor, label } = props;
   const scroller = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 600 });
 
@@ -57,6 +63,15 @@ export function NoteList(props: {
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (isMenuKey(event)) {
+      const target = event.target;
+      const id = target instanceof HTMLElement ? target.dataset.id : undefined;
+      const note = notes.find((entry) => entry.id === id);
+      if (note === undefined || onMenu === undefined || !(target instanceof HTMLElement)) return;
+      event.preventDefault();
+      onMenu(note.id, pointBelow(target));
+      return;
+    }
     const page = Math.max(1, Math.floor(view.height / rowHeight) - 1);
     const moves: Partial<Record<string, number>> = {
       ArrowDown: index + 1,
@@ -89,10 +104,16 @@ export function NoteList(props: {
                 type="button"
                 data-id={note.id}
                 aria-current={note.id === selected ? "page" : undefined}
+                className={note.id === menuFor ? "menu-open" : undefined}
                 // One row is in the tab order: the selected one, or the first.
                 tabIndex={note.id === selected || (index === -1 && position === 0) ? 0 : -1}
                 onClick={() => {
                   onSelect(note.id);
+                }}
+                onContextMenu={(event) => {
+                  if (onMenu === undefined) return;
+                  event.preventDefault();
+                  onMenu(note.id, { x: event.clientX, y: event.clientY });
                 }}
                 title={note.path}
               >

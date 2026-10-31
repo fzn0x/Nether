@@ -1292,7 +1292,8 @@ button {
 }
 
 .slash-menu,
-.block-menu {
+.block-menu,
+.context-menu {
   min-width: 13rem;
   max-height: min(20rem, 60vh);
   padding: 0.25rem;
@@ -1305,7 +1306,8 @@ button {
 }
 
 .slash-item,
-.block-menu button {
+.block-menu button,
+.context-menu button {
   display: block;
   width: 100%;
   padding: 0.35rem 0.6rem;
@@ -1320,7 +1322,8 @@ button {
 
 .slash-item[aria-selected="true"],
 .block-menu button:hover,
-.block-menu button:focus-visible {
+.block-menu button:focus-visible,
+.context-menu button:focus {
   outline: none;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
@@ -1369,6 +1372,30 @@ button {
   top: 100%;
   inset-inline-start: 0;
   z-index: 20;
+}
+
+/* A note's menu, at the pointer or below the row the keyboard opened it from. */
+.context-menu {
+  position: fixed;
+  z-index: 40;
+  max-height: calc(100vh - 1rem);
+}
+
+.context-menu [role="separator"] {
+  height: 1px;
+  margin: 0.25rem 0.4rem;
+  background: var(--rule);
+}
+
+.context-menu button.danger {
+  color: var(--accent);
+}
+
+/* The row whose menu is open. */
+.tree-row.menu-open,
+.note-list button.menu-open {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 
 .block-menu-heading {
@@ -3016,6 +3043,9 @@ kbd {
   gap: 0.5rem;
 }
 
-.notifications-dialog {
+.notifications-dialog,
+.note-tags-dialog,
+.rename-note-dialog,
+.move-note-dialog {
   align-self: flex-start;
 }

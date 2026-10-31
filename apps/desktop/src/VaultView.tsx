@@ -20,12 +20,17 @@ import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
 import { backend } from "./backend.ts";
 import { CommandPalette } from "./CommandPalette.tsx";
+import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
+import { MoveNoteDialog } from "./MoveNoteDialog.tsx";
 import { NewNoteDialog } from "./NewNoteDialog.tsx";
+import { copyNote, fullPath, vaultFolders } from "./noteActions.ts";
+import { NoteTagsDialog } from "./NoteTagsDialog.tsx";
 import { NoteList } from "./NoteList.tsx";
 import { type Dragged, NoteTree } from "./NoteTree.tsx";
 import { QuickSwitcher } from "./QuickSwitcher.tsx";
+import { RenameNoteDialog } from "./RenameNoteDialog.tsx";
 import { SearchPanel } from "./SearchPanel.tsx";
 import { ShortcutsDialog } from "./ShortcutsDialog.tsx";
 import { ariaKeys, commandFor, eventKeys } from "./shortcuts.ts";
@@ -258,6 +263,11 @@ export function VaultView(props: {
   const [threadRequest, setThreadRequest] = useState<
     { readonly thread: string; readonly key: number } | undefined
   >();
+  // A note's menu, open at a point, and the dialog one of its items opened for a note.
+  const [menu, setMenu] = useState<{ readonly id: NoteId; readonly at: MenuPoint } | undefined>();
+  const [noteDialog, setNoteDialog] = useState<
+    { readonly kind: "rename" | "move" | "tags"; readonly id: NoteId } | undefined
+  >();
   const { hotkeys, chosen: chosenHotkeys, save: saveHotkeys } = useHotkeys(vault);
   // Whether the app updates itself, and checks on its own.
   const [updates, setUpdates] = useState({ available: false, automatic: false });
@@ -430,6 +440,142 @@ export function VaultView(props: {
       if (note !== undefined) openNote(note.id);
     },
     [vault, openNote],
+  );
+
+  const openMenu = useCallback((id: NoteId, at: MenuPoint) => {
+    setMenu({ id, at });
+  }, []);
+  const closeMenu = useCallback(() => {
+    setMenu(undefined);
+  }, []);
+
+  /** Copies text, and says so in the sidebar. */
+  const copyText = useCallback((text: string, done: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => {
+        setNotice({ text: done });
+      },
+      () => {
+        setNotice({ text: t("copyFailed") });
+      },
+    );
+  }, []);
+
+  /** What a note's menu offers: what the app can do with it from the list, without opening it first. */
+  const menuEntries = useCallback(
+    (id: NoteId): MenuEntry[] => {
+      if (state.status !== "open") return [];
+      const { vault: open, media } = state;
+      const note = open.note(id);
+      if (note === undefined) return [];
+      const failed = (error: unknown) => {
+        setNotice({ text: error instanceof Error ? error.message : String(error) });
+      };
+      const { open: openFile, reveal } = media;
+      return [
+        {
+          label: t("menuOpen"),
+          run: () => {
+            openNote(id);
+          },
+        },
+        "separator",
+        {
+          label: t("menuRename"),
+          run: () => {
+            setNoteDialog({ kind: "rename", id });
+          },
+        },
+        {
+          label: t("menuCopy"),
+          run: () => {
+            setNotice(undefined);
+            copyNote(open, id).then((copy) => {
+              setNotice({ text: t("copiedNote", { name: note.title, copy: copy.title }) });
+              openNote(copy.id);
+            }, failed);
+          },
+        },
+        {
+          label: t("menuMove"),
+          run: () => {
+            setNoteDialog({ kind: "move", id });
+          },
+        },
+        {
+          label: t("menuTags"),
+          run: () => {
+            setNoteDialog({ kind: "tags", id });
+          },
+        },
+        "separator",
+        {
+          label: t("menuCopyLink"),
+          run: () => {
+            // The shortest link that finds it, as Obsidian writes one.
+            const link = open.linkTo(note.path, "").replace(/\.md$/i, "");
+            copyText(`[[${link}]]`, t("copiedLink", { name: note.title }));
+          },
+        },
+        {
+          label: t("menuCopyPath"),
+          run: () => {
+            copyText(note.path, t("copiedPath", { name: note.title }));
+          },
+        },
+        {
+          label: t("menuCopyFullPath"),
+          run: () => {
+            copyText(fullPath(info.path, note.path), t("copiedPath", { name: note.title }));
+          },
+        },
+        ...(openFile === undefined && reveal === undefined ? [] : ["separator" as const]),
+        ...(openFile === undefined
+          ? []
+          : [
+              {
+                label: t("menuOpenDefault"),
+                run: () => {
+                  openFile(note.path).catch(failed);
+                },
+              },
+            ]),
+        ...(reveal === undefined
+          ? []
+          : [
+              {
+                label: t("menuReveal"),
+                run: () => {
+                  reveal(note.path).catch(failed);
+                },
+              },
+            ]),
+        "separator",
+        {
+          label: t("menuExport"),
+          run: () => {
+            openNote(id);
+            setDialog("export");
+          },
+        },
+        {
+          label: t("menuHistory"),
+          run: () => {
+            openNote(id);
+            setDialog("history");
+          },
+        },
+        "separator",
+        {
+          label: t("moveToTrash"),
+          danger: true,
+          run: () => {
+            trashNote(id);
+          },
+        },
+      ];
+    },
+    [state, info.path, openNote, trashNote, copyText],
   );
 
   /** What each command does, and whether it can now: those about a note need one open. */
@@ -864,6 +1010,8 @@ export function VaultView(props: {
                     notes={shown}
                     selected={selected}
                     onSelect={openNote}
+                    onMenu={openMenu}
+                    menuFor={menu?.id}
                     label={t("notes")}
                   />
                 ) : (
@@ -874,6 +1022,8 @@ export function VaultView(props: {
                     onSelect={openNote}
                     onMove={moveInTree}
                     onNewIn={newNoteIn}
+                    onMenu={openMenu}
+                    menuFor={menu?.id}
                     label={t("notes")}
                     storageKey={`nether.tree.${info.id}.${notesView}`}
                   />
@@ -1073,6 +1223,54 @@ export function VaultView(props: {
           }}
         />
       ) : null}
+      {menu === undefined || state.status !== "open" ? null : (
+        <ContextMenu
+          label={t("noteMenu", { name: state.vault.note(menu.id)?.title ?? "" })}
+          at={menu.at}
+          entries={menuEntries(menu.id)}
+          onClose={closeMenu}
+        />
+      )}
+      {noteDialog === undefined || state.status !== "open"
+        ? null
+        : (() => {
+            const note = state.vault.note(noteDialog.id);
+            if (note === undefined) return null;
+            const close = () => {
+              setNoteDialog(undefined);
+            };
+            switch (noteDialog.kind) {
+              case "rename":
+                return (
+                  <RenameNoteDialog
+                    note={note}
+                    onRename={(name) => renameCurrent(note.id, name)}
+                    onClose={close}
+                  />
+                );
+              case "move":
+                return (
+                  <MoveNoteDialog
+                    note={note}
+                    folders={vaultFolders(state.vault.files())}
+                    onMove={(folder) => {
+                      moveInTree({ kind: "note", path: note.path }, folder);
+                      return Promise.resolve();
+                    }}
+                    onClose={close}
+                  />
+                );
+              case "tags":
+                return (
+                  <NoteTagsDialog
+                    vault={state.vault}
+                    note={note}
+                    known={state.indexer.graph.tags().map((entry) => entry.tag)}
+                    onClose={close}
+                  />
+                );
+            }
+          })()}
       {dialog === "export" && state.status === "open" && selected !== undefined
         ? (() => {
             const note = state.vault.note(selected);

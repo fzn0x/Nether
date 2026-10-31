@@ -3,10 +3,12 @@
 // tree does: the arrow keys move between rows and open and close them, and
 // Enter opens a note. A note or folder dragged onto a folder or a page, or
 // onto the space below the rows, moves there; the + beside a folder or a
-// page makes a note in it. What is open is remembered for the vault.
+// page makes a note in it. A right click on a note, or the menu key, opens
+// its menu. What is open is remembered for the vault.
 import type { NoteId } from "@nether/core";
 import { type NoteEntry, folderOf } from "@nether/storage";
 import { type DragEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type MenuPoint, isMenuKey, pointBelow } from "./ContextMenu.tsx";
 import { t } from "./messages.ts";
 import { type TreeNode, type TreeRow, folderTree, pageTree, pathTo, visibleRows } from "./tree.ts";
 
@@ -63,11 +65,16 @@ export function NoteTree(props: {
   readonly onMove: (dragged: Dragged, folder: string) => void;
   /** Makes a note in a folder; "" is the vault's top. */
   readonly onNewIn: (folder: string) => void;
+  /** Opens a note's menu at a point. */
+  readonly onMenu?: (id: NoteId, at: MenuPoint) => void;
+  /** The note whose menu is open, which shows so. */
+  readonly menuFor?: NoteId | undefined;
   readonly label: string;
   /** Where the tree remembers what is open, for its vault and view. */
   readonly storageKey: string;
 }) {
-  const { notes, mode, selected, onSelect, onMove, onNewIn, label, storageKey } = props;
+  const { notes, mode, selected, onSelect, onMove, onNewIn, onMenu, menuFor, label, storageKey } =
+    props;
   const scroller = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ top: 0, height: 600 });
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => readStored(storageKey));
@@ -156,6 +163,13 @@ export function NoteTree(props: {
   const onKeyDown = (event: KeyboardEvent) => {
     const row = rows[index];
     if (row === undefined) return;
+    if (isMenuKey(event)) {
+      if (row.node.kind !== "note" || onMenu === undefined) return;
+      event.preventDefault();
+      const element = scroller.current?.querySelector(`[data-key="${CSS.escape(row.node.key)}"]`);
+      onMenu(row.node.note.id, element == null ? { x: 0, y: 0 } : pointBelow(element));
+      return;
+    }
     const page = Math.max(1, Math.floor(view.height / rowHeight) - 1);
     // Right to left, the tree opens towards the left, and so do the arrows.
     const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
@@ -260,7 +274,9 @@ export function NoteTree(props: {
               key={node.key}
               role="treeitem"
               data-key={node.key}
-              className={`tree-row${dropKey === node.key ? " drop-target" : ""}`}
+              className={`tree-row${dropKey === node.key ? " drop-target" : ""}${
+                node.kind === "note" && node.note.id === menuFor ? " menu-open" : ""
+              }`}
               style={{ top: position * rowHeight, height: rowHeight }}
               aria-level={row.depth + 1}
               aria-setsize={row.siblings}
@@ -290,6 +306,12 @@ export function NoteTree(props: {
               onClick={() => {
                 setFocusKey(node.key);
                 open(row);
+              }}
+              onContextMenu={(event) => {
+                if (node.kind !== "note" || onMenu === undefined) return;
+                event.preventDefault();
+                setFocusKey(node.key);
+                onMenu(node.note.id, { x: event.clientX, y: event.clientY });
               }}
             >
               <span className="tree-indent" style={{ width: row.depth * indent }} />
