@@ -116,7 +116,7 @@ The first public release, one feature per pull request, in this order:
 - [x] Attachments on disk or in S3-compatible storage, deduplicated by hash: the server's store ([ADR 0039](adr/0039-attachments-are-kept-by-their-hash-on-disk-or-in-an-s3-bucket.md)), and their sync, encrypted for an encrypted workspace ([ADR 0040](adr/0040-attachments-sync-by-path-and-hash-in-the-vault-document.md)).
 - [x] Version history with a diff, and its retention: each computer's versions and, for workspaces the server can read, the server's, kept as long as the admin says ([ADR 0041](adr/0041-a-notes-history-is-its-earlier-texts-kept-before-each-spell-of-editing.md)).
 - [x] Workspaces, teamspaces and private spaces; roles and page permissions inherited down the page tree; guests: members and invitation links (#69), sync units for spaces, shared pages and page guests on the server (#70, #71, #73), in the sync engine (#72) and in the desktop app ([ADR 0042](adr/0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md)).
-- [ ] Real-time co-editing with live cursors.
+- [x] Real-time co-editing with live cursors: notes open in the editor sync live, with the others' carets and selections ([ADR 0043](adr/0043-a-note-open-in-the-editor-syncs-live-with-awareness-for-carets.md)).
 - [ ] Comments and threads; mentions and notifications, by email through the admin's SMTP.
 - [ ] The web app, served by the server, installable as a PWA, with its content security policy, its sessions in a cookie with a CSRF defence, and the link to sign in by email.
 - [ ] Workspace search on the server, by permission.

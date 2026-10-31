@@ -91,6 +91,16 @@ this vault** with the workspace to fetch its notes.
 **Leave the workspace** takes you out of it. The vault keeps its notes and
 stops syncing.
 
+## Editing together
+
+When others have a note open that you have open too, each edit reaches
+everyone as it is made. Their carets show in the note, each a line in a
+color of their own with their name above it, and the text they select is
+tinted the same. Your name is your account's on the server.
+
+In an encrypted workspace, edits come a few seconds apart, as they do for
+notes no one has open, and no carets show yet.
+
 ## Spaces and sharing
 
 A workspace's notes are in spaces, which **Spaces**, in the command palette,

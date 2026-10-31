@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Real-time co-editing: a note open in the editor syncs live, so each
+  edit reaches everyone with the note open as it is made, and the others'
+  carets and selections show, each in a color of their own with their
+  name ([ADR 0043](docs/adr/0043-a-note-open-in-the-editor-syncs-live-with-awareness-for-carets.md)). An encrypted workspace's notes
+  sync in rounds, for now.
 - Spaces and sharing in the desktop app: **Spaces** makes teamspaces,
   from a folder of the vault or anew, with their members and levels, and
   a private space; **Share this page** shares a page on its own with its

@@ -50,3 +50,4 @@ record supersedes it and says so. Start a new one from
 | [0040](0040-attachments-sync-by-path-and-hash-in-the-vault-document.md) | Attachments sync by path and hash in the vault document | Accepted |
 | [0041](0041-a-notes-history-is-its-earlier-texts-kept-before-each-spell-of-editing.md) | A note's history is its earlier texts, kept before each spell of editing | Accepted |
 | [0042](0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md) | Spaces and shared pages are sync units, each with its own vault document | Accepted |
+| [0043](0043-a-note-open-in-the-editor-syncs-live-with-awareness-for-carets.md) | A note open in the editor syncs live, with awareness for carets | Accepted |
