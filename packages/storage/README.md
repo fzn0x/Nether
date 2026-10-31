@@ -1,7 +1,7 @@
 # @nether/storage
 
 A vault's files and its local index, for every client. The platform gives
-access to the folder (`VaultFiles`: the desktop's Go service, or
+access to the folder (`VaultFiles`: the desktop's Go service, `OpfsFiles` in the web app, or
 `MemoryFiles` in the browser preview and tests) and a place for the index
 (`IndexStore`: `SqliteStore` on the desktop, `MemoryStore` elsewhere).
 `Vault` ties them together, as
@@ -28,6 +28,7 @@ await vault.write(id, edited, hash); // refused if the file changed meanwhile
 | `src/store.ts` | The index's records, the `IndexStore` interface, and `MemoryStore` |
 | `src/sqlite.ts` | `SqliteStore` and its migrations, on any SQLite with MyGO's plugin's API |
 | `src/memory.ts` | `MemoryFiles`, a vault folder in memory that behaves as the Go service does |
+| `src/opfs.ts` | `OpfsFiles`, a vault folder in the browser's origin private file system, for the web app ([ADR 0053](../../docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)) |
 | `src/vault.ts` | `Vault`: reconciling, watching, and reading and writing notes |
 
 ## Tests
@@ -36,4 +37,6 @@ await vault.write(id, edited, hash); // refused if the file changed meanwhile
 (Node.js 22.13 or newer), and the vault against `MemoryFiles`: catching up
 after changes made while it was closed, renames as a rename or as a removal
 and a creation, folders moved and removed, the trash, and its own writes
-coming back from the watch.
+coming back from the watch. `OpfsFiles` runs on a private file system in
+memory that fails as browsers do, through the same steps as `MemoryFiles`,
+and must give what it gives.
