@@ -18,10 +18,11 @@ import (
 )
 
 // Exports saves what the page exports where the user chooses: a ZIP of
-// notes, files and pages, written as the page sends it, or the page printed
-// as a PDF. The user chooses where first, so nothing is made for an export
-// that is cancelled; a ZIP is written beside its destination and takes its
-// place only when it is whole.
+// notes, files and pages, written as the page sends it, the page printed
+// as a PDF, or a text the page made, as a database's CSV. The user chooses
+// where first, so nothing is made for an export that is cancelled; a file
+// is written beside its destination and takes its place only when it is
+// whole.
 type Exports struct {
 	vaults *Vaults
 	dialog fileSaver
@@ -68,6 +69,7 @@ type PDFPage struct {
 var exportKinds = map[string]mygo.FileFilter{
 	"zip": {Name: "ZIP archive", Extensions: []string{"zip"}},
 	"pdf": {Name: "PDF document", Extensions: []string{"pdf"}},
+	"csv": {Name: "CSV table", Extensions: []string{"csv"}},
 }
 
 // NewExports exports from the vaults v has open.
@@ -88,9 +90,9 @@ func NewExports(v *Vaults) *Exports {
 	}
 }
 
-// Choose asks where to save an export of kind "zip" or "pdf" from the vault
-// id, suggesting name, and returns the export's token for the calls that
-// make it, or "" when the user cancels.
+// Choose asks where to save an export of kind "zip", "pdf" or "csv" from
+// the vault id, suggesting name, and returns the export's token for the
+// calls that make it, or "" when the user cancels.
 func (e *Exports) Choose(ctx context.Context, id string, name string, kind string) (string, error) {
 	filter, ok := exportKinds[kind]
 	if !ok {
@@ -218,6 +220,21 @@ func (e *Exports) PrintPDF(ctx context.Context, token string, page PDFPage) (str
 		return "", err
 	}
 	if err := writeAtomically(item.path, pdf, 0o644); err != nil {
+		return "", err
+	}
+	e.remember(item.path)
+	return item.path, nil
+}
+
+// SaveText writes the text the page made as the CSV export token names,
+// and returns where it went.
+func (e *Exports) SaveText(token string, text string) (string, error) {
+	item, err := e.take(token, "csv")
+	if err != nil {
+		return "", err
+	}
+	e.forget(token)
+	if err := writeAtomically(item.path, []byte(text), 0o644); err != nil {
 		return "", err
 	}
 	e.remember(item.path)

@@ -269,10 +269,11 @@ export const Vaults = {
 
 /**
  * Exports saves what the page exports where the user chooses: a ZIP of
- * notes, files and pages, written as the page sends it, or the page printed
- * as a PDF. The user chooses where first, so nothing is made for an export
- * that is cancelled; a ZIP is written beside its destination and takes its
- * place only when it is whole.
+ * notes, files and pages, written as the page sends it, the page printed
+ * as a PDF, or a text the page made, as a database's CSV. The user chooses
+ * where first, so nothing is made for an export that is cancelled; a file
+ * is written beside its destination and takes its place only when it is
+ * whole.
  */
 export const Exports = {
   /** Add writes files into a ZIP export, in order. A path can be added once. */
@@ -284,9 +285,9 @@ export const Exports = {
     return call("Exports.Cancel", token);
   },
   /**
-   * Choose asks where to save an export of kind "zip" or "pdf" from the vault
-   * id, suggesting name, and returns the export's token for the calls that
-   * make it, or "" when the user cancels.
+   * Choose asks where to save an export of kind "zip", "pdf" or "csv" from
+   * the vault id, suggesting name, and returns the export's token for the
+   * calls that make it, or "" when the user cancels.
    */
   choose(id: string, name: string, kind: string): Promise<string> {
     return call("Exports.Choose", id, name, kind);
@@ -309,6 +310,13 @@ export const Exports = {
   /** Reveal shows a file an export saved in the system's file manager. */
   reveal(file: string): Promise<void> {
     return call("Exports.Reveal", file);
+  },
+  /**
+   * SaveText writes the text the page made as the CSV export token names,
+   * and returns where it went.
+   */
+  saveText(token: string, text: string): Promise<string> {
+    return call("Exports.SaveText", token, text);
   },
 } as const;
 

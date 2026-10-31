@@ -27,6 +27,7 @@ import {
   rowTitle,
   runView,
   parseFormula,
+  viewCsv,
   viewIdOf,
   withFormulas,
   withRollups,
@@ -48,7 +49,7 @@ import {
   valueText,
 } from "./DatabaseLayouts.tsx";
 import { ListEditor } from "./PropertiesPanel.tsx";
-import type { VaultMedia } from "./backend.ts";
+import type { Exporter, VaultMedia } from "./backend.ts";
 import {
   createRow,
   databaseNotes,
@@ -664,6 +665,8 @@ function AddProperty(props: {
 interface DatabaseProps {
   readonly vault: Vault;
   readonly media: VaultMedia;
+  /** Where a view's CSV is saved. */
+  readonly exporter: Exporter;
   readonly graph: LinkGraph;
   readonly document: Y.Doc;
   readonly path: string;
@@ -681,12 +684,15 @@ export function DatabaseView(props: DatabaseProps) {
 }
 
 function Database(props: DatabaseProps & { readonly entries: readonly PropertyEntry[] }) {
-  const { vault, media, graph, document, path, onOpenNote, entries } = props;
+  const { vault, media, exporter, graph, document, path, onOpenNote, entries } = props;
   const version = useGraph(graph);
   const notes = useNotes(vault);
   const [chosen, setChosen] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [panel, setPanel] = useState<"filter" | "properties" | undefined>();
+  const [exported, setExported] = useState<
+    { readonly path: string } | { readonly failed: string } | undefined
+  >();
 
   const read = useMemo(() => {
     try {
@@ -959,6 +965,24 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
   };
   const shown = withFormulas(withRollups(rows, schema, findRow), schema);
   const result = view === undefined ? undefined : runView(shown, view, schema);
+
+  /** Saves a view as CSV, its rows as it shows them, where the user chooses. */
+  const exportCsv = (exporting: View) => {
+    setExported(undefined);
+    const text = viewCsv(shown, exporting, schema, t("builtIn_title"));
+    void (async () => {
+      const token = await exporter.choose(`${rowTitle({ path })} - ${exporting.name}`, "csv");
+      if (token === undefined) return;
+      try {
+        setExported({ path: await exporter.saveText(token, text) });
+      } catch (problem) {
+        await exporter.cancel(token);
+        throw problem;
+      }
+    })().catch((problem: unknown) => {
+      setExported({ failed: problem instanceof Error ? problem.message : String(problem) });
+    });
+  };
   const visible = (view?.visible ?? [])
     .map((key) => schema.properties.find((property) => property.key === key))
     .filter((property): property is PropertyDefinition => property !== undefined);
@@ -1197,7 +1221,38 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
             >
               {t("properties")}
             </button>
+            <button
+              type="button"
+              className="quiet"
+              onClick={() => {
+                exportCsv(view);
+              }}
+            >
+              {t("exportCsv")}
+            </button>
           </div>
+          {exported === undefined ? null : "path" in exported ? (
+            <p role="status">
+              {t("exportSaved", { path: exported.path })}
+              {exporter.reveal === undefined ? null : (
+                <button
+                  type="button"
+                  className="quiet"
+                  onClick={() => {
+                    exporter.reveal?.(exported.path).catch((problem: unknown) => {
+                      setExported({
+                        failed: problem instanceof Error ? problem.message : String(problem),
+                      });
+                    });
+                  }}
+                >
+                  {t("showInFolder")}
+                </button>
+              )}
+            </p>
+          ) : (
+            <p role="alert">{t("exportFailed", { error: exported.failed })}</p>
+          )}
           {panel === "filter" ? (
             <FilterBar
               view={view}

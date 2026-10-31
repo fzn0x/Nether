@@ -45,13 +45,15 @@ export interface VaultMedia {
  */
 export interface Exporter {
   /** Asks where to save an export of the vault; undefined when the user cancels. */
-  choose(name: string, kind: "zip" | "pdf"): Promise<string | undefined>;
+  choose(name: string, kind: "zip" | "pdf" | "csv"): Promise<string | undefined>;
   /** Adds files to a ZIP: text the page made, or a file of the vault by its path. */
   add(token: string, entries: readonly ExportEntry[]): Promise<void>;
   /** Completes a ZIP and returns where it was saved. */
   finish(token: string): Promise<string>;
   /** Prints the page, as its print styles lay it out, as the PDF, and returns where it was saved. */
   printPdf(token: string, page: PDFPage): Promise<string>;
+  /** Saves a text the page made as the file, as a database's CSV, and returns where it was saved. */
+  saveText(token: string, text: string): Promise<string>;
   cancel(token: string): Promise<void>;
   /** Shows a saved export in the system's file manager, where there is one. */
   readonly reveal?: (path: string) => Promise<void>;
@@ -205,6 +207,7 @@ const desktop: Backend = {
       add: (token, entries) => Exports.add(token, [...entries]),
       finish: (token) => Exports.finish(token),
       printPdf: (token, page) => Exports.printPDF(token, page),
+      saveText: (token, text) => Exports.saveText(token, text),
       cancel: (token) => Exports.cancel(token),
       reveal: (path) => Exports.reveal(path),
     };
@@ -241,7 +244,8 @@ function memoryMedia(files: MemoryFiles): VaultMedia {
 /** An export as the preview keeps it, for the end-to-end tests to read. */
 export interface PreviewExport {
   readonly name: string;
-  readonly kind: "zip" | "pdf";
+  readonly kind: "zip" | "pdf" | "csv";
+  /** A ZIP's files, or a CSV's text as its one file. */
   readonly entries: ExportEntry[];
   /** For a PDF, the page's print view when it was printed. */
   html?: string;
@@ -280,6 +284,14 @@ function memoryExporter(exports: PreviewExport[]): Exporter {
       item.html = document.getElementById("print-root")?.innerHTML ?? "";
       item.page = page;
       item.saved = `${item.name}.pdf`;
+      exports.push(item);
+      return Promise.resolve(item.saved);
+    },
+    saveText(token, text) {
+      const item = take(token);
+      open.delete(token);
+      item.saved = `${item.name}.${item.kind}`;
+      item.entries.push({ path: item.saved, text });
       exports.push(item);
       return Promise.resolve(item.saved);
     },

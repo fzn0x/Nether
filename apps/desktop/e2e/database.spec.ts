@@ -518,3 +518,72 @@ test("a formula works out each row's value from its others, and writes it nowher
   expect(results.violations.map((violation) => violation.id)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("a view exports as CSV: its rows, in its order, with the properties it shows", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("new database");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#note-title")).toHaveText("Untitled database");
+  const database = page.getByRole("region", { name: "Database" });
+  await database.getByRole("button", { name: "Properties" }).click();
+  const name = database.getByRole("textbox", { name: "Property name" });
+  const type = database.getByRole("combobox", { name: "Type of the new property" });
+  for (const [property, kind] of [
+    ["Points", "number"],
+    ["Note", "text"],
+  ] as const) {
+    await name.fill(property);
+    await type.selectOption(kind);
+    await database.getByRole("button", { name: "Add a property" }).click();
+  }
+  await database.getByRole("button", { name: "New row" }).click();
+  await database.getByRole("button", { name: "New row" }).click();
+  for (const [row, points, note] of [
+    ["Untitled", "3", 'A "big" one'],
+    ["Untitled 2", "5", "Small, quick"],
+  ] as const) {
+    for (const [property, value] of [
+      ["Points", points],
+      ["Note", note],
+    ] as const) {
+      const cell = database.getByLabel(`${property} of ${row}`, { exact: true });
+      await cell.fill(value);
+      await cell.press("Enter");
+    }
+  }
+  // Sorted as the view shows it, most points first.
+  await database.getByRole("table").getByRole("button", { name: "Points" }).click();
+  await database.getByRole("table").getByRole("button", { name: "Points" }).click();
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveText([
+    "Untitled 2",
+    "Untitled",
+  ]);
+
+  await database.getByRole("button", { name: "Export CSV" }).click();
+  await expect(database.getByRole("status")).toHaveText("Saved to Untitled database - Table.csv.");
+  const exported = await page.evaluate(() => {
+    const preview = (
+      globalThis as unknown as {
+        netherPreview: {
+          exports: { name: string; kind: string; entries: { path: string; text?: string }[] }[];
+        };
+      }
+    ).netherPreview;
+    return preview.exports.at(-1);
+  });
+  expect(exported?.kind).toBe("csv");
+  expect(exported?.entries).toEqual([
+    {
+      path: "Untitled database - Table.csv",
+      text:
+        "\uFEFFName,Points,Note\r\n" +
+        'Untitled 2,5,"Small, quick"\r\n' +
+        'Untitled,3,"A ""big"" one"\r\n',
+    },
+  ]);
+  expect(errors).toEqual([]);
+});

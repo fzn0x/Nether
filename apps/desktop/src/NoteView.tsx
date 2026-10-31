@@ -7,7 +7,7 @@ import "@nether/editor/math.css";
 import type { Backlink, LinkGraph, NoteIndex } from "@nether/graph";
 import type { Vault } from "@nether/storage";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
-import { type VaultMedia, backend } from "./backend.ts";
+import { type Exporter, type VaultMedia, backend } from "./backend.ts";
 import { readIndexRow } from "./indexer.ts";
 import { t } from "./messages.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
@@ -49,6 +49,8 @@ function storeVim(on: boolean): void {
 export default function NoteView(props: {
   readonly vault: Vault;
   readonly media: VaultMedia;
+  /** Where a database's view is exported. */
+  readonly exporter: Exporter;
   readonly graph: LinkGraph;
   readonly id: NoteId;
   /** Where a link asked to go in this note. */
@@ -77,6 +79,7 @@ export default function NoteView(props: {
   const {
     vault,
     media,
+    exporter,
     graph,
     id,
     focus,
@@ -286,6 +289,7 @@ export default function NoteView(props: {
               key={`database-${state.document.guid}`}
               vault={vault}
               media={media}
+              exporter={exporter}
               graph={graph}
               document={state.document}
               path={note.path}

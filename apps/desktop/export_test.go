@@ -194,6 +194,36 @@ func TestExportPrintsThePageAsAPDF(t *testing.T) {
 	}
 }
 
+func TestExportSavesATextAsACSV(t *testing.T) {
+	dir := t.TempDir()
+	exports, info, dialog, opened := newExports(t, map[string]string{"a.md": "A"}, filepath.Join(dir, "Projects"))
+	token, err := exports.Choose(context.Background(), info.ID, "Projects", "csv")
+	if err != nil || token == "" {
+		t.Fatalf("choose: %q, %v", token, err)
+	}
+	if got := dialog.asked[0]; got.DefaultPath != "Projects.csv" || got.Filters[0].Extensions[0] != "csv" {
+		t.Fatalf("asked with %+v", got)
+	}
+	if err := exports.Add(token, []ExportEntry{{Path: "a.md", Text: "A"}}); err == nil {
+		t.Fatal("added to a CSV export")
+	}
+	text := "\ufeffName,Status\r\nLaunch,\"Done, at last\"\r\n"
+	where, err := exports.SaveText(token, text)
+	want := filepath.Join(dir, "Projects.csv")
+	if err != nil || where != want {
+		t.Fatalf("save: %q, %v", where, err)
+	}
+	if data, _ := os.ReadFile(want); string(data) != text {
+		t.Fatalf("wrote %q", data)
+	}
+	if _, err := exports.SaveText(token, text); err == nil {
+		t.Fatal("saved twice with one token")
+	}
+	if err := exports.Reveal(want); err != nil || !slices.Equal(opened.shown, []string{want}) {
+		t.Fatalf("reveal: %v, %v", opened.shown, err)
+	}
+}
+
 func TestSafeFileName(t *testing.T) {
 	for name, want := range map[string]string{
 		"Plan":       "Plan",

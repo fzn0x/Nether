@@ -83,6 +83,7 @@ export const messages = {
   queryFilterFailed: "A filter could not be worked out for a note, which is left out. {error}",
   queryNone: "The query finds no notes.",
   showMore: "Show {count} more",
+  exportCsv: "Export CSV",
   rollupRelation: "Relation to roll up",
   rollupProperty: "Property of the related rows",
   rollupFunction: "Calculate",

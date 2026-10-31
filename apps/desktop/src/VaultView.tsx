@@ -820,6 +820,7 @@ export function VaultView(props: {
             <noteView.default
               vault={state.vault}
               media={state.media}
+              exporter={state.exporter}
               graph={state.indexer.graph}
               id={selected}
               focus={focus}
