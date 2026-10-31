@@ -44,3 +44,4 @@ record supersedes it and says so. Start a new one from
 | [0034](0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md) | Sign in with OpenID Connect through the server, and hand the session back to the app | Accepted |
 | [0035](0035-the-server-syncs-through-hocuspocus-beside-its-api-and-numbers-each-store.md) | The server syncs documents through Hocuspocus beside its API, and numbers each store | Accepted |
 | [0036](0036-the-desktop-app-reaches-servers-through-go-and-keeps-tokens-in-the-keychain.md) | The desktop app reaches servers through Go, and keeps their tokens in the system's keychain | Accepted |
+| [0037](0037-a-vault-syncs-through-a-document-of-its-paths-and-its-notes-documents.md) | A vault syncs through a document of its paths and its notes' documents, by what each device last agreed | Accepted |
