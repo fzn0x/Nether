@@ -441,3 +441,49 @@ describe("MemoryFiles", () => {
     ).resolves.toBeUndefined();
   });
 });
+
+describe("Vault.folders", () => {
+  it("has the folders on disk, empty ones too, and not hidden ones", async () => {
+    const files = new MemoryFiles({ "a/b/note.md": "x", ".nether/data.json": "{}" });
+    await files.makeFolder("empty");
+    const vault = await openVault(files);
+    expect(vault.folders()).toEqual(["a", "a/b", "empty"]);
+  });
+
+  it("makes and removes folders, telling its listeners, and keeps one a note leaves", async () => {
+    const vault = await openVault(new MemoryFiles({ "note.md": "x" }));
+    let told = 0;
+    vault.subscribeFolders(() => {
+      told++;
+    });
+    await vault.makeFolder("Projects/Website");
+    expect(vault.folders()).toEqual(["Projects", "Projects/Website"]);
+    expect(told).toBe(1);
+    await expect(vault.makeFolder("Projects")).rejects.toThrow();
+    await expect(vault.makeFolder(".secret")).rejects.toThrow();
+    await expect(vault.removeFolder("Projects")).rejects.toThrow(/not empty/);
+
+    // A note moved into a folder, then out, leaves the folder, as the disk does.
+    const id = firstNote(vault);
+    await vault.rename(id, "Moved/note.md");
+    expect(vault.folders()).toContain("Moved");
+    await vault.rename(id, "note.md");
+    expect(vault.folders()).toContain("Moved");
+
+    await vault.removeFolder("Projects/Website");
+    expect(vault.folders()).toEqual(["Moved", "Projects"]);
+    // The same list until the folders change.
+    expect(vault.folders()).toBe(vault.folders());
+  });
+
+  it("follows a folder made or removed by another app", async () => {
+    const files = new MemoryFiles({ "note.md": "x" });
+    const vault = await openVault(files);
+    await files.makeFolder("Outside");
+    await vault.apply([{ op: "create", path: "Outside", isDir: true }]);
+    expect(vault.folders()).toEqual(["Outside"]);
+    await files.removeFolder("Outside");
+    await vault.apply([{ op: "remove", path: "Outside", isDir: true }]);
+    expect(vault.folders()).toEqual([]);
+  });
+});

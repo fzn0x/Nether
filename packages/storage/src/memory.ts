@@ -50,6 +50,8 @@ function checkPath(path: string): void {
 
 export class MemoryFiles implements VaultFiles {
   readonly #entries = new Map<string, Entry>();
+  /** The folders there are, as on disk: made for a file, and left when it goes. */
+  readonly #folders = new Set<string>();
   readonly #listeners = new Set<(events: readonly FileEvent[]) => void>();
   #clock: number;
 
@@ -59,6 +61,14 @@ export class MemoryFiles implements VaultFiles {
     for (const [path, text] of Object.entries(files)) {
       checkPath(path);
       this.#entries.set(path, { text, modified: this.#clock });
+      this.#keepFolders(path);
+    }
+  }
+
+  /** The folders a file is in, made for it, as the disk makes them. */
+  #keepFolders(path: string): void {
+    for (let slash = path.indexOf("/"); slash !== -1; slash = path.indexOf("/", slash + 1)) {
+      this.#folders.add(path.slice(0, slash));
     }
   }
 
@@ -128,6 +138,7 @@ export class MemoryFiles implements VaultFiles {
       throw new ChangedOnDisk(path);
     }
     this.#entries.set(path, { text, modified: this.#tick() });
+    this.#keepFolders(path);
     this.#emit([{ op: current.missing === true ? "create" : "write", path, isDir: false }]);
     return this.read(path);
   }
@@ -156,6 +167,7 @@ export class MemoryFiles implements VaultFiles {
       entry = { text: "", bytes: data.slice(), modified: this.#tick() };
     }
     this.#entries.set(path, entry);
+    this.#keepFolders(path);
     this.#emit([{ op: current.missing === true ? "create" : "write", path, isDir: false }]);
     return { ...this.#info(path, entry), hash: await sha256(data) };
   }
@@ -170,6 +182,7 @@ export class MemoryFiles implements VaultFiles {
     }
     this.#entries.delete(from);
     this.#entries.set(to, entry);
+    this.#keepFolders(to);
     this.#emit([{ op: "rename", path: to, oldPath: from, isDir: false }]);
     return Promise.resolve(this.#info(to, entry));
   }
@@ -183,6 +196,7 @@ export class MemoryFiles implements VaultFiles {
     for (let n = 1; this.#entries.has(target); n++) target = `${stem} ${String(n)}${ext}`;
     const entry = { text: "", bytes: data.slice(), modified: this.#tick() };
     this.#entries.set(target, entry);
+    this.#keepFolders(target);
     this.#emit([{ op: "create", path: target, isDir: false }]);
     return Promise.resolve(this.#info(target, entry));
   }
@@ -217,6 +231,38 @@ export class MemoryFiles implements VaultFiles {
     return Promise.resolve();
   }
 
+  folders(folder: string): Promise<readonly string[]> {
+    return Promise.resolve(
+      [...this.#folders].filter(
+        (path) =>
+          isInside(path, folder) &&
+          path !== folder &&
+          !hiddenPath(folder === "" ? path : path.slice(folder.length + 1)),
+      ),
+    );
+  }
+
+  makeFolder(path: string): Promise<void> {
+    checkPath(path);
+    if (hiddenPath(path)) return Promise.reject(new Error(`"${path}" has a hidden name.`));
+    if (this.#folders.has(path) || this.#entries.has(path)) {
+      return Promise.reject(new Error(`${path}: a file is already there.`));
+    }
+    this.#keepFolders(`${path}/`);
+    return Promise.resolve();
+  }
+
+  removeFolder(path: string): Promise<void> {
+    checkPath(path);
+    if (!this.#folders.has(path)) return Promise.reject(new Error(`${path} is not a folder.`));
+    const inside = (other: string) => other.startsWith(`${path}/`);
+    if ([...this.#entries.keys()].some(inside) || [...this.#folders].some(inside)) {
+      return Promise.reject(new Error(`"${path}" is not empty.`));
+    }
+    this.#folders.delete(path);
+    return Promise.resolve();
+  }
+
   watch(each: (events: readonly FileEvent[]) => void, signal: AbortSignal): Promise<void> {
     if (signal.aborted) return Promise.resolve();
     this.#listeners.add(each);
@@ -238,6 +284,7 @@ export class MemoryFiles implements VaultFiles {
       return;
     }
     this.#entries.set(path, { text, modified: this.#tick() });
+    this.#keepFolders(path);
     if (!hiddenPath(path)) this.#emit([{ op: existed ? "write" : "create", path, isDir: false }]);
   }
 
@@ -247,6 +294,7 @@ export class MemoryFiles implements VaultFiles {
     if (entry === undefined) throw new Error(`${from} is not there.`);
     this.#entries.delete(from);
     this.#entries.set(to, entry);
+    this.#keepFolders(to);
     this.#emit(events);
   }
 }

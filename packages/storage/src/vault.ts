@@ -137,6 +137,10 @@ export class Vault {
   readonly #records = new Map<string, FileRecord>();
   readonly #paths = new Map<NoteId, string>();
   readonly #listeners = new Set<(changed: readonly NoteId[]) => void>();
+  /** The vault's folders, empty ones too, and who is told when they change. */
+  readonly #folders = new Set<string>();
+  readonly #folderListeners = new Set<() => void>();
+  #folderList: readonly string[] | undefined;
   /** When each note written since the vault opened last kept a version. */
   readonly #lastVersion = new Map<NoteId, number>();
   #notes: NoteEntry[] | undefined;
@@ -207,6 +211,71 @@ export class Vault {
   async open(): Promise<void> {
     for (const record of await this.#store.files()) this.#remember(record);
     await this.reconcile("");
+  }
+
+  /** The vault's folders, empty ones too, sorted by path; the same list until they change. */
+  folders(): readonly string[] {
+    this.#folderList ??= [...this.#folders].sort(byPath);
+    return this.#folderList;
+  }
+
+  /** Calls `listener` when the folders change; returns a function that stops it. */
+  subscribeFolders(listener: () => void): () => void {
+    this.#folderListeners.add(listener);
+    return () => this.#folderListeners.delete(listener);
+  }
+
+  /** Makes a folder, and those it is in, which the vault then has though no note is in them. */
+  makeFolder(path: string): Promise<void> {
+    return this.#serial(async () => {
+      await this.#files.makeFolder(path);
+      this.#changeFolders(() => {
+        this.#keepFolders(`${path}/`);
+      });
+    });
+  }
+
+  /** Deletes an empty folder; one with a note or file in it stays. */
+  removeFolder(path: string): Promise<void> {
+    return this.#serial(async () => {
+      await this.#files.removeFolder(path);
+      this.#changeFolders(() => {
+        this.#folders.delete(path);
+      });
+    });
+  }
+
+  /** Changes the folders, telling the listeners when that changed them. */
+  #changeFolders(change: () => void): void {
+    const before = this.#folders.size;
+    const had = [...this.#folders];
+    change();
+    if (this.#folders.size === before && had.every((path) => this.#folders.has(path))) return;
+    this.#folderList = undefined;
+    for (const listener of this.#folderListeners) listener();
+  }
+
+  /** The folders a file is in, which making it made. */
+  #keepFolders(path: string): void {
+    for (let slash = path.indexOf("/"); slash !== -1; slash = path.indexOf("/", slash + 1)) {
+      const folder = path.slice(0, slash);
+      if (!hidden(folder)) this.#folders.add(folder);
+    }
+  }
+
+  /** The folders in one, and the folder itself where it is still there, as the disk has them. */
+  async #listFolders(folder: string): Promise<readonly string[]> {
+    const parent = folder.includes("/") ? folder.slice(0, folder.lastIndexOf("/")) : "";
+    return (await this.#files.folders(parent)).filter((path) => isInside(path, folder));
+  }
+
+  /** Reads again the folders in one, and the folder itself. */
+  async #readFolders(folder: string, listed?: Promise<readonly string[]>): Promise<void> {
+    const found = await (listed ?? this.#listFolders(folder));
+    this.#changeFolders(() => {
+      for (const path of [...this.#folders]) if (isInside(path, folder)) this.#folders.delete(path);
+      for (const path of found) this.#folders.add(path);
+    });
   }
 
   /** The vault's notes, sorted by path as a file explorer sorts them. */
@@ -770,6 +839,10 @@ export class Vault {
 
   /** Brings the index in line with the folder, or one folder in it. */
   async reconcile(folder: string): Promise<void> {
+    // Its folders are listed while its files are: on 50,000 notes, one after
+    // the other held the vault's opening up.
+    const folders = this.#listFolders(folder);
+    folders.catch(() => undefined);
     const listed = new Map<string, FileInfo>();
     await this.#files.list(folder, (batch) => {
       for (const file of batch) listed.set(file.path, file);
@@ -793,6 +866,7 @@ export class Vault {
       upsert.push(from === undefined ? this.#fresh(file) : moved(from, file.path, file));
     }
     await this.#commit({ remove: gone.map((record) => record.path), upsert });
+    await this.#readFolders(folder, folders);
   }
 
   /**
@@ -839,10 +913,15 @@ export class Vault {
       }
       if (event.isDir && event.op === "remove") {
         await this.#commit({ remove: this.#inside(event.path).map((record) => record.path) });
+        await this.#readFolders(event.path);
         continue;
       }
       if (event.op === "rename" && event.oldPath !== undefined) {
         if (!(await this.#move(event.oldPath, event.path, event.isDir))) changed.add(event.path);
+        if (event.isDir) {
+          await this.#readFolders(event.oldPath);
+          await this.#readFolders(event.path);
+        }
         continue;
       }
       changed.add(event.path);
@@ -956,6 +1035,12 @@ export class Vault {
     for (const record of change.upsert ?? []) {
       this.#remember(record);
       if (record.note !== undefined) changed.add(record.note);
+    }
+    // A file written into a folder made it, as the disk does; it stays when the file goes.
+    if (moves) {
+      this.#changeFolders(() => {
+        for (const record of change.upsert ?? []) this.#keepFolders(record.path);
+      });
     }
     if (!seen) return;
     // A change that moves nothing, as a save, changes the notes in place,

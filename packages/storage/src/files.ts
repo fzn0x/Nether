@@ -79,6 +79,15 @@ export interface VaultFiles {
   remove(path: string): Promise<string>;
   /** Deletes a file in the vault's trash for good; it deletes nothing outside it. */
   erase(path: string): Promise<void>;
+  /**
+   * Every folder, or those below one folder, empty ones too, leaving out
+   * hidden ones and what is in them.
+   */
+  folders(folder: string): Promise<readonly string[]>;
+  /** Makes a folder and those it is in; it throws for a hidden name, or where a file or folder is. */
+  makeFolder(path: string): Promise<void>;
+  /** Deletes an empty folder; it throws for one with anything in it. */
+  removeFolder(path: string): Promise<void>;
   /** Calls `each` with batches of changes until `signal` aborts. */
   watch(each: (events: readonly FileEvent[]) => void, signal: AbortSignal): Promise<void>;
 }
