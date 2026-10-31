@@ -33,9 +33,12 @@ test("the layout mirrors from right to left, and text reads in its own direction
   const projects = tree.getByRole("treeitem", { name: /Projects/ });
   await projects.click();
   await tree.getByRole("treeitem", { name: /Ideas/ }).click();
+  // Once the note it opens shows, which renders the tree again.
+  await expect(page.locator("#note-title")).toHaveText("Ideas");
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   await expect(projects).toHaveAttribute("aria-expanded", "false");
+  await expect(projects).toBeFocused();
   await page.keyboard.press("ArrowLeft");
   await expect(projects).toHaveAttribute("aria-expanded", "true");
 
