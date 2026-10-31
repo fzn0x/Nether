@@ -100,6 +100,12 @@ export default function NoteView(props: {
   readonly commentRequest?: number;
   /** The shortcut that comments on the selection, for the comments' hint. */
   readonly commentKeys?: string | undefined;
+  /** The people a comment may mention. */
+  readonly people?: readonly CommentAuthor[];
+  /** Called when a comment mentions people, to tell them (ADR 0045). */
+  readonly onMention?: (thread: string, people: readonly CommentAuthor[], body: string) => void;
+  /** A thread to show, as a notification asks; a new `key` shows it again. */
+  readonly threadRequest?: { readonly thread: string; readonly key: number } | undefined;
 }) {
   const {
     vault,
@@ -124,6 +130,9 @@ export default function NoteView(props: {
     canComment = false,
     commentRequest = 0,
     commentKeys,
+    people,
+    onMention,
+    threadRequest,
   } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
@@ -138,6 +147,11 @@ export default function NoteView(props: {
     setActiveThread(undefined);
     setDraft(undefined);
   }, [id]);
+  // After the reset above, as a notification opens its note and thread at once.
+  const shownThread = threadRequest?.key;
+  useEffect(() => {
+    if (threadRequest !== undefined) setActiveThread(threadRequest.thread);
+  }, [shownThread]);
   const commentsView = useMemo((): NoteCommentsView | undefined => {
     if (comments === undefined) return undefined;
     const threads: CommentThread[] = comments.threads.filter(
@@ -373,6 +387,8 @@ export default function NoteView(props: {
               setDraft(undefined);
             }}
             commentKeys={commentKeys === undefined ? undefined : formatKeys(commentKeys)}
+            {...(people === undefined ? {} : { people })}
+            onMention={onMention}
           />
         )}
       </NotePanel>

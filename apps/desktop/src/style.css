@@ -412,14 +412,16 @@ button {
 }
 
 /* How the vault's sync is going, at the foot of the sidebar; it opens the sync dialog. */
-.sync-line {
+.sync-line,
+.notify-line {
   margin: 0;
   padding: 0.25rem 0.5rem;
   border-top: 1px solid var(--rule);
   font-size: 0.75rem;
 }
 
-.sync-line .quiet {
+.sync-line .quiet,
+.notify-line .quiet {
   width: 100%;
   text-align: start;
 }
@@ -2856,4 +2858,100 @@ kbd {
   margin-top: 0.75rem;
   color: var(--muted);
   cursor: pointer;
+}
+
+/* Mentions (ADR 0045): the people offered as @ is typed in a comment, the
+   people a comment mentions, this person's own more strongly, and the
+   notifications that tell of them. */
+.comment-box {
+  position: relative;
+}
+
+.mention-picker {
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  margin: 0.125rem 0 0;
+  padding: 0.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: var(--panel-shadow);
+  list-style: none;
+}
+
+.mention-picker [role="option"] {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.mention-picker [aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.comment-body .mention {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.comment-body .mention.me {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.notification-list {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notification-open {
+  display: grid;
+  gap: 0.125rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.notification-open:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.notification.unread .notification-open {
+  border-inline-start-color: var(--accent);
+}
+
+.notification.unread .notification-what {
+  font-weight: 600;
+}
+
+.notification-excerpt {
+  overflow: hidden;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.notification-when {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.dialog-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notifications-dialog {
+  align-self: flex-start;
 }

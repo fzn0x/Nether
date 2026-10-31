@@ -1,7 +1,9 @@
 // Comments, from the app (ADR 0044): in a vault linked to a workspace, a
 // thread started on the selection with its shortcut, its text highlighted
 // in the note; a reply; a comment edited; and the thread resolved, folded
-// away, and reopened. The server here is the test's.
+// away, and reopened. And mentions (ADR 0045): a person picked as @ is
+// typed, the server told, and the notifications that come back. The server
+// here is the test's.
 import { type Page, expect, test } from "@playwright/test";
 import { errorsOf, fakeServer, openSample, pageErrors, settle, violations } from "./helpers.ts";
 
@@ -111,5 +113,125 @@ test("comments on the selection, replies, edits, resolves and reopens", async ({
     return (await preview.files.read("Welcome.md")).text;
   });
   expect(text).not.toContain("right title");
+  expect(pageErrors(errors).filter((error) => !error.includes("WebSocket"))).toEqual([]);
+});
+
+test("mentions someone picked as @ is typed, and lists the notifications that come", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  let told: Record<string, unknown> | undefined;
+  let read = false;
+  let emails = true;
+  const sent = await fakeServer(page, {
+    "GET /api/sign-in-methods": () => [200, { password: true, emailCode: false, oidc: null }],
+    "POST /api/sessions": () => [201, { token: "session-token", expiresAt: "", user: ada }],
+    "GET /api/me": () => [
+      200,
+      { user: ada, workspaces: [{ id: "w", name: "Team", role: "owner" }] },
+    ],
+    "GET /api/workspaces/w/documents": () => [200, { documents: [], more: false }],
+    "GET /api/workspaces/w/members": () => [
+      200,
+      {
+        members: [
+          { ...ada, role: "owner" },
+          { id: "u2", name: "Bea Lane", email: "bea@example.org", role: "member" },
+        ],
+      },
+    ],
+    "POST /api/workspaces/w/notifications": (request) => {
+      told = request.postDataJSON() as Record<string, unknown>;
+      return [201, { notified: ["u2"] }];
+    },
+    // Bea answers in kind: one notification, about the note Ada commented on.
+    "GET /api/notifications": () => [
+      200,
+      told === undefined
+        ? { notifications: [], unread: 0 }
+        : {
+            notifications: [
+              {
+                id: "n1",
+                workspace: { id: "w", name: "Team" },
+                kind: "mention",
+                note: told.note,
+                thread: told.thread,
+                title: "Welcome",
+                excerpt: "@Ada, done.",
+                actor: { id: "u2", name: "Bea Lane" },
+                created: "2026-10-31T12:00:00.000Z",
+                read: read ? "2026-10-31T12:05:00.000Z" : null,
+              },
+            ],
+            unread: read ? 0 : 1,
+          },
+    ],
+    "POST /api/notifications/read": () => {
+      read = true;
+      return [204];
+    },
+    "GET /api/me/notification-settings": () => [200, { email: emails }],
+    "PUT /api/me/notification-settings": (request) => {
+      emails = (request.postDataJSON() as { email: boolean }).email;
+      return [200, { email: emails }];
+    },
+  });
+  await linked(page);
+  await page
+    .getByRole("list", { name: "Notes" })
+    .getByRole("button", { name: /Welcome/ })
+    .click();
+  const editor = page.getByRole("textbox", { name: "Welcome, note text" });
+  await editor.locator("h1").click();
+  await settle(page);
+  await page.keyboard.press("End");
+  await page.keyboard.press("Shift+Home");
+  await page.keyboard.press("Control+Alt+M");
+  const comments = page.getByRole("region", { name: "Comments" });
+  const box = comments.getByRole("textbox", { name: "Write a comment" });
+  await expect(box).toBeFocused();
+  await page.keyboard.type("Ask @la");
+  // Found by a word of the name; Ada, who writes, is not offered.
+  const picker = comments.getByRole("listbox", { name: "People to mention" });
+  await expect(picker.getByRole("option")).toHaveText(["Bea Lane"]);
+  expect(await violations(page)).toEqual([]);
+  await page.keyboard.press("Enter");
+  await expect(picker).toBeHidden();
+  await expect(box).toHaveValue("Ask @Bea Lane ");
+  await page.keyboard.type("to check.");
+  await page.keyboard.press("Control+Enter");
+
+  const thread = comments.getByRole("listitem", { name: "Comments on “Welcome to Nether”" });
+  await expect(thread.locator(".mention")).toHaveText("@Bea Lane");
+  await expect
+    .poll(() => told)
+    .toMatchObject({
+      kind: "mention",
+      people: ["u2"],
+      title: "Welcome",
+      excerpt: "Ask @Bea Lane to check.",
+    });
+
+  // Bea's answer comes as a notification, which opens its note and marks it read.
+  const line = page.getByRole("button", { name: "Notifications (1 new)" });
+  await expect(line).toBeVisible({ timeout: 10_000 });
+  await line.click();
+  const dialog = page.getByRole("dialog", { name: "Notifications" });
+  const item = dialog.getByRole("button", { name: /Bea Lane mentioned you on .Welcome./ });
+  await expect(item).toContainText("@Ada, done.");
+  expect(await violations(page)).toEqual([]);
+  await dialog.getByRole("checkbox", { name: "Email me when someone mentions me" }).uncheck();
+  await expect.poll(() => emails).toBe(false);
+  await item.click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
+  expect(
+    sent.some(
+      (request) =>
+        request.url().endsWith("/api/notifications/read") &&
+        JSON.stringify(request.postDataJSON()) === JSON.stringify({ ids: ["n1"] }),
+    ),
+  ).toBe(true);
   expect(pageErrors(errors).filter((error) => !error.includes("WebSocket"))).toEqual([]);
 });

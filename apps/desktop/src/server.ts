@@ -898,3 +898,113 @@ export function levelName(level: string): string {
       return level;
   }
 }
+
+/** A mention to tell a server of (ADR 0045): the people a comment on a note mentions. */
+export interface MentionNotice {
+  readonly note: string;
+  readonly thread: string;
+  readonly people: readonly string[];
+  /** The note's title and the comment, which an encrypted workspace's mentions leave out. */
+  readonly title?: string;
+  readonly excerpt?: string;
+}
+
+/** Tells a workspace's server of a mention, which tells those mentioned who may open the note. */
+export async function tellMentioned(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  notice: MentionNotice,
+): Promise<void> {
+  await workspaceRequest(fetcher, base, token, workspaceId, "/notifications", {
+    body: { kind: "mention", ...notice },
+  });
+}
+
+/** Something a server told the account of: so far, a mention of them. */
+export interface ServerNotification {
+  readonly id: string;
+  readonly workspace: { readonly id: string; readonly name: string };
+  readonly note: string;
+  readonly thread: string | undefined;
+  readonly title: string | undefined;
+  readonly excerpt: string | undefined;
+  /** Who mentioned them; undefined once that account is gone. */
+  readonly actor: { readonly id: string; readonly name: string } | undefined;
+  readonly created: number;
+  readonly read: boolean;
+}
+
+function optionalText(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+/** The account's latest notifications on a server, and how many are unread. */
+export async function serverNotifications(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+): Promise<{ notifications: ServerNotification[]; unread: number }> {
+  const answer = record(await request(fetcher, base, "/api/notifications", { token }));
+  const list = Array.isArray(answer.notifications) ? (answer.notifications as unknown[]) : [];
+  return {
+    notifications: list.flatMap((item) => {
+      const notification = record(item);
+      const workspace = record(notification.workspace);
+      const actor = record(notification.actor);
+      const created = Date.parse(text(notification.created, base));
+      // Kinds this app does not know yet are left out.
+      if (notification.kind !== "mention" || Number.isNaN(created)) return [];
+      return [
+        {
+          id: text(notification.id, base),
+          workspace: { id: text(workspace.id, base), name: text(workspace.name, base) },
+          note: text(notification.note, base),
+          thread: optionalText(notification.thread),
+          title: optionalText(notification.title),
+          excerpt: optionalText(notification.excerpt),
+          actor:
+            typeof actor.id === "string" && typeof actor.name === "string"
+              ? { id: actor.id, name: actor.name }
+              : undefined,
+          created,
+          read: notification.read !== null && notification.read !== undefined,
+        },
+      ];
+    }),
+    unread: typeof answer.unread === "number" ? answer.unread : 0,
+  };
+}
+
+/** Marks notifications read: some, or all of them. */
+export async function markNotificationsRead(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  ids: readonly string[] | "all",
+): Promise<void> {
+  await request(fetcher, base, "/api/notifications/read", {
+    token,
+    body: ids === "all" ? { all: true } : { ids },
+  });
+}
+
+/** Whether the account is emailed when someone mentions it. */
+export async function mentionEmails(fetcher: Fetch, base: string, token: string): Promise<boolean> {
+  const answer = record(await request(fetcher, base, "/api/me/notification-settings", { token }));
+  return answer.email !== false;
+}
+
+export async function setMentionEmails(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  email: boolean,
+): Promise<void> {
+  await request(fetcher, base, "/api/me/notification-settings", {
+    method: "PUT",
+    token,
+    body: { email },
+  });
+}

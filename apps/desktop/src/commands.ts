@@ -30,6 +30,7 @@ export const commandIds = [
   "members",
   "spaces",
   "share",
+  "notifications",
   "shortcuts",
   "checkUpdates",
   "updateChecks",

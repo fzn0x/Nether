@@ -41,6 +41,8 @@ import { syncSummary } from "./sync.ts";
 import { useHotkeys } from "./useHotkeys.ts";
 import { useTemplateSettings } from "./useTemplateSettings.ts";
 import { useSync } from "./useSync.ts";
+import { usePeople, useNotifications } from "./useNotifications.ts";
+import { queueMention } from "./notify.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
@@ -98,6 +100,11 @@ const MembersDialog = lazy(() =>
 );
 const HistoryDialog = lazy(() =>
   import("./HistoryDialog.tsx").then(({ HistoryDialog: dialog }) => ({ default: dialog })),
+);
+const NotificationsDialog = lazy(() =>
+  import("./NotificationsDialog.tsx").then(({ NotificationsDialog: dialog }) => ({
+    default: dialog,
+  })),
 );
 
 const numbers = new Intl.NumberFormat();
@@ -182,6 +189,8 @@ export function VaultView(props: {
   const state = useVault(info);
   const vault = state.status === "open" ? state.vault : undefined;
   const sync = useSync(vault);
+  const notifications = useNotifications(vault, sync.link);
+  const people = usePeople(sync.link);
   // The vault's light or dark, theme and snippets, on the page while it is open.
   const appearance = useAppearance(vault);
   const graph = state.status === "open" ? state.indexer.graph : undefined;
@@ -233,6 +242,7 @@ export function VaultView(props: {
     | "members"
     | "spaces"
     | "share"
+    | "notifications"
     | "history"
     | "export"
     | "import"
@@ -244,6 +254,10 @@ export function VaultView(props: {
   const [sourceRequest, setSourceRequest] = useState(0);
   const [renameRequest, setRenameRequest] = useState(0);
   const [commentRequest, setCommentRequest] = useState(0);
+  // A thread a notification opens, with its note.
+  const [threadRequest, setThreadRequest] = useState<
+    { readonly thread: string; readonly key: number } | undefined
+  >();
   const { hotkeys, chosen: chosenHotkeys, save: saveHotkeys } = useHotkeys(vault);
   // Whether the app updates itself, and checks on its own.
   const [updates, setUpdates] = useState({ available: false, automatic: false });
@@ -569,6 +583,12 @@ export function VaultView(props: {
               setDialog("share");
             }
           : undefined,
+      notifications:
+        open && sync.link !== undefined
+          ? () => {
+              setDialog("notifications");
+            }
+          : undefined,
       shortcuts: open
         ? () => {
             setDialog("shortcuts");
@@ -854,6 +874,22 @@ export function VaultView(props: {
             )}
             <IndexStatus indexer={state.indexer} />
             {sync.link === undefined ? null : (
+              <p className="notify-line">
+                <button
+                  type="button"
+                  className="quiet"
+                  aria-haspopup="dialog"
+                  onClick={() => {
+                    setDialog("notifications");
+                  }}
+                >
+                  {notifications.unread === 0
+                    ? t("notifications")
+                    : t("notificationsUnread", { count: notifications.unread })}
+                </button>
+              </p>
+            )}
+            {sync.link === undefined ? null : (
               <p className="sync-line" aria-live="polite">
                 <button
                   type="button"
@@ -970,6 +1006,25 @@ export function VaultView(props: {
             );
           })()
         : null}
+      {dialog === "notifications" && sync.link !== undefined && state.status === "open" ? (
+        <Suspense fallback={null}>
+          <NotificationsDialog
+            link={sync.link}
+            notifications={notifications}
+            hasNote={(id) => state.vault.note(id as NoteId) !== undefined}
+            onOpen={(id, thread) => {
+              setDialog(undefined);
+              openNote(id as NoteId);
+              if (thread !== undefined) {
+                setThreadRequest((last) => ({ thread, key: (last?.key ?? 0) + 1 }));
+              }
+            }}
+            onClose={() => {
+              setDialog(undefined);
+            }}
+          />
+        </Suspense>
+      ) : null}
       {dialog === "members" && sync.link !== undefined ? (
         <Suspense fallback={null}>
           <MembersDialog
@@ -1118,6 +1173,26 @@ export function VaultView(props: {
               canComment={sync.levelOf?.(selected) !== "view"}
               commentRequest={commentRequest}
               commentKeys={keysOf("comment")}
+              people={people}
+              onMention={(thread, mentioned, body) => {
+                const link = sync.link;
+                const note = state.vault.note(selected);
+                if (link === undefined || note === undefined) return;
+                // An encrypted workspace's server is told who, never what.
+                const text =
+                  link.encrypted === true
+                    ? {}
+                    : { title: note.title.slice(0, 200), excerpt: body.slice(0, 500) };
+                void queueMention(state.vault.settings, {
+                  server: link.server,
+                  workspaceId: link.workspaceId,
+                  note: selected,
+                  thread,
+                  people: mentioned.map((person) => person.id),
+                  ...text,
+                }).then(notifications.refresh);
+              }}
+              {...(threadRequest === undefined ? {} : { threadRequest })}
               onShown={loadLinks}
             />
           )
