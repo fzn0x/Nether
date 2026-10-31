@@ -29,6 +29,8 @@ export const password = "a long password";
 export class MemoryVault implements SyncVault {
   readonly notes = new Map<string, { path: string; document: Y.Doc }>();
   readonly attachments = new Map<string, Uint8Array>();
+  /** Each note's comments' document, made when first held. */
+  readonly comments = new Map<string, Y.Doc>();
   readonly #listeners = new Set<(id?: string) => void>();
 
   paths(): Map<string, string> {
@@ -44,6 +46,15 @@ export class MemoryVault implements SyncVault {
     const note = this.notes.get(id);
     if (note === undefined) return Promise.reject(new Error(`No note ${id}`));
     return Promise.resolve({ document: note.document, release: () => undefined });
+  }
+
+  holdComments(id: string): Promise<HeldDocument> {
+    let document = this.comments.get(id);
+    if (document === undefined) {
+      document = new Y.Doc();
+      this.comments.set(id, document);
+    }
+    return Promise.resolve({ document, release: () => undefined });
   }
 
   create(id: string, path: string, state: Uint8Array): Promise<void> {
@@ -134,6 +145,22 @@ export class MemoryVault implements SyncVault {
     if (note === undefined) throw new Error(`No note ${id}`);
     change(note.document.getText("content"));
     this.#tell(id);
+  }
+
+  /** Changes a note's comments, as someone commenting does. */
+  comment(id: string, change: (threads: Y.Map<unknown>) => void): void {
+    let document = this.comments.get(id);
+    if (document === undefined) {
+      document = new Y.Doc();
+      this.comments.set(id, document);
+    }
+    change(document.getMap("threads"));
+    this.#tell(`${id}.comments`);
+  }
+
+  /** A note's comments, as their map. */
+  threads(id: string): Record<string, unknown> {
+    return this.comments.get(id)?.getMap("threads").toJSON() ?? {};
   }
 
   rename(id: string, path: string): void {

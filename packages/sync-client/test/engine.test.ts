@@ -113,6 +113,25 @@ describe("syncing a vault", () => {
     await stopped;
   });
 
+  it("syncs a note's comments beside it, made on either device", async () => {
+    const served = await startServer();
+    const laptop = new MemoryVault();
+    const note = laptop.write("Ideas.md", "one");
+    laptop.comment(note, (threads) => {
+      threads.set("t1", "on the laptop");
+    });
+    await device(served, served.token, laptop);
+    const phone = await device(served, await signIn(served.url));
+    await until(() => phone.vault.threads(note).t1 === "on the laptop");
+
+    phone.vault.comment(note, (threads) => {
+      threads.set("t2", "on the phone");
+    });
+    await until(() => laptop.threads(note).t2 === "on the phone");
+    // The note's text is its own, and the comments theirs.
+    expect(laptop.text(note)).toBe("one");
+  });
+
   it("keeps edits made offline, and sends them when the device is back", async () => {
     const served = await startServer();
     const laptop = new MemoryVault();

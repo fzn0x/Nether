@@ -1,7 +1,7 @@
 // An encrypted workspace synced by two devices through the real server's
-// relay: notes sent and made elsewhere, edits merged both ways, nothing the
-// server keeps readable, files kept as ciphertext, and a long log replaced
-// by a snapshot.
+// relay: notes sent and made elsewhere, edits merged both ways, comments
+// beside them, nothing the server keeps readable, files kept as ciphertext,
+// and a long log replaced by a snapshot.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
@@ -133,6 +133,40 @@ describe("an encrypted workspace", () => {
       const text = Buffer.from(row.data as Uint8Array).toString("latin1");
       expect(text).not.toContain("secret");
       expect(text).not.toContain("Secret plan");
+    }
+  });
+
+  it("syncs a note's comments through the relay, kept as ciphertext", async () => {
+    const served = await encryptedServer();
+    const laptop = new MemoryVault();
+    const plan = laptop.write("Plan.md", "the plan");
+    laptop.comment(plan, (threads) => {
+      threads.set("t1", "a secret remark");
+    });
+    const encryption = { key: { version: 1, key: served.key }, keys: new Map([[1, served.key]]) };
+    await device(served, served.token, laptop, new MemoryStore(), encryption);
+    const token = await signIn(served.url);
+    const unlocked = await unlock(
+      served.url,
+      token,
+      served.workspaceId,
+      served.userId,
+      served.phrase,
+    );
+    const phone = await device(served, token, new MemoryVault(), new MemoryStore(), unlocked);
+    await until(() => phone.vault.threads(plan).t1 === "a secret remark");
+
+    phone.vault.comment(plan, (threads) => {
+      threads.set("t2", "a reply");
+    });
+    await until(() => laptop.threads(plan).t2 === "a reply");
+    const stored = await database().query(
+      "SELECT data FROM encrypted_updates WHERE workspace_id = $1 AND name = $2",
+      [served.workspaceId, `${plan}.comments`],
+    );
+    expect(stored.rows.length).toBeGreaterThan(0);
+    for (const row of stored.rows) {
+      expect(Buffer.from(row.data as Uint8Array).toString("latin1")).not.toContain("secret");
     }
   });
 

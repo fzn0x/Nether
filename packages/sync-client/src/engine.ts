@@ -54,13 +54,16 @@ export interface SyncVault {
   /** The vault's notes now: each note's ID and path. */
   paths(): Paths;
   /**
-   * Calls `listener` with a note's ID when its text changes here, and with
-   * no ID when notes are made, moved or removed, or other files are made,
-   * changed, moved or removed; gives the way to stop.
+   * Calls `listener` with a document's name when it changes here, a note's
+   * ID for its text or `<id>.comments` for its comments, and with no name
+   * when notes are made, moved or removed, or other files are made, changed,
+   * moved or removed; gives the way to stop.
    */
   watch(listener: (id?: string) => void): () => void;
   /** Holds a note's document: the one the editor shares while it is open. */
   hold(id: string): Promise<HeldDocument>;
+  /** Holds a note's comments' document (ADR 0044), which the editor shares while the note is open. */
+  holdComments(id: string): Promise<HeldDocument>;
   /** Makes a note the server has and this vault lacks, from its document's state. */
   create(id: string, path: string, state: Uint8Array): Promise<void>;
   /** Moves a note to the path the server has for it. */
@@ -178,6 +181,8 @@ export class VaultSync {
   /** Files the server refused: each one's path, and the hash it refused. */
   readonly #refused = new Map<string, string>();
   readonly #pending = new Set<string>();
+  /** Notes' comments the server has stored: fetched even where this device has none. */
+  readonly #storedComments = new Set<string>();
   /** Notes syncing now, which do not start again until done. */
   readonly #syncing = new Set<string>();
   /** Notes open in an editor, each live once listed: they skip rounds meanwhile. */
@@ -303,7 +308,8 @@ export class VaultSync {
         this.#schedule();
       },
       onStored: (document: string) => {
-        if (!options.vault.paths().has(document)) return;
+        if (!options.vault.paths().has(noteOf(document))) return;
+        if (document !== noteOf(document)) this.#storedComments.add(document);
         this.#pending.add(document);
         this.#schedule();
       },
@@ -488,7 +494,9 @@ export class VaultSync {
         if (unit.id !== general && !(await this.#place(id, unit.id))) continue;
         setVaultPath(this.#documentOf(unit.id), id, path);
         this.#base.set(id, path);
+        // And its comments, as those made before the vault synced.
         this.#pending.add(id);
+        this.#pending.add(`${id}.comments`);
       }
       for (const { id, path } of plan.moveRemote) {
         if (!(await this.#move(id, path, this.#unit(listed.units.get(id)), placer(path)))) continue;
@@ -524,6 +532,10 @@ export class VaultSync {
           await this.#sync(id, document);
           await vault.create(id, path, Y.encodeStateAsUpdate(document));
           this.#base.set(id, path);
+          // And its comments, which may have been stored before this device
+          // could see them, as in a teamspace just opened to it.
+          this.#storedComments.add(`${id}.comments`);
+          this.#pending.add(`${id}.comments`);
         } finally {
           document.destroy();
         }
@@ -568,7 +580,10 @@ export class VaultSync {
       };
       for (const item of answer.documents ?? []) {
         if (typeof item.seq === "number") this.#cursor = Math.max(this.#cursor, item.seq);
-        if (typeof item.name === "string" && local.has(item.name)) this.#pending.add(item.name);
+        if (typeof item.name === "string" && local.has(noteOf(item.name))) {
+          if (item.name !== noteOf(item.name)) this.#storedComments.add(item.name);
+          this.#pending.add(item.name);
+        }
       }
       if (answer.more !== true) break;
     }
@@ -581,12 +596,13 @@ export class VaultSync {
     await this.#each([...this.#pending], async (id) => {
       // A note open in an editor syncs live, once listed: a round's sync of it
       // beside the live one would clash on the socket. In an encrypted
-      // workspace, which has no live sync, it goes on in rounds.
+      // workspace, which has no live sync, it goes on in rounds. Its
+      // comments, beside it, sync in rounds.
       const editing = this.#editing.get(id);
       const live =
         editing !== undefined &&
         (editing.open !== undefined || this.#options.encryption === undefined);
-      if (!vault.paths().has(id) || live) {
+      if (!vault.paths().has(noteOf(id)) || live) {
         this.#pending.delete(id);
         return;
       }
@@ -595,9 +611,13 @@ export class VaultSync {
       // Taken now: a change made while it syncs marks it again.
       this.#pending.delete(id);
       try {
-        const held = await vault.hold(id);
+        const comments = id !== noteOf(id);
+        const held = comments ? await vault.holdComments(noteOf(id)) : await vault.hold(id);
         try {
-          await this.#sync(id, held.document);
+          // A note with no comments, here or on the server, has nothing to sync.
+          const none =
+            comments && !this.#storedComments.has(id) && held.document.store.clients.size === 0;
+          if (!none) await this.#sync(id, held.document);
         } finally {
           held.release();
         }
@@ -837,6 +857,11 @@ export class VaultSync {
 function narrows(from: SyncUnit | undefined, to: SyncUnit | undefined): boolean {
   if (from === undefined || to === undefined || from.id === to.id) return false;
   return from.id === general || to.kind === "page";
+}
+
+/** The note a document belongs to: its own, or the one whose comments it holds. */
+function noteOf(document: string): string {
+  return document.endsWith(".comments") ? document.slice(0, -".comments".length) : document;
 }
 
 /** Files by path: each one's hash. */

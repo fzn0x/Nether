@@ -1,10 +1,10 @@
 // Sync units (ADR 0042), through a real Nether server: a teamspace's notes
-// reach its members alone; a note moved into a teamspace's folder leaves
-// the vaults of those outside it; and a guest syncs the page shared with
-// them, its subpages, and nothing else.
+// reach its members alone, with their comments; a note moved into a
+// teamspace's folder leaves the vaults of those outside it; and a guest
+// syncs the page shared with them, its subpages, and nothing else.
 import { afterEach, describe, expect, it } from "vitest";
 import { unitForPath } from "../src/units.ts";
-import { MemoryVault, device, startServer, stopAll, until } from "./harness.ts";
+import { MemoryVault, database, device, startServer, stopAll, until } from "./harness.ts";
 
 afterEach(stopAll);
 
@@ -66,6 +66,17 @@ async function grant(served: Served, unit: string, user: string, level: string) 
   );
 }
 
+/** Waits until the server has stored a document. */
+async function untilStored(name: string): Promise<void> {
+  const deadline = Date.now() + 20_000;
+  for (;;) {
+    const { rows } = await database().query("SELECT 1 FROM documents WHERE name = $1", [name]);
+    if (rows.length > 0) return;
+    if (Date.now() > deadline) throw new Error(`Timed out waiting for ${name} to be stored`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+}
+
 /** Waits a moment more, for anything still on its way. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 1500));
 
@@ -113,6 +124,35 @@ describe("syncing units", () => {
     await settle();
     expect([...cals.vault.paths().values()]).toEqual(["Ideas.md"]);
     expect(beas.vault.paths().get(plan)).toBe("Design/Plan.md");
+  });
+
+  it("brings a teamspace's notes' comments to someone let in after they were made", async () => {
+    const served = await startServer();
+    const cal = await invitee(served, "Cal");
+    const design = await teamspace(served, "Design");
+    const laptop = new MemoryVault();
+    const ideas = laptop.write("Ideas.md", "for everyone");
+    const plan = laptop.write("Design/Plan.md", "for Design");
+    laptop.comment(plan, (threads) => {
+      threads.set("t1", "a comment");
+    });
+    await device(served, served.token, laptop);
+    await untilStored(`${plan}.comments`);
+    // Cal's device lists what is stored after the comments, which it may not see yet.
+    const cals = await device(served, cal.token);
+    await until(() => cals.vault.text(ideas) === "for everyone");
+    laptop.edit(ideas, (text) => {
+      text.insert(text.length, ", still");
+    });
+    await until(() => cals.vault.text(ideas) === "for everyone, still");
+
+    await grant(served, design, cal.id, "comment");
+    // The next round, as one an edit brings, finds the teamspace opened.
+    laptop.edit(ideas, (text) => {
+      text.insert(text.length, " and on");
+    });
+    await until(() => cals.vault.text(plan) === "for Design");
+    await until(() => cals.vault.threads(plan).t1 === "a comment");
   });
 
   it("takes a note moved into a teamspace's folder out of the vaults of those outside it", async () => {
