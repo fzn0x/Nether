@@ -381,6 +381,23 @@ export class Vault {
     this.#lastVersion.set(id, now);
   }
 
+  /**
+   * Keeps the note's text as it is now as a version, as before a version
+   * is restored, so a restore can be undone the same way; nothing when the
+   * latest version has that text already.
+   */
+  saveVersion(id: NoteId): Promise<void> {
+    return this.#serial(async () => {
+      const file = await this.#files.read(this.#need(id));
+      if (file.missing === true || file.binary === true) return;
+      const [latest] = await this.#store.versions(id);
+      if (latest !== undefined && (await this.#store.versionText(latest.id)) === file.text) return;
+      const now = this.#now();
+      await this.#store.addVersion(id, now, file.text);
+      this.#lastVersion.set(id, now);
+    });
+  }
+
   /** A note's versions, the latest first, without their text. */
   versions(id: NoteId): Promise<readonly NoteVersion[]> {
     return this.#store.versions(id);

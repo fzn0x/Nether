@@ -69,6 +69,19 @@ describe("a note's history", () => {
     expect((await again.versions(first.id)).length).toBe(1);
   });
 
+  it("keeps the note as it is now, once, before a version is restored", async () => {
+    const { clock, vault, id } = await openVault({ "Plan.md": "one\n" });
+    await vault.saveVersion(id);
+    await vault.saveVersion(id);
+    expect((await vault.versions(id)).length).toBe(1);
+    // The write that restores keeps nothing more: the text it replaces is kept.
+    clock.now += minute;
+    await vault.write(id, "restored\n", (await vault.read(id)).hash);
+    const versions = await vault.versions(id);
+    expect(versions.length).toBe(1);
+    expect(await vault.versionText(versions[0]?.id ?? 0)).toBe("one\n");
+  });
+
   it("keeps versions as many days as set, and deletes the older ones", async () => {
     const { clock, vault, id } = await openVault({ "Plan.md": "one\n" });
     expect(await vault.historyDays()).toBe(defaultHistoryDays);
