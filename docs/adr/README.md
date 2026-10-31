@@ -57,3 +57,4 @@ record supersedes it and says so. Start a new one from
 | [0047](0047-every-command-is-in-a-menu-at-the-top-of-the-sidebar.md) | Every command is in a menu at the top of the sidebar | Accepted |
 | [0048](0048-the-vault-knows-its-folders-empty-ones-too.md) | The vault knows its folders, empty ones too | Accepted |
 | [0049](0049-built-in-themes-draw-an-effect-behind-the-app.md) | Built-in themes draw an effect behind the app | Accepted |
+| [0050](0050-the-server-searches-what-it-can-read-indexed-as-notes-are-stored.md) | The server searches what it can read, indexed as notes are stored | Accepted |
