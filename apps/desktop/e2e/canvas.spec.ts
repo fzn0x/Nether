@@ -43,7 +43,7 @@ test("a canvas opens in a tab, its cards in reading order, zooms and follows its
 
   const cards = page.getByRole("list", { name: "Board: cards" }).getByRole("listitem");
   // Top to bottom, then along each row: the group first, as it starts highest.
-  await expect(cards).toHaveText(["Launch", "Ship the beta", "Roadmap", "Invite ten teams"]);
+  await expect(cards).toHaveText(["Launch", "Ship the beta", /^Roadmap/, "Invite ten teams"]);
   await expect(page.getByRole("list", { name: "Connections" })).toHaveText(
     "From Ship the beta to Roadmap: plan",
   );
@@ -207,4 +207,71 @@ test("a canvas with parts it could not read is not changed", async ({ page }) =>
   await tree.getByRole("treeitem", { name: /^Odd/ }).click();
   await expect(page.getByText("1 things in this canvas's file could not be read")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add text" })).toBeHidden();
+});
+
+test("cards show Markdown, a note's opening, links, groups, and what is dropped on them", async ({
+  page,
+}) => {
+  const tree = await openSampleTree(page);
+  await edit(
+    page,
+    "Projects/Board.canvas",
+    board.replace('"text":"Ship the beta"', '"text":"**Ship** it, as [[Roadmap]] says"'),
+  );
+  await tree.getByRole("treeitem", { name: "Projects" }).click();
+  await tree.getByRole("treeitem", { name: /^Board/ }).click();
+  const cards = page.getByRole("list", { name: "Board: cards" });
+
+  // Markdown, its link opening the note.
+  const ship = cards.getByRole("listitem", { name: /^Text: / }).first();
+  await expect(ship.locator("strong")).toHaveText("Ship");
+  // A note's card shows its opening.
+  await expect(cards.getByRole("listitem", { name: "Note or file: Roadmap" })).toContainText(
+    "The desktop app works with no account",
+  );
+  expect(await violations(page)).toEqual([]);
+  await ship.getByRole("link", { name: "Roadmap" }).click();
+  await expect(page.locator("#note-title")).toHaveText("Roadmap");
+  await page.getByRole("tab", { name: "Board" }).click();
+
+  // A link: its address is checked, and its site shown.
+  await page.getByRole("button", { name: "Add a link" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a link" });
+  await dialog.getByRole("textbox", { name: "Address" }).fill("ftp://example.org");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("https://");
+  await dialog.getByRole("textbox", { name: "Address" }).fill("https://example.org/page");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(
+    cards.getByRole("listitem", { name: "Link: https://example.org/page" }),
+  ).toContainText("example.org");
+
+  // A group around the card selected, renamed from its menu.
+  await cards.getByRole("listitem", { name: "Text: Invite ten teams" }).click();
+  await page.getByRole("button", { name: "Add a group" }).click();
+  const group = cards.getByRole("listitem", { name: "Group: Group" });
+  await expect(group).toBeFocused();
+  await page.keyboard.press("Shift+F10");
+  await page.getByRole("menuitem", { name: "Rename the group" }).click();
+  await page.getByRole("dialog", { name: "Rename the group" }).getByRole("textbox").fill("Teams");
+  await page.keyboard.press("Enter");
+  await expect(cards.getByRole("listitem", { name: "Group: Teams" })).toBeVisible();
+
+  // An image dropped from the system is kept in the vault and shown.
+  await page.locator(".canvas-pane").evaluate((pane) => {
+    const transfer = new DataTransfer();
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>';
+    transfer.items.add(new File([svg], "dropped.svg", { type: "image/svg+xml" }));
+    const box = pane.getBoundingClientRect();
+    const at = {
+      clientX: box.left + 40,
+      clientY: box.top + 40,
+      dataTransfer: transfer,
+      bubbles: true,
+    };
+    pane.dispatchEvent(new DragEvent("dragover", at));
+    pane.dispatchEvent(new DragEvent("drop", at));
+  });
+  await expect(cards.getByRole("listitem", { name: "Note or file: dropped" })).toBeVisible();
+  await expect(cards.getByRole("img", { name: "dropped" })).toBeVisible();
 });
