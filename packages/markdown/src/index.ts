@@ -27,6 +27,7 @@ export { type WrittenLink, findLinks, relinkMarkdown } from "./links.ts";
 export { type Mention, findMentions, linkMention } from "./mentions.ts";
 export { parseCsv, planCsv } from "./import/csv.ts";
 export { planFolder } from "./import/folder.ts";
+export { journalFormat, planLogseq } from "./import/logseq.ts";
 export { notionStem, planNotion, readNotionDate } from "./import/notion.ts";
 export {
   type ImportPlan,
