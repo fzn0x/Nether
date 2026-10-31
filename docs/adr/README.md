@@ -55,3 +55,4 @@ record supersedes it and says so. Start a new one from
 | [0045](0045-mentions-are-named-by-the-commenting-client-and-the-server-tells-those-who-may-open-the-note.md) | Mentions are named by the commenting client, and the server tells those who may open the note | Accepted |
 | [0046](0046-notes-open-in-tabs-in-at-most-two-panes-each-with-its-own.md) | Notes open in tabs, in at most two panes, each with its own | Accepted |
 | [0047](0047-every-command-is-in-a-menu-at-the-top-of-the-sidebar.md) | Every command is in a menu at the top of the sidebar | Accepted |
+| [0048](0048-the-vault-knows-its-folders-empty-ones-too.md) | The vault knows its folders, empty ones too | Accepted |
