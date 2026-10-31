@@ -10,6 +10,20 @@ export {
 } from "./actions.ts";
 export { type BlockCommand, blockCommands, findCommands } from "./commands.ts";
 export {
+  type CommentAnchor,
+  type CommentAuthor,
+  type CommentThread,
+  type NoteComment,
+  deleteComment,
+  editComment,
+  observeThreads,
+  readThreads,
+  reopenThread,
+  reply,
+  resolveThread,
+  startThread,
+} from "./comments.ts";
+export {
   blocksFromEditor,
   blocksToEditor,
   fromEditor,
