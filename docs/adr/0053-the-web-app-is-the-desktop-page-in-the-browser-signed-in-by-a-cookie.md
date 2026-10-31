@@ -80,3 +80,10 @@ files, so it opens offline.
 - A browser that clears the site's data loses what was not yet synced.
 - Over plain HTTP to another machine, the cookies are not `Secure`; the
   self-hosting guide asks for HTTPS.
+- A workspace opens in one tab of a browser at a time, as SQLite's
+  `opfs-sahpool` store holds its files open; each workspace has a pool of
+  its own, so two tabs can have two workspaces open. A worker holds a Web
+  Lock named after the workspace while it has the index, so a reload's new
+  page waits for the old one to let go, and a second tab is told at once.
+- The desktop app's build leaves the web backend, its worker and SQLite's
+  WebAssembly out: the target is fixed as the page is built.

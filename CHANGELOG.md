@@ -8,6 +8,16 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The web app's build, `apps/web`, from the desktop app's sources: it signs
+  in to the server that serves it, with its cookie, and lists the
+  account's workspaces, each a vault kept in the browser's private file
+  system with its index in SQLite's WebAssembly build, synced with the
+  server and open offline once opened. Invitation links, sign-in email
+  links and single sign-on come back to it; exports download. Imports,
+  and the server serving it, come next
+  ([ADR 0053](docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)).
+- A signed-in browser accepts an invitation into its account with its
+  cookie, as the desktop app does with its token.
 - Sessions in a cookie for the web app: signing in with
   `X-Nether-Session: cookie` keeps the token in an `HttpOnly` cookie, with
   a CSRF value sent back on every change; sync and relay sockets take it
