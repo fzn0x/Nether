@@ -208,6 +208,24 @@ export const migrations: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 8,
+    name: "document versions",
+    sql: `
+      -- Each note's earlier states (ADR 0041): the state a store replaced, when
+      -- the note's last version was ten minutes old, kept as long as the admin says.
+      CREATE TABLE document_versions (
+        id bigserial PRIMARY KEY,
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        name text NOT NULL,
+        state bytea NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      CREATE INDEX document_versions_by_note ON document_versions (workspace_id, name, created_at);
+      CREATE INDEX document_versions_by_age ON document_versions (created_at);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

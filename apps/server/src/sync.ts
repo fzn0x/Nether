@@ -6,7 +6,8 @@
 // from one sequence each time it is stored, so a client that was away asks
 // which documents changed since the last number it saw and syncs those
 // alone; a client syncing the vault document hears of each note as it is
-// stored.
+// stored. Storing a note keeps the state it replaces as a version, now and
+// then (ADR 0041).
 import websocket from "@fastify/websocket";
 import { Hocuspocus } from "@hocuspocus/server";
 import type { FastifyInstance } from "fastify";
@@ -48,6 +49,44 @@ const pageSize = 1000;
 
 interface Changes {
   readonly since?: number;
+}
+
+/**
+ * Stores a document's state under a new number, and gives the number. For a
+ * note, the state it replaces is first kept as a version when the note's
+ * last version is ten minutes old, so its history has it as it was before
+ * each spell of editing.
+ */
+export async function storeDocument(
+  db: Database,
+  workspaceId: string,
+  document: string,
+  state: Uint8Array,
+): Promise<number> {
+  return db.transaction(async (tx) => {
+    if (document !== "vault") {
+      await tx.query(
+        `INSERT INTO document_versions (workspace_id, name, state)
+         SELECT workspace_id, name, state FROM documents
+         WHERE workspace_id = $1 AND name = $2 AND state <> $3
+           AND NOT EXISTS (
+             SELECT 1 FROM document_versions
+             WHERE workspace_id = $1 AND name = $2
+               AND created_at > now() - interval '10 minutes'
+           )`,
+        [workspaceId, document, state],
+      );
+    }
+    const { rows } = await tx.query(
+      `INSERT INTO documents (workspace_id, name, state, seq)
+       VALUES ($1, $2, $3, nextval('document_seq'))
+       ON CONFLICT (workspace_id, name)
+         DO UPDATE SET state = excluded.state, seq = excluded.seq, updated_at = now()
+       RETURNING seq`,
+      [workspaceId, document, state],
+    );
+    return readCount(rows[0], "seq");
+  });
 }
 
 /** The headers of a Node request, as a fetch Request has them. */
@@ -110,20 +149,14 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
     async onStoreDocument({ documentName, document }) {
       const name = parseDocumentName(documentName);
       if (name === undefined) return;
-      const { rows } = await db.query(
-        `INSERT INTO documents (workspace_id, name, state, seq)
-         VALUES ($1, $2, $3, nextval('document_seq'))
-         ON CONFLICT (workspace_id, name)
-           DO UPDATE SET state = excluded.state, seq = excluded.seq, updated_at = now()
-         RETURNING seq`,
-        [name.workspaceId, name.document, Y.encodeStateAsUpdate(document)],
+      const seq = await storeDocument(
+        db,
+        name.workspaceId,
+        name.document,
+        Y.encodeStateAsUpdate(document),
       );
       if (name.document === "vault") return;
-      const stored: Stored = {
-        type: "stored",
-        document: name.document,
-        seq: readCount(rows[0], "seq"),
-      };
+      const stored: Stored = { type: "stored", document: name.document, seq };
       hocuspocus.documents
         .get(`${name.workspaceId}/vault`)
         ?.broadcastStateless(JSON.stringify(stored));

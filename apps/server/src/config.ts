@@ -31,6 +31,8 @@ export interface Config {
   readonly storage: StorageConfig;
   /** The largest attachment the server takes, in bytes. */
   readonly attachmentLimit: number;
+  /** How many days the server keeps notes' earlier versions (ADR 0041). */
+  readonly historyDays: number;
   readonly enterprise: EnterpriseSwitches;
 }
 
@@ -271,6 +273,18 @@ function readAttachmentLimit(env: NodeJS.ProcessEnv): number {
   return Number(value) * 1024 * 1024;
 }
 
+function readHistoryDays(env: NodeJS.ProcessEnv): number {
+  const value = env.NETHER_HISTORY_DAYS?.trim() ?? "";
+  if (value === "") return 30;
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 36_500) {
+    throw new ConfigError(
+      "NETHER_HISTORY_DAYS",
+      `must be a number of days from 1 to 36500, not "${value}"`,
+    );
+  }
+  return Number(value);
+}
+
 /** Reads the configuration, throwing a ConfigError that names the variable at fault. */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
   const enterprise = Object.fromEntries(
@@ -289,6 +303,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     oidc: readOidc(env, publicUrl),
     storage: readStorage(env),
     attachmentLimit: readAttachmentLimit(env),
+    historyDays: readHistoryDays(env),
     enterprise,
   };
 }

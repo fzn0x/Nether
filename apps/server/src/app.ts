@@ -15,6 +15,7 @@ import { registerSessions } from "./sessions.ts";
 import { registerSetup } from "./setup.ts";
 import { registerRelay } from "./relay.ts";
 import { registerSync } from "./sync.ts";
+import { purgeVersions, registerVersions } from "./versions.ts";
 import { registerWorkspaces } from "./workspaces.ts";
 
 /** The server's version, from its package.json (one folder up from src/ and dist/ alike). */
@@ -85,6 +86,21 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   registerSessions(app, services.db);
   registerInvitations(app, services.db);
   registerWorkspaces(app, services.db);
+  registerVersions(app, services.db);
+  // Versions older than the admin keeps them go on start, then every hour.
+  const purge = () =>
+    purgeVersions(services.db, config.historyDays).catch((error: unknown) => {
+      app.log.error({ err: error }, "Could not delete the versions kept too long");
+    });
+  const hourly = setInterval(() => void purge(), 3_600_000);
+  hourly.unref();
+  app.addHook("onReady", async () => {
+    await purge();
+  });
+  app.addHook("onClose", (_instance, done) => {
+    clearInterval(hourly);
+    done();
+  });
   if (services.blobs !== undefined) {
     registerAttachments(app, services.db, services.blobs, config.attachmentLimit);
   }

@@ -42,6 +42,7 @@ describe("readConfig", () => {
       oidc: null,
       storage: { kind: "disk", path: "data/attachments" },
       attachmentLimit: 100 * 1024 * 1024,
+      historyDays: 30,
       enterprise: {
         sso: false,
         scim: false,
@@ -97,10 +98,12 @@ describe("readConfig", () => {
         ...database,
         NETHER_STORAGE_PATH: "/data/files",
         NETHER_ATTACHMENT_LIMIT: "25",
+        NETHER_HISTORY_DAYS: "90",
       }),
     ).toMatchObject({
       storage: { kind: "disk", path: "/data/files" },
       attachmentLimit: 25 * 1024 * 1024,
+      historyDays: 90,
     });
     expect(
       readConfig({
@@ -187,6 +190,8 @@ describe("readConfig", () => {
       "NETHER_S3_BUCKET must be set when NETHER_STORAGE is s3",
     ],
     [{ NETHER_ATTACHMENT_LIMIT: "0" }, "NETHER_ATTACHMENT_LIMIT must be a number of mebibytes"],
+    [{ NETHER_HISTORY_DAYS: "0" }, "NETHER_HISTORY_DAYS must be a number of days"],
+    [{ NETHER_HISTORY_DAYS: "a month" }, "NETHER_HISTORY_DAYS must be a number of days"],
     [
       { NETHER_OIDC_CLIENT_ID: "nether" },
       "NETHER_OIDC_CLIENT_ID is set without NETHER_OIDC_ISSUER",
