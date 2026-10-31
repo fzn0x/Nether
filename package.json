@@ -1,6 +1,6 @@
 {
   "name": "nether",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Open-source workspace that joins Obsidian's local-first Markdown notes with Notion's databases and collaboration, on a server you control.",
   "license": "AGPL-3.0-or-later",

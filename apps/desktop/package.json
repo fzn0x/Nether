@@ -1,6 +1,6 @@
 {
   "name": "@nether/desktop",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "The Nether desktop app for Windows, macOS and Linux, built with MyGO.",
   "license": "AGPL-3.0-or-later",

@@ -13,7 +13,9 @@ Notion and Obsidian features. You can import your Obsidian vaults and
 Notion exports. Self-hosting is available for enterprise.
 
 > [!NOTE]
-> Nether is in early development, and nothing is ready to install yet.
+> Nether is in early development. [Version 0.0.1](https://github.com/fzn0x/Nether/releases/latest),
+> a developer preview of the desktop app for Windows, macOS and Linux, keeps
+> your notes on your computer; sync and collaboration come later.
 > [Phase 0](docs/reports/phase-0.md), [Phase 1](docs/reports/phase-1.md)
 > and [Phase 2](docs/reports/phase-2.md) of six are done: the desktop app
 > keeps a vault of Markdown notes with the block editor, links, backlinks,
