@@ -20,7 +20,7 @@ describe("commandShown", () => {
     expect(commandIds.filter((id) => shownIn({ web: false, sync: true }, id))).toEqual(commandIds);
   });
 
-  it("shows the web app sync, without linking, updates or import", () => {
+  it("shows the web app sync, without linking or updates", () => {
     const web = { web: true, sync: true };
     for (const id of [
       "servers",
@@ -29,25 +29,28 @@ describe("commandShown", () => {
       "share",
       "notifications",
       "export",
+      "import",
     ] as const) {
       expect(shownIn(web, id)).toBe(true);
     }
-    for (const id of ["sync", "checkUpdates", "updateChecks", "import"] as const) {
+    for (const id of ["sync", "checkUpdates", "updateChecks"] as const) {
       expect(shownIn(web, id)).toBe(false);
     }
-    expect(commandIds.filter((id) => shownIn(web, id))).toHaveLength(commandIds.length - 4);
+    expect(commandIds.filter((id) => shownIn(web, id))).toHaveLength(commandIds.length - 3);
   });
 });
 
 describe("shownEntries", () => {
   it("leaves out what a build does not show, and the separators that strands", () => {
     const web = (id: (typeof commandIds)[number]) => shownIn({ web: true, sync: true }, id);
-    expect(
-      shownEntries(["newNote", "separator", "import", "export", "separator", "closeVault"], web),
-    ).toEqual(["newNote", "separator", "export", "separator", "closeVault"]);
+    expect(shownEntries(["newNote", "separator", "sync", "separator", "closeVault"], web)).toEqual([
+      "newNote",
+      "separator",
+      "closeVault",
+    ]);
     expect(
       shownEntries(["templateSettings", "separator", "checkUpdates", "updateChecks"], web),
     ).toEqual(["templateSettings"]);
-    expect(shownEntries(["separator", "import", "separator", "newNote"], web)).toEqual(["newNote"]);
+    expect(shownEntries(["separator", "sync", "separator", "newNote"], web)).toEqual(["newNote"]);
   });
 });

@@ -6,12 +6,13 @@
 // is an HttpOnly cookie the page never sees: requests send it, with the
 // CSRF value read from its second cookie, and a token of "" stands for it.
 import { OpfsFiles, type OpfsDirectory, SqliteStore, isNotePath } from "@nether/storage";
-import type { Backend, Connection, Exporter, Importer, VaultMedia } from "./backend.ts";
+import type { Backend, Connection, Exporter, VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
 import type { ServerAccount, VaultInfo } from "./mygo.ts";
 import { type LoopbackWait, ServerError, account } from "./server.ts";
 import { linkVaultStore } from "./sync.ts";
 import { providerChannel, providerReturn, webFetch, webServer } from "./web.ts";
+import { webImporter } from "./webImports.ts";
 import { openWebIndex } from "./webIndex.ts";
 import { makeZip } from "./webZip.ts";
 
@@ -175,11 +176,6 @@ function webExporter(files: OpfsFiles): Exporter {
   };
 }
 
-/** Imports come with the next part of the web app; its command is hidden until then. */
-const noImports: Importer = {
-  choose: () => Promise.resolve(undefined),
-};
-
 /** The folder of the origin's private file system a workspace's files are kept in. */
 async function workspaceFolder(id: string): Promise<OpfsDirectory> {
   const root = await navigator.storage.getDirectory();
@@ -231,7 +227,7 @@ export const web: Backend = {
       store,
       media: await opfsMedia(files),
       exporter: webExporter(files),
-      importer: noImports,
+      importer: webImporter(async (dest, data) => (await files.attach(dest, data)).path),
     };
   },
   fetchPreview: () => Promise.reject(new Error(t("previewNeedsApp"))),

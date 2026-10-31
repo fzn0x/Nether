@@ -31,15 +31,9 @@ const syncCommands: ReadonlySet<CommandId> = new Set([
 
 /**
  * What the web app leaves out: linking a vault to a workspace, as each of
- * its vaults is one; updates, which come with its server; and, until the
- * browser can read the files to import, import.
+ * its vaults is one, and updates, which come with its server.
  */
-const notOnTheWeb: ReadonlySet<CommandId> = new Set([
-  "sync",
-  "checkUpdates",
-  "updateChecks",
-  "import",
-]);
+const notOnTheWeb: ReadonlySet<CommandId> = new Set(["sync", "checkUpdates", "updateChecks"]);
 
 /** Whether a build shows a command. */
 export function shownIn(build: Build, id: CommandId): boolean {
