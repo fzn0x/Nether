@@ -67,6 +67,7 @@ for what you can do with it without opening it first:
 - **Add tags…**: its tags as chips, and more typed in, the vault's tags
   offered as you type. They are kept in its `tags` property; tags written
   in its text stay where they are.
+- **Bookmark** it, or **Remove bookmark**.
 - **Copy link** as `[[Name]]`, **Copy path** in the vault, or **Copy full
   path** on disk.
 - **Open in default app**, the one the system opens Markdown with, or
@@ -75,3 +76,18 @@ for what you can do with it without opening it first:
 
 The arrow keys move through the menu, a letter goes to the next item
 starting with it, Enter chooses, and Escape closes it.
+
+## Bookmarks
+
+Bookmarked notes show above the others, under **Bookmarks**, in the order
+you bookmarked them; click the heading to close or open the list. Bookmark
+a note from its menu, or the open note with **Bookmark the note** in the
+command palette. Click a bookmark to open its note, right-click it for the
+note's menu, or click its × to take the bookmark away.
+
+A bookmark follows its note when you rename or move it. A note in the
+trash keeps its bookmark, shown in grey, until it comes back.
+
+Bookmarks are kept in `.nether/bookmarks.json`, in the vault's folder, in
+the shape Obsidian uses; a vault from Obsidian starts with the bookmarks
+it had there. Sync does not carry them to your other devices yet.

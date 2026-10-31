@@ -361,6 +361,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   rename, make a copy, move to a folder, add tags, copy its link, path or
   full path, open it in the system's app for Markdown, show it in the
   file manager, export, version history and move to trash.
+- Bookmarks: a note bookmarked from its menu or the command palette shows
+  above the others in the sidebar, follows the note when it is renamed or
+  moved, and is kept in `.nether/bookmarks.json` in Obsidian's shape; a
+  vault from Obsidian starts with its bookmarks there.
 
 ### Changed
 
