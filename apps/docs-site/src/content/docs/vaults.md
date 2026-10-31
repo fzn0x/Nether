@@ -82,6 +82,12 @@ history, and deleted when the vault next opens after that. They are kept in
 Nether's index, not in the vault, so they stay on the computer that made
 them.
 
+A vault that [syncs with a server](../servers/) shows the server's versions
+too, beside this computer's and marked with where each is kept, so the
+history has the edits made on your other computers. The server's admin
+decides how long it keeps them. An encrypted workspace's server cannot read
+your notes, so there each computer keeps its own history.
+
 ## Where the index lives
 
 To open a large vault quickly, Nether keeps an index of it: the notes, their

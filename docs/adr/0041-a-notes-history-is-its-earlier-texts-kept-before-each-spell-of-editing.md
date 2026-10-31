@@ -57,12 +57,16 @@ first, so a restore is undone the same way.
 **Each device sets how long it keeps versions.** Thirty days unless set in
 the history; older versions are deleted when the vault opens.
 
-**The server keeps versions for the workspaces it can read**, in the next
-pull request: on each store of a note, when its last version there is old
-enough, the server keeps the state it is replacing, for as long as its
-admin sets with `NETHER_HISTORY_DAYS`. The desktop app shows them beside
-its own for a synced note. An encrypted workspace's history stays on each
-device.
+**The server keeps versions for the workspaces it can read.** When sync
+stores a note whose last version there is ten minutes old, the server
+keeps the Yjs state the store replaces, in the same transaction
+(`document_versions`, schema 8), so the server's history has every
+device's edits. It keeps them as long as its admin sets with
+`NETHER_HISTORY_DAYS`, 30 days unless set, and deletes older ones when it
+starts and every hour. Members list a note's versions and fetch each as a
+state; the desktop app shows them as Markdown beside its own for a synced
+note, each marked with where it is kept. An encrypted workspace's history
+stays on each device, as its server cannot read a note.
 
 ## Alternatives
 
@@ -83,8 +87,11 @@ device.
 
 ## Consequences
 
-- History works with no server and in encrypted workspaces, but each
-  device sees only the versions it kept until the server's come.
+- History works with no server and in encrypted workspaces, where each
+  device sees only the versions it kept.
+- A synced note has two histories, which overlap: this device's and the
+  server's. The server's holds edits made elsewhere; this device's holds
+  what it wrote while offline.
 - Deleting the index, which was always safe, now loses this device's
   versions.
 - A note edited by another app is not kept as it was before that app's

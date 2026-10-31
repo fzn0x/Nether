@@ -86,6 +86,8 @@ token as `Authorization: Bearer <token>`. Every error is
 | `PUT /api/workspaces/:id/attachments/:hash` | member | Keeps a file's bytes, sent as `application/octet-stream`, if they hash to `hash` (SHA-256); `x-content-type` names its media type |
 | `HEAD /api/workspaces/:id/attachments/:hash` | member | Whether the workspace has the file, before sending it |
 | `GET /api/workspaces/:id/attachments/:hash` | member | The file, served so it runs and loads nothing |
+| `GET /api/workspaces/:id/documents/:note/versions` | member | The note's versions, the latest 200 first: `{ versions: [{ id, time }] }` |
+| `GET /api/workspaces/:id/documents/:note/versions/:version` | member | A version, as the Yjs state the note had |
 | `GET /api/relay` | per message | The WebSocket encrypted workspaces sync over, below |
 | `GET /api/workspaces/:id/documents` | member | The documents stored since `since`, a number, in order, a thousand at a time with `more` |
 | `GET /api/sync` | per document | The WebSocket that Hocuspocus providers sync documents over, below |
@@ -168,6 +170,16 @@ NETHER_S3_SECRET_KEY=…
 
 Objects are addressed by path, as `<endpoint>/<bucket>/<workspace>/<hash>`.
 
+## History
+
+When sync stores a note whose last version is ten minutes old, the server
+keeps the state the store replaces as a version, so a note's history has
+it as it was before each spell of editing
+([ADR 0041](../../docs/adr/0041-a-notes-history-is-its-earlier-texts-kept-before-each-spell-of-editing.md)). It keeps versions for
+`NETHER_HISTORY_DAYS`, 30 days unless set, and deletes older ones when it
+starts and every hour. An encrypted workspace has no versions here: its
+devices keep their own.
+
 ## Email
 
 Set `NETHER_SMTP_URL` and `NETHER_MAIL_FROM` for the server to send email:
@@ -239,6 +251,7 @@ refuses to start on a database a newer server has migrated.
 | `NETHER_S3_BUCKET`, `NETHER_S3_ACCESS_KEY`, `NETHER_S3_SECRET_KEY` | none, required for `s3` | The bucket and the keys to it |
 | `NETHER_S3_REGION` | `us-east-1` | The region requests are signed for |
 | `NETHER_ATTACHMENT_LIMIT` | `100` | The largest attachment taken, in MiB |
+| `NETHER_HISTORY_DAYS` | `30` | How many days notes' earlier versions are kept |
 | `NETHER_TRUST_PROXY` | `off` | Behind a reverse proxy, whose `X-Forwarded-For` to believe: `on` for any, or addresses and ranges such as `10.0.0.2, 172.16.0.0/12` or `uniquelocal` |
 | `NETHER_ENTERPRISE_SSO` | `off` | Single sign-on |
 | `NETHER_ENTERPRISE_SCIM` | `off` | Provisioning through SCIM and LDAP |

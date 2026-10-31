@@ -146,7 +146,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   of editing, and every ten minutes during one, kept for 30 days or as many
   as set; **Show the note's history** shows what changed since each
   version, line by line, and restores one, keeping the note as it was
-  first ([ADR 0041](docs/adr/0041-a-notes-history-is-its-earlier-texts-kept-before-each-spell-of-editing.md)).
+  first. For a workspace the server can read, the server keeps each note's
+  state before each spell of editing too, for `NETHER_HISTORY_DAYS` (30
+  by default), and the history shows its versions beside this computer's
+  ([ADR 0041](docs/adr/0041-a-notes-history-is-its-earlier-texts-kept-before-each-spell-of-editing.md)).
 - Attachments sync: a vault's images, PDFs and other files go to the
   workspace once each and come to every computer that syncs it, are kept
   twice when changed on two computers at once, are encrypted for an
