@@ -32,6 +32,10 @@ export default defineConfig({
   // plugins above; without this the worker gets the browser build and fails.
   optimizeDeps: {
     rolldownOptions: { plugins: [decodeEntitiesWithoutDom()] },
+    // Workers' packages too: the scan follows the page's imports but not
+    // `new Worker(…)`, so a package only a worker uses was found when the
+    // worker first loaded, and the dev server reloaded the page for it.
+    entries: ["index.html", "src/*.worker.ts"],
   },
   server: {
     // `mygo dev` loads this address (devUrl in mygo.json).
