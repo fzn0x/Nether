@@ -1,8 +1,12 @@
 import { readFileSync } from "node:fs";
+import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Config } from "./config.ts";
 import type { Database } from "./db.ts";
 import { type EnterpriseModule, enterpriseFeatures, registerEnterprise } from "./enterprise.ts";
+import { tooManyTries } from "./http.ts";
+import { registerInvitations } from "./invitations.ts";
+import { registerSessions } from "./sessions.ts";
 import { registerSetup } from "./setup.ts";
 
 /** The server's version, from its package.json (one folder up from src/ and dist/ alike). */
@@ -44,7 +48,19 @@ export interface Services {
 
 /** Builds the server: its routes, and the modules of the enterprise features that are switched on. */
 export async function buildApp(config: Config, services: Services): Promise<FastifyInstance> {
-  const app = Fastify({ logger: { level: config.logLevel } });
+  const app = Fastify({
+    logger: { level: config.logLevel },
+    trustProxy: typeof config.trustProxy === "boolean" ? config.trustProxy : [...config.trustProxy],
+  });
+  // Limits apply only to the routes that ask for one, as signing in does.
+  await app.register(rateLimit, {
+    global: false,
+    errorResponseBuilder: (_request, context) => ({
+      statusCode: 429,
+      error: "Too Many Requests",
+      message: tooManyTries(Math.ceil(context.ttl / 1000)),
+    }),
+  });
   const version = serverVersion();
 
   app.get("/health", { schema: healthSchema }, () => ({
@@ -54,6 +70,8 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   }));
 
   registerSetup(app, services.db, services.setupCode);
+  registerSessions(app, services.db);
+  registerInvitations(app, services.db);
   await registerEnterprise(app, config.enterprise, services.enterpriseModules ?? []);
   return app;
 }

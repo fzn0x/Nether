@@ -47,6 +47,41 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX memberships_by_user ON memberships (user_id);
     `,
   },
+  {
+    version: 2,
+    name: "sessions and invitations",
+    sql: `
+      -- A signed-in client. Only its token's SHA-256 is kept, so this table signs no one in.
+      CREATE TABLE sessions (
+        id uuid PRIMARY KEY,
+        user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        token_hash text NOT NULL UNIQUE,
+        -- The client's User-Agent, for its owner to tell their sessions apart.
+        client text NOT NULL DEFAULT '',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        used_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL
+      );
+
+      CREATE INDEX sessions_by_user ON sessions (user_id);
+
+      CREATE TABLE invitations (
+        id uuid PRIMARY KEY,
+        token_hash text NOT NULL UNIQUE,
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        role text NOT NULL CHECK (role IN ('admin', 'member', 'guest')),
+        -- When set, only this address may accept.
+        email text,
+        invited_by uuid REFERENCES users (id) ON DELETE SET NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        expires_at timestamptz NOT NULL,
+        accepted_by uuid REFERENCES users (id) ON DELETE SET NULL,
+        accepted_at timestamptz
+      );
+
+      CREATE INDEX invitations_by_workspace ON invitations (workspace_id);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

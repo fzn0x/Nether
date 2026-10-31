@@ -6,6 +6,37 @@ import pg from "pg";
 /** A row as the database returns it; whoever reads a column checks its type. */
 export type Row = Record<string, unknown>;
 
+function unexpected(column: string, value: unknown, expected: string): TypeError {
+  return new TypeError(`The database returned ${typeof value} for ${column}, not ${expected}`);
+}
+
+/** A column's text, such as a name or a UUID. */
+export function readText(row: Row | undefined, column: string): string {
+  const value = row?.[column];
+  if (typeof value !== "string") throw unexpected(column, value, "text");
+  return value;
+}
+
+/** A column's text, or null where it has none. */
+export function readTextOrNull(row: Row | undefined, column: string): string | null {
+  const value = row?.[column];
+  if (value === null) return null;
+  return readText(row, column);
+}
+
+export function readBoolean(row: Row | undefined, column: string): boolean {
+  const value = row?.[column];
+  if (typeof value !== "boolean") throw unexpected(column, value, "a boolean");
+  return value;
+}
+
+/** A `timestamptz` column, which both drivers return as a Date. */
+export function readTime(row: Row | undefined, column: string): Date {
+  const value = row?.[column];
+  if (!(value instanceof Date)) throw unexpected(column, value, "a time");
+  return value;
+}
+
 /**
  * What runs SQL: the database, or a transaction in it. Parameters are `$1`,
  * `$2`… Without parameters, `text` may hold several statements.

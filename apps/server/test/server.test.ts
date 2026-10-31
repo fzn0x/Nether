@@ -36,6 +36,7 @@ describe("readConfig", () => {
       port: 3000,
       logLevel: "info",
       databaseUrl: database.NETHER_DATABASE_URL,
+      trustProxy: false,
       enterprise: {
         sso: false,
         scim: false,
@@ -62,6 +63,15 @@ describe("readConfig", () => {
   });
 
   it.each([
+    ["on", true],
+    ["off", false],
+    ["10.0.0.1", ["10.0.0.1"]],
+    [" uniquelocal, 172.16.0.0/12 ,::1 ", ["uniquelocal", "172.16.0.0/12", "::1"]],
+  ])("reads NETHER_TRUST_PROXY=%j", (value, trustProxy) => {
+    expect(readConfig({ ...database, NETHER_TRUST_PROXY: value }).trustProxy).toEqual(trustProxy);
+  });
+
+  it.each([
     [{ NETHER_PORT: "80a" }, 'NETHER_PORT must be a port number from 0 to 65535, not "80a"'],
     [{ NETHER_PORT: "65536" }, "NETHER_PORT must be a port number"],
     [{ NETHER_PORT: "-1" }, "NETHER_PORT must be a port number"],
@@ -75,6 +85,13 @@ describe("readConfig", () => {
       { NETHER_DATABASE_URL: "mysql://db/nether" },
       "NETHER_DATABASE_URL must be a postgres:// address",
     ],
+    [
+      { NETHER_TRUST_PROXY: "2" },
+      'NETHER_TRUST_PROXY must be on, off, or the proxies\' addresses and ranges separated by commas, not "2"',
+    ],
+    [{ NETHER_TRUST_PROXY: "proxy.example.org" }, "NETHER_TRUST_PROXY must be on, off"],
+    [{ NETHER_TRUST_PROXY: "10.0.0.0/33" }, "NETHER_TRUST_PROXY must be on, off"],
+    [{ NETHER_TRUST_PROXY: "10.0.0.1," }, "NETHER_TRUST_PROXY must be on, off"],
   ])("rejects %j", (env, message) => {
     expect(() => readConfig({ ...database, ...env })).toThrow(message);
   });

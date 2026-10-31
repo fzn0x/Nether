@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.ts";
 import { readConfig } from "../src/config.ts";
 import type { Database } from "../src/db.ts";
-import { NewerDatabase, migrate, schemaVersion } from "../src/migrations.ts";
+import { NewerDatabase, migrate, migrations, schemaVersion } from "../src/migrations.ts";
 import { hashPassword, verifyPassword } from "../src/passwords.ts";
 import { newSetupCode, setupNeeded } from "../src/setup.ts";
 import { testDatabase } from "./database.ts";
@@ -36,13 +36,15 @@ describe("migrate", () => {
     expect(await migrate(db)).toEqual({ from: 0, to: schemaVersion });
     expect(await migrate(db)).toEqual({ from: schemaVersion, to: schemaVersion });
     const { rows } = await db.query("SELECT version FROM schema_migrations ORDER BY version");
-    expect(rows.map((row) => row.version)).toEqual([1]);
+    expect(rows.map((row) => row.version)).toEqual(migrations.map((item) => item.version));
     const tables = await db.query(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() ORDER BY table_name",
     );
     expect(tables.rows.map((row) => row.table_name)).toEqual([
+      "invitations",
       "memberships",
       "schema_migrations",
+      "sessions",
       "users",
       "workspaces",
     ]);
@@ -105,6 +107,11 @@ describe("first-run setup", () => {
       payload: { ...admin, code: "AAAAA-AAAAA-AAAAA-AAAAA" },
     });
     expect(wrong.statusCode).toBe(403);
+    expect(wrong.json()).toEqual({
+      statusCode: 403,
+      error: "Forbidden",
+      message: "That is not the setup code the server wrote to its log.",
+    });
     expect(await setupNeeded(db)).toBe(true);
 
     // The code as someone types it: lowercase, without its dashes.
@@ -115,13 +122,21 @@ describe("first-run setup", () => {
     });
     expect(made.statusCode).toBe(201);
     const body = made.json<{
+      token: string;
       user: { id: string; email: string; name: string };
       workspace: { id: string; name: string };
     }>();
     expect(body).toMatchObject({
-      user: { email: "Ada@Example.org", name: "Ada" },
-      workspace: { name: "Team" },
+      user: { email: "Ada@Example.org", name: "Ada", instanceAdmin: true },
+      workspace: { name: "Team", role: "owner" },
     });
+    // Setup signs the admin in.
+    const me = await server.inject({
+      method: "GET",
+      url: "/api/me",
+      headers: { authorization: `Bearer ${body.token}` },
+    });
+    expect(me.json()).toMatchObject({ user: { id: body.user.id } });
 
     const user = await db.query(
       "SELECT email_key, instance_admin, password_hash FROM users WHERE id = $1",

@@ -1,12 +1,15 @@
 // First-run setup (ADR 0031): while the server has no account, it makes the
-// first, the instance's admin, with a first workspace the admin owns. Only
-// someone with the setup code may: the server writes a new one to its log
-// each time it starts without an account, so whoever reaches a new server
-// first cannot claim it unless they can read its log.
+// first, the instance's admin, with a first workspace the admin owns, and
+// signs the admin in. Only someone with the setup code may: the server
+// writes a new one to its log each time it starts without an account, so
+// whoever reaches a new server first cannot claim it unless they can read
+// its log.
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { Database } from "./db.ts";
-import { hashPassword, minimumPasswordLength } from "./passwords.ts";
+import { emailField, emailKey, fail, nameField, newPasswordField } from "./http.ts";
+import { hashPassword } from "./passwords.ts";
+import { startSession } from "./sessions.ts";
 
 /** Whether the server still waits for its first account. */
 export async function setupNeeded(db: Database): Promise<boolean> {
@@ -38,10 +41,10 @@ const setupBody = {
   additionalProperties: false,
   properties: {
     code: { type: "string", minLength: 1, maxLength: 64 },
-    name: { type: "string", minLength: 1, maxLength: 200, pattern: "\\S" },
-    email: { type: "string", maxLength: 320, pattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$" },
-    password: { type: "string", minLength: minimumPasswordLength, maxLength: 1024 },
-    workspace: { type: "string", minLength: 1, maxLength: 200, pattern: "\\S" },
+    name: nameField,
+    email: emailField,
+    password: newPasswordField,
+    workspace: nameField,
   },
 } as const;
 
@@ -63,13 +66,14 @@ export function registerSetup(app: FastifyInstance, db: Database, code: string |
 
   app.post<{ Body: SetupBody }>(
     "/api/setup",
-    { schema: { body: setupBody } },
+    {
+      schema: { body: setupBody },
+      onRequest: app.rateLimit({ max: 20, timeWindow: "15 minutes" }),
+    },
     async (request, reply) => {
       const body = request.body;
       if (code === undefined || !sameCode(body.code, code)) {
-        return reply
-          .code(403)
-          .send({ error: "That is not the setup code the server wrote to its log." });
+        return fail(reply, 403, "That is not the setup code the server wrote to its log.");
       }
       // Hashed before the lock, which a slow hash would hold.
       const passwordHash = await hashPassword(body.password);
@@ -77,11 +81,16 @@ export function registerSetup(app: FastifyInstance, db: Database, code: string |
         await tx.query("SELECT pg_advisory_xact_lock($1)", [setupLock]);
         const { rows } = await tx.query("SELECT 1 FROM users LIMIT 1");
         if (rows.length > 0) return undefined;
-        const user = { id: randomUUID(), name: body.name.trim(), email: body.email.trim() };
-        const workspace = { id: randomUUID(), name: body.workspace.trim() };
+        const user = {
+          id: randomUUID(),
+          name: body.name.trim(),
+          email: body.email.trim(),
+          instanceAdmin: true,
+        };
+        const workspace = { id: randomUUID(), name: body.workspace.trim(), role: "owner" };
         await tx.query(
           "INSERT INTO users (id, email, email_key, name, password_hash, instance_admin) VALUES ($1, $2, $3, $4, $5, true)",
-          [user.id, user.email, user.email.toLowerCase(), user.name, passwordHash],
+          [user.id, user.email, emailKey(user.email), user.name, passwordHash],
         );
         await tx.query("INSERT INTO workspaces (id, name) VALUES ($1, $2)", [
           workspace.id,
@@ -91,11 +100,9 @@ export function registerSetup(app: FastifyInstance, db: Database, code: string |
           "INSERT INTO memberships (workspace_id, user_id, role) VALUES ($1, $2, 'owner')",
           [workspace.id, user.id],
         );
-        return { user, workspace };
+        return { ...(await startSession(tx, user.id, request)), user, workspace };
       });
-      if (made === undefined) {
-        return reply.code(409).send({ error: "The server is set up already." });
-      }
+      if (made === undefined) return fail(reply, 409, "The server is set up already.");
       request.log.info(
         { user: made.user.id },
         "Set up: the admin account and the first workspace are made",

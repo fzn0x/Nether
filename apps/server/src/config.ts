@@ -1,4 +1,5 @@
 // The server's configuration, read from environment variables.
+import { isIP } from "node:net";
 import { type EnterpriseSwitches, enterpriseFeatures, switchVariable } from "./enterprise.ts";
 
 export const logLevels = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
@@ -12,6 +13,11 @@ export interface Config {
   readonly logLevel: LogLevel;
   /** The PostgreSQL database's address, as `postgres://user:password@host:5432/nether`. */
   readonly databaseUrl: string;
+  /**
+   * Which proxies in front of the server to believe about the client's
+   * address: none, all, or their addresses and ranges.
+   */
+  readonly trustProxy: boolean | readonly string[];
   readonly enterprise: EnterpriseSwitches;
 }
 
@@ -70,6 +76,29 @@ function readDatabaseUrl(env: NodeJS.ProcessEnv): string {
   return value;
 }
 
+/** An address, a range in CIDR notation, or one of proxy-addr's named ranges. */
+function isProxy(text: string): boolean {
+  if (["loopback", "linklocal", "uniquelocal"].includes(text)) return true;
+  const [address = "", bits, ...rest] = text.split("/");
+  const version = isIP(address);
+  if (version === 0 || rest.length > 0) return false;
+  return bits === undefined || (/^\d+$/.test(bits) && Number(bits) <= (version === 4 ? 32 : 128));
+}
+
+function readTrustProxy(env: NodeJS.ProcessEnv): boolean | readonly string[] {
+  const value = env.NETHER_TRUST_PROXY?.trim() ?? "";
+  if (off.includes(value.toLowerCase())) return false;
+  if (on.includes(value.toLowerCase())) return true;
+  const proxies = value.split(",").map((item) => item.trim());
+  if (!proxies.every(isProxy)) {
+    throw new ConfigError(
+      "NETHER_TRUST_PROXY",
+      `must be on, off, or the proxies' addresses and ranges separated by commas, not "${value}"`,
+    );
+  }
+  return proxies;
+}
+
 /** Reads the configuration, throwing a ConfigError that names the variable at fault. */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
   const enterprise = Object.fromEntries(
@@ -81,6 +110,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     port: readPort(env),
     logLevel: readLogLevel(env),
     databaseUrl: readDatabaseUrl(env),
+    trustProxy: readTrustProxy(env),
     enterprise,
   };
 }

@@ -1,0 +1,326 @@
+// Invitations (ADR 0032): how anyone but the admin gets an account. A
+// workspace's owner or admin invites someone as an admin or a member, and
+// gets a secret token to send them, as a link the app makes; the server
+// keeps only its SHA-256. Whoever has the token may accept it once, within
+// seven days: signed in, into their account, or with a new account. An
+// invitation for an email address may be accepted only by that address.
+import { randomUUID } from "node:crypto";
+import type { FastifyInstance } from "fastify";
+import { type Database, readText, readTextOrNull, readTime } from "./db.ts";
+import {
+  emailField,
+  emailKey,
+  fail,
+  nameField,
+  newPasswordField,
+  tokenField,
+  uuidField,
+} from "./http.ts";
+import { hashPassword } from "./passwords.ts";
+import {
+  accountOf,
+  bearerToken,
+  newToken,
+  sessionAccount,
+  signedIn,
+  startSession,
+  tokenHash,
+} from "./sessions.ts";
+
+/** Days an invitation can be accepted in. */
+export const invitationDays = 7;
+
+/** The roles an invitation may give; guests, invited to pages, come with page permissions. */
+const invitedRoles = ["admin", "member"] as const;
+
+interface Invite {
+  readonly role: (typeof invitedRoles)[number];
+  readonly email?: string;
+}
+
+const inviteBody = {
+  type: "object",
+  required: ["role"],
+  additionalProperties: false,
+  properties: { role: { type: "string", enum: invitedRoles }, email: emailField },
+} as const;
+
+interface WorkspaceParams {
+  readonly workspace: string;
+}
+
+interface InvitationParams extends WorkspaceParams {
+  readonly invitation: string;
+}
+
+const workspaceParams = {
+  type: "object",
+  required: ["workspace"],
+  properties: { workspace: uuidField },
+} as const;
+
+const invitationParams = {
+  type: "object",
+  required: ["workspace", "invitation"],
+  properties: { workspace: uuidField, invitation: uuidField },
+} as const;
+
+interface Lookup {
+  readonly token: string;
+}
+
+const lookupBody = {
+  type: "object",
+  required: ["token"],
+  additionalProperties: false,
+  properties: { token: tokenField },
+} as const;
+
+interface Accept {
+  readonly token: string;
+  readonly name?: string;
+  readonly email?: string;
+  readonly password?: string;
+}
+
+const acceptBody = {
+  type: "object",
+  required: ["token"],
+  additionalProperties: false,
+  properties: {
+    token: tokenField,
+    name: nameField,
+    email: emailField,
+    password: newPasswordField,
+  },
+} as const;
+
+const noInvitation = "That invitation does not exist, was accepted, or has expired.";
+const otherAddress = "This invitation is for another email address.";
+
+export function registerInvitations(app: FastifyInstance, db: Database): void {
+  const account = signedIn(db);
+
+  /** Why an account may not manage a workspace's invitations, or undefined if it may. */
+  async function refusal(
+    userId: string,
+    workspaceId: string,
+  ): Promise<readonly [number, string] | undefined> {
+    const { rows } = await db.query(
+      "SELECT role FROM memberships WHERE workspace_id = $1 AND user_id = $2",
+      [workspaceId, userId],
+    );
+    // A workspace the account is not in is not found, so its existence stays hidden.
+    if (rows.length === 0) return [404, "This account is in no such workspace."];
+    if (!["owner", "admin"].includes(readText(rows[0], "role"))) {
+      return [403, "Only the workspace's owners and admins may invite."];
+    }
+    return undefined;
+  }
+
+  app.post<{ Params: WorkspaceParams; Body: Invite }>(
+    "/api/workspaces/:workspace/invitations",
+    { schema: { params: workspaceParams, body: inviteBody }, preHandler: account },
+    async (request, reply) => {
+      const me = accountOf(request);
+      const workspace = request.params.workspace.toLowerCase();
+      const refused = await refusal(me.id, workspace);
+      if (refused !== undefined) return fail(reply, ...refused);
+      const token = newToken();
+      const id = randomUUID();
+      const email = request.body.email?.trim() ?? null;
+      const { rows } = await db.query(
+        `INSERT INTO invitations (id, token_hash, workspace_id, role, email, invited_by, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now() + $7 * interval '1 day')
+         RETURNING expires_at`,
+        [id, tokenHash(token), workspace, request.body.role, email, me.id, invitationDays],
+      );
+      return reply.code(201).send({
+        id,
+        token,
+        role: request.body.role,
+        email,
+        expiresAt: readTime(rows[0], "expires_at").toISOString(),
+      });
+    },
+  );
+
+  app.get<{ Params: WorkspaceParams }>(
+    "/api/workspaces/:workspace/invitations",
+    { schema: { params: workspaceParams }, preHandler: account },
+    async (request, reply) => {
+      const workspace = request.params.workspace.toLowerCase();
+      const refused = await refusal(accountOf(request).id, workspace);
+      if (refused !== undefined) return fail(reply, ...refused);
+      const { rows } = await db.query(
+        `SELECT i.id, i.role, i.email, i.created_at, i.expires_at, u.name AS invited_by
+           FROM invitations i LEFT JOIN users u ON u.id = i.invited_by
+          WHERE i.workspace_id = $1 AND i.accepted_at IS NULL AND i.expires_at > now()
+          ORDER BY i.created_at`,
+        [workspace],
+      );
+      return {
+        invitations: rows.map((row) => ({
+          id: readText(row, "id"),
+          role: readText(row, "role"),
+          email: readTextOrNull(row, "email"),
+          invitedBy: readTextOrNull(row, "invited_by"),
+          createdAt: readTime(row, "created_at").toISOString(),
+          expiresAt: readTime(row, "expires_at").toISOString(),
+        })),
+      };
+    },
+  );
+
+  app.delete<{ Params: InvitationParams }>(
+    "/api/workspaces/:workspace/invitations/:invitation",
+    { schema: { params: invitationParams }, preHandler: account },
+    async (request, reply) => {
+      const workspace = request.params.workspace.toLowerCase();
+      const refused = await refusal(accountOf(request).id, workspace);
+      if (refused !== undefined) return fail(reply, ...refused);
+      const { rows } = await db.query(
+        `DELETE FROM invitations WHERE id = $1 AND workspace_id = $2 AND accepted_at IS NULL
+         RETURNING id`,
+        [request.params.invitation.toLowerCase(), workspace],
+      );
+      if (rows.length === 0) return fail(reply, 404, noInvitation);
+      return reply.code(204).send();
+    },
+  );
+
+  // What an invitation is to, for the app to show before it is accepted.
+  // The token travels in the body, not the address, which logs keep.
+  app.post<{ Body: Lookup }>(
+    "/api/invitations/lookup",
+    {
+      schema: { body: lookupBody },
+      onRequest: app.rateLimit({ max: 30, timeWindow: "5 minutes" }),
+    },
+    async (request, reply) => {
+      const { rows } = await db.query(
+        `SELECT w.id AS workspace_id, w.name AS workspace_name, i.role, i.email, i.expires_at,
+                u.name AS invited_by
+           FROM invitations i
+           JOIN workspaces w ON w.id = i.workspace_id
+           LEFT JOIN users u ON u.id = i.invited_by
+          WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.expires_at > now()`,
+        [tokenHash(request.body.token)],
+      );
+      const row = rows[0];
+      if (row === undefined) return fail(reply, 404, noInvitation);
+      return {
+        workspace: { id: readText(row, "workspace_id"), name: readText(row, "workspace_name") },
+        role: readText(row, "role"),
+        email: readTextOrNull(row, "email"),
+        invitedBy: readTextOrNull(row, "invited_by"),
+        expiresAt: readTime(row, "expires_at").toISOString(),
+      };
+    },
+  );
+
+  app.post<{ Body: Accept }>(
+    "/api/invitations/accept",
+    {
+      schema: { body: acceptBody },
+      onRequest: app.rateLimit({ max: 20, timeWindow: "15 minutes" }),
+    },
+    async (request, reply) => {
+      const { body } = request;
+      // A request with a token accepts into its account; one whose token has
+      // ended is refused, rather than making a second account.
+      const sessionToken = bearerToken(request.headers.authorization);
+      const me = sessionToken === undefined ? undefined : await sessionAccount(db, sessionToken);
+      if (sessionToken !== undefined && me === undefined) {
+        return fail(reply.header("www-authenticate", "Bearer"), 401, "Sign in again.");
+      }
+      if (
+        me === undefined &&
+        (body.name === undefined || body.email === undefined || body.password === undefined)
+      ) {
+        return fail(reply, 400, "Give a name, an email address and a password for the account.");
+      }
+      // Hashed before the transaction, which a slow hash would hold.
+      const passwordHash =
+        me === undefined && body.password !== undefined
+          ? await hashPassword(body.password)
+          : undefined;
+
+      const outcome = await db.transaction(async (tx) => {
+        const { rows } = await tx.query(
+          `SELECT i.id, i.workspace_id, i.role, i.email, w.name AS workspace_name
+             FROM invitations i JOIN workspaces w ON w.id = i.workspace_id
+            WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.expires_at > now()
+            FOR UPDATE OF i`,
+          [tokenHash(body.token)],
+        );
+        const invitation = rows[0];
+        if (invitation === undefined) return { status: 404, message: noInvitation } as const;
+        const invited = readTextOrNull(invitation, "email");
+        const email = me?.email ?? body.email ?? "";
+        if (invited !== null && emailKey(invited) !== emailKey(email)) {
+          return { status: 403, message: otherAddress } as const;
+        }
+
+        let user = me && {
+          id: me.id,
+          name: me.name,
+          email: me.email,
+          instanceAdmin: me.instanceAdmin,
+        };
+        if (user === undefined) {
+          const taken = await tx.query("SELECT 1 FROM users WHERE email_key = $1", [
+            emailKey(email),
+          ]);
+          if (taken.rows.length > 0) {
+            return {
+              status: 409,
+              message: "An account has this email address already: sign in, then accept.",
+            } as const;
+          }
+          user = {
+            id: randomUUID(),
+            name: (body.name ?? "").trim(),
+            email: email.trim(),
+            instanceAdmin: false,
+          };
+          await tx.query(
+            "INSERT INTO users (id, email, email_key, name, password_hash) VALUES ($1, $2, $3, $4, $5)",
+            [user.id, user.email, emailKey(email), user.name, passwordHash],
+          );
+        }
+
+        const workspaceId = readText(invitation, "workspace_id");
+        // Someone in the workspace already keeps the role they have.
+        await tx.query(
+          `INSERT INTO memberships (workspace_id, user_id, role) VALUES ($1, $2, $3)
+           ON CONFLICT (workspace_id, user_id) DO NOTHING`,
+          [workspaceId, user.id, readText(invitation, "role")],
+        );
+        await tx.query(
+          "UPDATE invitations SET accepted_by = $1, accepted_at = now() WHERE id = $2",
+          [user.id, readText(invitation, "id")],
+        );
+        const role = await tx.query(
+          "SELECT role FROM memberships WHERE workspace_id = $1 AND user_id = $2",
+          [workspaceId, user.id],
+        );
+        const session = me === undefined ? await startSession(tx, user.id, request) : undefined;
+        return {
+          status: me === undefined ? 201 : 200,
+          body: {
+            ...session,
+            user,
+            workspace: {
+              id: workspaceId,
+              name: readText(invitation, "workspace_name"),
+              role: readText(role.rows[0], "role"),
+            },
+          },
+        } as const;
+      });
+      if ("message" in outcome) return fail(reply, outcome.status, outcome.message);
+      return reply.code(outcome.status).send(outcome.body);
+    },
+  );
+}
