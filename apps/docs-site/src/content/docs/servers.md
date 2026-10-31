@@ -66,6 +66,31 @@ its place, and the other beside it, as `map 1.png`. Hidden folders, such as
 100 MB unless its admin sets otherwise, stays on your computer, and the
 line at the foot of the sidebar names it.
 
+## Members and invitations
+
+**Workspace members**, in the command palette, lists the people in the
+workspace the vault syncs with, and each one's role:
+
+- **Owners** do everything, including making other owners and admins. A
+  workspace always keeps one.
+- **Admins** invite people and change or remove members and guests.
+- **Members** read and write every note.
+- **Guests** only read.
+
+To invite someone, owners and admins choose their role and, if only they
+should be able to accept, their email address, then **Make an invitation
+link**. Send them the link: it works once, for 7 days, and **Withdraw**
+stops it sooner.
+
+To join with a link you were sent, open **Servers and signing in**, choose
+**Join with an invitation** and paste it. You see which workspace and role
+it is for, then join with the account this computer is signed in to on that
+server, or make one there. Then open an empty folder as a vault, and **Sync
+this vault** with the workspace to fetch its notes.
+
+**Leave the workspace** takes you out of it. The vault keeps its notes and
+stops syncing.
+
 ## End-to-end encryption
 
 A workspace can be encrypted, so that only its members' computers can read

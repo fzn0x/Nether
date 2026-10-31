@@ -78,6 +78,9 @@ token as `Authorization: Bearer <token>`. Every error is
 | `POST /api/workspaces/:id/invitations` | owner, admin | Invites someone as `admin` or `member`, for one `email` or anyone; gives `token` |
 | `GET /api/workspaces/:id/invitations` | owner, admin | The invitations not yet accepted |
 | `DELETE /api/workspaces/:id/invitations/:invitation` | owner, admin | Withdraws one |
+| `GET /api/workspaces/:id/members` | member | The members, with their `role`; guests are refused |
+| `PATCH /api/workspaces/:id/members/:user` | owner, admin | Sets a member's `role`: owners set any, admins move members and guests; a workspace keeps an owner |
+| `DELETE /api/workspaces/:id/members/:user` | owner, admin, self | Removes a member, or leaves; owners remove anyone, admins members and guests |
 | `POST /api/workspaces` | yes | Makes a workspace the account owns, with `name`; `encryption: "end-to-end"` and the maker's `sealedKey` make it encrypted |
 | `PUT /api/me/keys`, `GET /api/me/keys` | yes | The account's `publicKey`, and its private key in a `recoveryBox` only its recovery phrase opens; kept once |
 | `GET /api/workspaces/:id/key` | member | The account's own sealed copy of an encrypted workspace's key, at its latest `version` |
@@ -105,6 +108,19 @@ in 15 minutes for one account from anywhere. One email address gets at
 most three codes in 15 minutes. Setup, invitations, ending sessions and
 changing passwords have limits of their own. Each answers `429` with
 `Retry-After`.
+
+## Members
+
+A change to someone's role, or their removal, closes their open sync and
+relay connections. Their apps connect again, and every document is checked
+anew: a removed member syncs nothing more, and one made a guest only reads.
+Someone removed from an encrypted workspace loses their copy of its key on
+the server; what their devices decrypted before stays with them.
+
+An invitation's link is the server's address, `/invite`, and the token
+after a `#`, as `https://nether.example.org/invite#…`: browsers never send
+what follows the `#`, so no log keeps the token. The desktop app makes these
+links and joins with them; the web app will open them.
 
 ## Sync
 

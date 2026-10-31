@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Workspace members: owners and admins list them, change their roles and
+  remove them, and invite people with a link, which someone joins from the
+  desktop app's Servers dialog, into their account there or a new one.
+  Anyone may leave. A workspace always keeps an owner, and a change closes
+  the person's open sync connections, so it applies at once.
 - A note's history on this computer: the note as it was before each spell
   of editing, and every ten minutes during one, kept for 30 days or as many
   as set; **Show the note's history** shows what changed since each
