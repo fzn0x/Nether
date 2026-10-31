@@ -4,7 +4,13 @@
 // folders, read again with Reload after they change.
 import type { Vault } from "@nether/storage";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
-import { type Appearance, type Mode, availableStyles } from "./appearance.ts";
+import {
+  type Appearance,
+  type Mode,
+  availableStyles,
+  builtInTheme,
+  builtInThemes,
+} from "./appearance.ts";
 import { t } from "./messages.ts";
 import type { AppearanceState } from "./useAppearance.ts";
 import { useModal } from "./useModal.ts";
@@ -60,7 +66,12 @@ export function AppearanceDialog(props: {
 
   // A theme or snippet named but gone is still listed, as missing.
   const themes = [
-    ...new Set([...styles.themes, ...(appearance.theme === undefined ? [] : [appearance.theme])]),
+    ...new Set([
+      ...styles.themes,
+      ...(appearance.theme === undefined || builtInTheme(appearance.theme) !== undefined
+        ? []
+        : [appearance.theme]),
+    ]),
   ];
   const snippets = [...new Set([...styles.snippets, ...appearance.snippets])];
   return (
@@ -111,11 +122,22 @@ export function AppearanceDialog(props: {
               }}
             >
               <option value="">{t("themeNether")}</option>
-              {themes.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
+              <optgroup label={t("themesBuiltIn")}>
+                {builtInThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {t(theme.label)}
+                  </option>
+                ))}
+              </optgroup>
+              {themes.length === 0 ? null : (
+                <optgroup label={t("themesOfVault")}>
+                  {themes.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
           <fieldset>

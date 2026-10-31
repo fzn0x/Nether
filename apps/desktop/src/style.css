@@ -217,6 +217,16 @@ button {
   overflow-wrap: anywhere;
 }
 
+/* What a built-in theme draws, behind everything and taking no pointer (ADR 0049). */
+.theme-effect {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
 /* An open vault: the notes on the left, the note on the right. */
 .vault {
   display: grid;

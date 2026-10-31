@@ -191,6 +191,10 @@ export const messages = {
   modeDark: "Dark",
   theme: "Theme",
   themeNether: "Nether's own",
+  themesBuiltIn: "Built in",
+  themesOfVault: "This vault's",
+  themeAnime: "Anime: kana drifting in rainbow colors",
+  themePixels: "Pixel grid: cells light up under the pointer",
   cssSnippets: "CSS snippets",
   noSnippets: "This vault has no snippets yet.",
   stylesWhere:

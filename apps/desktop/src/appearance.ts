@@ -5,6 +5,9 @@
 // theme first, so they override its design tokens and anything else; the
 // page's `data-mode` says whether it shows light or dark, for them to follow.
 import type { Vault } from "@nether/storage";
+import type { Effect } from "./ThemeEffect.tsx";
+import animeCss from "./themes/anime.css?inline";
+import pixelsCss from "./themes/pixels.css?inline";
 
 export type Mode = "system" | "light" | "dark";
 
@@ -20,6 +23,28 @@ export const themesFolder = ".nether/themes";
 export const snippetsFolder = ".nether/snippets";
 
 export const defaultAppearance: Appearance = { mode: "system", snippets: [] };
+
+/**
+ * The themes Nether has itself (ADR 0049), each a stylesheet and an effect
+ * drawn behind the app. Their names have a colon, which no file's name in
+ * `.nether/themes` can have on every system, so they never meet a vault's.
+ */
+export const builtInThemes = [
+  { id: "nether:anime", label: "themeAnime", css: animeCss, effect: "kana" },
+  { id: "nether:pixels", label: "themePixels", css: pixelsCss, effect: "pixels" },
+] as const satisfies readonly {
+  id: string;
+  label: string;
+  css: string;
+  effect: Effect;
+}[];
+
+export type BuiltInTheme = (typeof builtInThemes)[number];
+
+/** The built-in theme a name is, if it is one. */
+export function builtInTheme(name: string | undefined): BuiltInTheme | undefined {
+  return builtInThemes.find((theme) => theme.id === name);
+}
 
 /** An appearance as `.nether/appearance.json` holds it, what cannot be read left as the default. */
 export function readAppearance(data: unknown): Appearance {
@@ -118,7 +143,9 @@ export async function applyStyles(vault: Vault, appearance: Appearance): Promise
   const read = await Promise.all(
     wanted.map(async (style) => ({
       ...style,
-      css: await cssOf(vault, `${style.folder}/${style.name}.css`),
+      css:
+        builtInTheme(style.kind === "theme" ? style.name : undefined)?.css ??
+        (await cssOf(vault, `${style.folder}/${style.name}.css`)),
     })),
   );
   for (const old of document.head.querySelectorAll(`style.${styleClass}`)) old.remove();

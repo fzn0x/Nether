@@ -28,6 +28,7 @@ import { IconButton } from "./IconButton.tsx";
 import { commandIcons, itemIcons, menuIcons } from "./icons.ts";
 import { NewFolderDialog } from "./NewFolderDialog.tsx";
 import { SidebarResizer, useSidebarWidth } from "./SidebarResizer.tsx";
+import { builtInTheme } from "./appearance.ts";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { MergeNoteDialog } from "./MergeNoteDialog.tsx";
@@ -107,6 +108,7 @@ const loadMergeNote = () => import("./mergeNote.ts");
 // So does making a database, which writes its note's frontmatter.
 const loadDatabases = () => import("./databases.ts");
 // The graph, with Sigma and its layout, loads the first time it opens.
+const ThemeEffect = lazy(() => import("./ThemeEffect.tsx"));
 const GraphView = lazy(() => import("./GraphView.tsx"));
 // The import, appearance and servers dialogs, with the importers, load when they open.
 const ImportDialog = lazy(() =>
@@ -1198,6 +1200,14 @@ export function VaultView(props: {
       className="vault"
       style={{ "--sidebar-width": `${String(sidebarWidth)}px` } as CSSProperties}
     >
+      {(() => {
+        const effect = builtInTheme(appearance.appearance.theme)?.effect;
+        return effect === undefined ? null : (
+          <Suspense fallback={null}>
+            <ThemeEffect effect={effect} />
+          </Suspense>
+        );
+      })()}
       <aside id="sidebar" className="sidebar" aria-label={info.name}>
         <SidebarResizer width={sidebarWidth} onResize={setSidebarWidth} controls="sidebar" />
         <header className="sidebar-header">
