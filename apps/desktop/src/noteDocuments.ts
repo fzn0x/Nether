@@ -450,6 +450,21 @@ export class OpenNote {
   }
 }
 
+/** Waits until a note has loaded, or found it cannot. */
+export function whenLoaded(note: OpenNote): Promise<void> {
+  return new Promise((resolve) => {
+    if (note.snapshot.state.status !== "loading") {
+      resolve();
+      return;
+    }
+    const stop = note.subscribe(() => {
+      if (note.snapshot.state.status === "loading") return;
+      stop();
+      resolve();
+    });
+  });
+}
+
 /** A hold on an open note; let it go when done. */
 export interface NoteHold {
   readonly note: OpenNote;

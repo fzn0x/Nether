@@ -8,7 +8,7 @@ import { serializeMarkdown } from "@nether/markdown";
 import { type Vault, numberedPath } from "@nether/storage";
 import type { HeldDocument, SyncVault } from "@nether/sync-client";
 import * as Y from "yjs";
-import type { NoteDocuments } from "./noteDocuments.ts";
+import { type NoteDocuments, whenLoaded } from "./noteDocuments.ts";
 
 /** The first path like `path` that no note has, but `id`'s own. */
 function freePath(vault: Vault, path: string, id: string): string {
@@ -72,17 +72,7 @@ export class DesktopSyncVault implements SyncVault {
   async hold(id: string): Promise<HeldDocument> {
     const hold = this.#documents.open(id as NoteId);
     const { note } = hold;
-    await new Promise<void>((resolve) => {
-      if (note.snapshot.state.status !== "loading") {
-        resolve();
-        return;
-      }
-      const stop = note.subscribe(() => {
-        if (note.snapshot.state.status === "loading") return;
-        stop();
-        resolve();
-      });
-    });
+    await whenLoaded(note);
     const { state } = note.snapshot;
     if (state.status !== "ready") {
       hold.release();
