@@ -18,6 +18,8 @@ export default defineConfig({
       "pnpm exec vite build && pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !ci,
+    // The tests cover sync, which releases leave out for now (src/features.ts).
+    env: { VITE_NETHER_SYNC: "on" },
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 });

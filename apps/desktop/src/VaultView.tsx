@@ -28,6 +28,7 @@ import { IconButton } from "./IconButton.tsx";
 import { commandIcons, itemIcons, menuIcons } from "./icons.ts";
 import { NewFolderDialog } from "./NewFolderDialog.tsx";
 import { DeleteFolderDialog } from "./DeleteFolderDialog.tsx";
+import { commandShown, syncShown } from "./features.ts";
 import { SidebarResizer, useSidebarWidth } from "./SidebarResizer.tsx";
 import { builtInTheme } from "./appearance.ts";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
@@ -858,7 +859,7 @@ export function VaultView(props: {
       setTag(undefined);
       setPanel(name);
     };
-    return {
+    const all: Record<CommandId, (() => void) | undefined> = {
       palette: () => {
         setDialog("palette");
       },
@@ -1062,6 +1063,9 @@ export function VaultView(props: {
         : undefined,
       closeVault: onClose,
     };
+    // What this build does not show, as sync before its release, cannot run.
+    for (const id of commandIds) if (!commandShown(id)) all[id] = undefined;
+    return all;
   }, [
     state.status,
     selected,
@@ -1228,14 +1232,18 @@ export function VaultView(props: {
       "previousTab",
       "closeTab",
     ]),
-    menuOf(t("menuSync"), menuIcons.sync, [
-      "servers",
-      "sync",
-      "members",
-      "spaces",
-      "share",
-      "notifications",
-    ]),
+    ...(syncShown
+      ? [
+          menuOf(t("menuSync"), menuIcons.sync, [
+            "servers",
+            "sync",
+            "members",
+            "spaces",
+            "share",
+            "notifications",
+          ]),
+        ]
+      : []),
     menuOf(t("menuSettings"), menuIcons.settings, [
       "templateSettings",
       "appearance",
@@ -1844,7 +1852,7 @@ export function VaultView(props: {
       ) : null}
       {dialog === "shortcuts" ? (
         <ShortcutsDialog
-          commands={commandIds.map((id) => ({ id, name: t(`command_${id}`) }))}
+          commands={commandIds.filter(commandShown).map((id) => ({ id, name: t(`command_${id}`) }))}
           defaults={defaultHotkeys}
           chosen={chosenHotkeys}
           onListening={setListening}
