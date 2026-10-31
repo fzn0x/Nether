@@ -1,5 +1,6 @@
 // The server's configuration, read from environment variables.
 import { isIP } from "node:net";
+import { fileURLToPath } from "node:url";
 import { type EnterpriseSwitches, enterpriseFeatures, switchVariable } from "./enterprise.ts";
 
 export const logLevels = ["fatal", "error", "warn", "info", "debug", "trace", "silent"] as const;
@@ -35,7 +36,16 @@ export interface Config {
   readonly historyDays: number;
   /** Scheduled backups (ADR 0052), or none. */
   readonly backup: BackupConfig | null;
+  /** The web app's build to serve at `/` (ADR 0053), or none. */
+  readonly webApp: WebAppConfig | null;
   readonly enterprise: EnterpriseSwitches;
+}
+
+export interface WebAppConfig {
+  /** The folder of the web app's build, with its index.html. */
+  readonly dir: string;
+  /** Whether NETHER_WEB_APP named it, so the server must serve it, rather than finding it there. */
+  readonly named: boolean;
 }
 
 export interface MailConfig {
@@ -360,6 +370,19 @@ function readHistoryDays(env: NodeJS.ProcessEnv): number {
   return Number(value);
 }
 
+/** Where the web app is built, beside the server in the repository: apps/web/dist. */
+export const builtWebApp = fileURLToPath(new URL("../../web/dist", import.meta.url));
+
+/**
+ * The web app to serve: the folder NETHER_WEB_APP names, none for "off",
+ * and by default the one built beside the server, if it was built.
+ */
+function readWebApp(env: NodeJS.ProcessEnv): WebAppConfig | null {
+  const value = env.NETHER_WEB_APP?.trim() ?? "";
+  if (value.toLowerCase() === "off") return null;
+  return value === "" ? { dir: builtWebApp, named: false } : { dir: value, named: true };
+}
+
 /** Reads the configuration, throwing a ConfigError that names the variable at fault. */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
   const enterprise = Object.fromEntries(
@@ -380,6 +403,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     attachmentLimit: readAttachmentLimit(env),
     historyDays: readHistoryDays(env),
     backup: readBackup(env),
+    webApp: readWebApp(env),
     enterprise,
   };
 }

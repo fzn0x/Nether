@@ -22,6 +22,7 @@ import { purgeVersions, registerVersions } from "./versions.ts";
 import { backfillSearch, registerSearch } from "./search.ts";
 import { setSessionCookies, signInRoutes, wantsCookie } from "./cookies.ts";
 import { backupIfDue, backupTarget, noBlobs } from "./backups.ts";
+import { registerWebApp } from "./web.ts";
 import { registerWorkspaces } from "./workspaces.ts";
 
 /** The server's version, from its package.json (one folder up from src/ and dist/ alike). */
@@ -190,5 +191,7 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
     oidc: oidc === null ? null : { name: oidc.name },
   }));
   await registerEnterprise(app, config.enterprise, services.enterpriseModules ?? []);
+  // The web app at `/`, with its own answer for paths the API does not have.
+  await registerWebApp(app, config.webApp);
   return app;
 }
