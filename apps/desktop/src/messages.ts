@@ -777,6 +777,7 @@ export const messages = {
   webServedBy: "The web app of {server}",
   webSigningIn: "Signing in…",
   webProviderDone: "Signed in. You can close this page.",
+  webOffline: "The server cannot be reached: these are the workspaces kept in this browser.",
   webNoSuchWorkspace: "That workspace is not one of yours on this server.",
   webOpenElsewhere:
     "This workspace is open in another tab of this browser. Use that tab, or close it and try again.",

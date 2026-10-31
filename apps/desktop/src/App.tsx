@@ -5,8 +5,8 @@ import { VaultView } from "./VaultView.tsx";
 import { backend } from "./backend.ts";
 import { t } from "./messages.ts";
 import { type AppInfo, Desktop, type ServerAccount, type VaultInfo } from "./mygo.ts";
-import { ServerError, type Workspace, account, makeWorkspace, redeemCode } from "./server.ts";
-import { webFetch, webServer } from "./web.ts";
+import { ServerError, type Workspace, makeWorkspace, redeemCode } from "./server.ts";
+import { webFetch, webServer, webWorkspaces } from "./web.ts";
 
 const platforms: Partial<Record<string, string>> = {
   darwin: "macOS",
@@ -131,6 +131,8 @@ function WebWelcome(props: { readonly onOpen: (vault: VaultInfo) => void }) {
   const { onOpen } = props;
   const [signedIn, setSignedIn] = useState<ServerAccount | null | undefined>();
   const [workspaces, setWorkspaces] = useState<readonly Workspace[]>([]);
+  /** Whether the server could not be reached, and the workspaces are those kept here. */
+  const [offline, setOffline] = useState(false);
   const [invitation, setInvitation] = useState(
     location.pathname === "/invite" ? location.href : undefined,
   );
@@ -147,11 +149,12 @@ function WebWelcome(props: { readonly onOpen: (vault: VaultInfo) => void }) {
       return;
     }
     try {
-      setWorkspaces((await account(webFetch, webServer, "")).workspaces);
+      const known = await webWorkspaces();
+      setWorkspaces(known.workspaces);
+      setOffline(known.offline);
       setSignedIn(found);
     } catch (reason) {
       if (reason instanceof ServerError && reason.status === 401) {
-        await backend.forgetServer(webServer);
         setSignedIn(null);
       } else {
         setSignedIn(found);
@@ -233,6 +236,7 @@ function WebWelcome(props: { readonly onOpen: (vault: VaultInfo) => void }) {
         </div>
       ) : null}
       {status === undefined ? null : <p role="status">{status}</p>}
+      {offline && signedIn !== null ? <p role="status">{t("webOffline")}</p> : null}
       {error === undefined ? null : (
         <p className="error" role="alert">
           {error}

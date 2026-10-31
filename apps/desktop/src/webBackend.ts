@@ -8,62 +8,34 @@
 import { OpfsFiles, type OpfsDirectory, SqliteStore, isNotePath } from "@nether/storage";
 import type { Backend, Connection, Exporter, VaultMedia } from "./backend.ts";
 import { t } from "./messages.ts";
-import type { ServerAccount, VaultInfo } from "./mygo.ts";
-import { type LoopbackWait, ServerError, account } from "./server.ts";
+import type { VaultInfo } from "./mygo.ts";
+import type { LoopbackWait } from "./server.ts";
 import { linkVaultStore } from "./sync.ts";
-import { providerChannel, providerReturn, webFetch, webServer } from "./web.ts";
+import {
+  forgetAccount,
+  keepAccount,
+  keyPrefix,
+  providerChannel,
+  providerReturn,
+  signedInAccount,
+  store,
+  stored,
+  webFetch,
+  webServer,
+  webWorkspaces,
+} from "./web.ts";
 import { webImporter } from "./webImports.ts";
 import { openWebIndex } from "./webIndex.ts";
 import { makeZip } from "./webZip.ts";
-
-const accountKey = "nether.web.account";
-const keyPrefix = "nether.web.key.";
-
-function stored(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function store(key: string, value: string | undefined): void {
-  try {
-    if (value === undefined) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
-  } catch {
-    // Storage that is refused, as in a private window, keeps nothing.
-  }
-}
-
-/** The account signed in, as this browser last knew it. */
-function signedInAccount(): ServerAccount | undefined {
-  const text = stored(accountKey);
-  if (text === null) return undefined;
-  try {
-    const value = JSON.parse(text) as Partial<ServerAccount>;
-    return value.url === webServer && typeof value.user?.id === "string"
-      ? (value as ServerAccount)
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 /** A workspace as a vault: its ID, its name, and the server it is on. */
 function vaultOf(workspace: { readonly id: string; readonly name: string }): VaultInfo {
   return { id: workspace.id, name: workspace.name, path: new URL(webServer).host };
 }
 
-/** The account's workspaces; none when signed out, which it then forgets. */
+/** The account's workspaces, those kept when the server cannot be reached. */
 async function workspaces() {
-  if (signedInAccount() === undefined) return [];
-  try {
-    return (await account(webFetch, webServer, "")).workspaces;
-  } catch (error) {
-    if (error instanceof ServerError && error.status === 401) store(accountKey, undefined);
-    throw error;
-  }
+  return (await webWorkspaces()).workspaces;
 }
 
 function base64(bytes: Uint8Array): string {
@@ -241,17 +213,13 @@ export const web: Backend = {
     return Promise.resolve(signedIn === undefined ? [] : [signedIn]);
   },
   saveServer(signedIn) {
-    if (signedIn.url === webServer) store(accountKey, JSON.stringify(signedIn));
+    keepAccount(signedIn);
     return Promise.resolve();
   },
   serverToken: (url) =>
     Promise.resolve(url === webServer && signedInAccount() !== undefined ? "" : undefined),
   forgetServer(url) {
-    if (url === webServer) {
-      const signedIn = signedInAccount();
-      if (signedIn !== undefined) store(keyPrefix + signedIn.user.id, undefined);
-      store(accountKey, undefined);
-    }
+    if (url === webServer) forgetAccount();
     return Promise.resolve();
   },
   serverKey(url) {
