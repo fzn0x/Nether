@@ -41,10 +41,19 @@ editions, no license keys and no seat limits, and nothing phones home.
 
 ## Where it stands
 
-Nether has finished its first phase, foundations: the decisions, the
-repository and the data model. The next one brings the desktop app with
-the vault and the editor; the [roadmap](../roadmap/) lists what each
-phase delivers.
+Three of Nether's six phases are done. The desktop app keeps a vault of
+Markdown notes with the block editor, links and backlinks, tags, search,
+templates and export, and turns notes into databases with six views,
+relations, rollups and formulas, with the graph, the canvas, themes, and
+importers from Obsidian, Notion, Logseq, HTML and CSV. Version 0.0.1, a
+developer preview of it, is ready to [install](../install/).
+
+The fourth, sync and collaboration, is under way and will be Nether's
+first public release. Its server is built: accounts, sync with end-to-end
+encryption, attachments, history, spaces and permissions, co-editing,
+comments and mentions, search and backups. The web app and the
+`docker compose` setup come next. The [roadmap](../roadmap/) lists what
+each phase delivers.
 
 The full requirements, the architecture and the decision records live in
 the [repository](https://github.com/fzn0x/Nether/tree/main/docs).

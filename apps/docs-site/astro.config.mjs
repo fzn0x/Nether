@@ -16,7 +16,7 @@ export default defineConfig({
       editLink: { baseUrl: "https://github.com/fzn0x/Nether/edit/main/apps/docs-site/" },
       customCss: ["./src/styles/theme.css"],
       sidebar: [
-        { label: "Start here", items: ["introduction", "roadmap"] },
+        { label: "Start here", items: ["introduction", "install", "roadmap"] },
         {
           label: "Notes",
           items: [

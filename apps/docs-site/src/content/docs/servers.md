@@ -206,6 +206,20 @@ history; those come from the apps that can read it.
 
 ## For admins
 
-The server's README covers running a server, its first-run setup, email,
-and single sign-on. A self-hosting guide comes with the server's
-`docker compose` setup.
+The [server's README](https://github.com/fzn0x/Nether/blob/main/apps/server/README.md)
+covers running a server and its first-run setup, email, single sign-on,
+where attachments are kept, how long history is kept, and every setting.
+
+- **Search**: the server indexes the notes of workspaces it can read as
+  they are stored, and searches only what each account may open.
+  Encrypted workspaces are searched in the apps.
+- **Backups**: with `NETHER_BACKUP` set, the server backs up its database
+  and attachments on a schedule, to a folder or an S3 bucket, and keeps
+  the latest few. `node dist/admin.js backup` makes one now, `backups`
+  lists them, and `restore` restores one into an empty database, at the
+  version it was made with, then brings it up to date. CI restores a
+  backup the same way on every change.
+- **Upgrades**: the server brings its database up to date as it starts,
+  and may skip versions.
+
+A self-hosting guide comes with the server's `docker compose` setup.
