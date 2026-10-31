@@ -2703,3 +2703,157 @@ kbd {
   white-space: nowrap;
   user-select: none;
 }
+
+/* Comments (ADR 0044): in the note, the text each thread is on, tinted and
+   underlined in the accent, the active thread's more; beside the note, its
+   threads, each with its quote, its comments and a box to reply. */
+.nether-editor .comment-highlight {
+  border-block-end: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  cursor: pointer;
+}
+
+.nether-editor .comment-highlight.active {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.note-panel .comment-threads {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.comment-thread {
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.comment-thread.active {
+  border-color: var(--accent);
+}
+
+.comments-panel > .comment-thread.new {
+  margin-bottom: 0.75rem;
+}
+
+.comment-thread.new .comment-quote {
+  margin-bottom: 0.375rem;
+}
+
+.comment-thread-head {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+  justify-content: space-between;
+  margin-bottom: 0.375rem;
+}
+
+.note-panel .comment-quote {
+  display: -webkit-box;
+  flex: 1;
+  margin: 0;
+  padding: 0 0 0 0.5rem;
+  overflow: hidden;
+  border-inline-start: 2px solid var(--accent);
+  color: var(--muted);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.note-panel .comment-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comment-item + .comment-item {
+  margin-top: 0.5rem;
+}
+
+.comment-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.comment-author {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.comment-body {
+  margin: 0.125rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  margin-top: 0.125rem;
+}
+
+.note-panel .comment-action {
+  min-block-size: 1.5rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.note-panel .comment-action.danger {
+  color: var(--accent);
+}
+
+.comment-resolved {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.comment-thread .comment-box {
+  margin-top: 0.5rem;
+}
+
+.comment-box textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.comment-box-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 0.375rem;
+}
+
+.note-panel .comment-send {
+  min-block-size: 1.5rem;
+  padding: 0.2rem 0.75rem;
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.note-panel .comment-send:hover {
+  color: var(--bg);
+}
+
+.note-panel .comment-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.comment-resolved-threads summary {
+  min-block-size: 1.5rem;
+  margin-top: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+}

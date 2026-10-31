@@ -240,9 +240,10 @@ export function VaultView(props: {
     | "shortcuts"
     | undefined
   >();
-  // Asks the open note to switch modes, or to take a new name.
+  // Asks the open note to switch modes, to take a new name, or to comment on its selection.
   const [sourceRequest, setSourceRequest] = useState(0);
   const [renameRequest, setRenameRequest] = useState(0);
+  const [commentRequest, setCommentRequest] = useState(0);
   const { hotkeys, chosen: chosenHotkeys, save: saveHotkeys } = useHotkeys(vault);
   // Whether the app updates itself, and checks on its own.
   const [updates, setUpdates] = useState({ available: false, automatic: false });
@@ -496,6 +497,16 @@ export function VaultView(props: {
           : () => {
               setDialog("history");
             },
+      // Comments name their writer: a vault linked to a workspace has one (ADR 0044).
+      comment:
+        note === undefined ||
+        mode !== "blocks" ||
+        sync.me === undefined ||
+        sync.levelOf?.(note) === "view"
+          ? undefined
+          : () => {
+              setCommentRequest((count) => count + 1);
+            },
       export:
         note === undefined
           ? undefined
@@ -575,7 +586,19 @@ export function VaultView(props: {
         : undefined,
       closeVault: onClose,
     };
-  }, [state.status, selected, openPeriodic, trashNote, onClose, updates, readUpdates, sync.link]);
+  }, [
+    state.status,
+    selected,
+    openPeriodic,
+    trashNote,
+    onClose,
+    updates,
+    readUpdates,
+    sync.link,
+    sync.me,
+    sync.levelOf,
+    mode,
+  ]);
 
   // Shortcuts run their commands, before the editors, which have their own uses for keys.
   const latest = useRef({ run, hotkeys });
@@ -1091,6 +1114,10 @@ export function VaultView(props: {
               sourceRequest={sourceRequest}
               renameRequest={renameRequest}
               sourceKeys={keysOf("toggleSource")}
+              me={sync.me}
+              canComment={sync.levelOf?.(selected) !== "view"}
+              commentRequest={commentRequest}
+              commentKeys={keysOf("comment")}
               onShown={loadLinks}
             />
           )

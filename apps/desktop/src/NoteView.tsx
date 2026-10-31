@@ -1,13 +1,21 @@
 // A note in the editor, with its title and what happened to its last save.
 // It shows as blocks, or as its Markdown source, which Ctrl or Cmd and /
-// switches between.
+// switches between. In a vault linked to a workspace, its comments show
+// beside it, their text highlighted in it (ADR 0044).
 import type { NoteId } from "@nether/core";
-import { NoteEditor } from "@nether/editor";
+import {
+  type CommentAnchor,
+  type CommentAuthor,
+  type CommentThread,
+  type NoteCommentsView,
+  NoteEditor,
+} from "@nether/editor";
 import "@nether/editor/math.css";
 import type { Backlink, LinkGraph, NoteIndex } from "@nether/graph";
 import type { Vault } from "@nether/storage";
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { type Exporter, type VaultMedia, backend } from "./backend.ts";
+import { CommentsPanel } from "./CommentsPanel.tsx";
 import { readIndexRow } from "./indexer.ts";
 import { t } from "./messages.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
@@ -18,6 +26,7 @@ import { PropertiesPanel } from "./PropertiesPanel.tsx";
 import { UnlinkedMentions } from "./UnlinkedMentions.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
 import { useGraph } from "./useGraph.ts";
+import { useComments } from "./useComments.ts";
 import { type GoLive, useLive } from "./useLive.ts";
 import { useNote } from "./useNote.ts";
 
@@ -83,6 +92,14 @@ export default function NoteView(props: {
   readonly onShown: () => void;
   /** Syncs the note live while it is open, with the others' carets, when the vault syncs. */
   readonly live?: GoLive | undefined;
+  /** Who this person is in the vault's workspace; without one, notes have no comments. */
+  readonly me?: CommentAuthor | undefined;
+  /** Whether this person may comment on the note, or only read its comments. */
+  readonly canComment?: boolean;
+  /** Changes when the user asks to comment on the selection. */
+  readonly commentRequest?: number;
+  /** The shortcut that comments on the selection, for the comments' hint. */
+  readonly commentKeys?: string | undefined;
 }) {
   const {
     vault,
@@ -103,12 +120,41 @@ export default function NoteView(props: {
     sourceKeys,
     onShown,
     live,
+    me,
+    canComment = false,
+    commentRequest = 0,
+    commentKeys,
   } = props;
   const note = vault.note(id);
   const { state, saveError, editText, refresh } = useNote(vault, id);
   const collaboration = useLive(live, id, state.status === "ready" ? state.document : undefined);
   const [fileError, setFileError] = useState<string | undefined>();
   const [vim, setVim] = useState(storedVim);
+  const comments = useComments(vault, id, me !== undefined);
+  // The thread shown in the note, and the text a new one is being written on.
+  const [activeThread, setActiveThread] = useState<string | undefined>();
+  const [draft, setDraft] = useState<CommentAnchor | undefined>();
+  useEffect(() => {
+    setActiveThread(undefined);
+    setDraft(undefined);
+  }, [id]);
+  const commentsView = useMemo((): NoteCommentsView | undefined => {
+    if (comments === undefined) return undefined;
+    const threads: CommentThread[] = comments.threads.filter(
+      (thread) => thread.resolved === undefined,
+    );
+    // The text a new thread is being written on shows as the active one.
+    if (draft !== undefined) {
+      threads.push({ id: "", anchor: draft, created: 0, comments: [], resolved: undefined });
+    }
+    return {
+      threads,
+      active: draft === undefined ? activeThread : "",
+      onActivate: setActiveThread,
+      ...(canComment ? { onComment: setDraft } : {}),
+      request: commentRequest,
+    };
+  }, [comments, draft, activeThread, canComment, commentRequest]);
   // The editor takes focus when the user switches modes, not when a note opens.
   const [switched, setSwitched] = useState(false);
   const files = useMemo(
@@ -295,6 +341,7 @@ export default function NoteView(props: {
               autofocus={switched}
               {...(focus === undefined ? {} : { focus })}
               {...(collaboration === undefined ? {} : { collaboration })}
+              {...(commentsView === undefined ? {} : { comments: commentsView })}
             />
             <DatabaseSlot
               // Its panels, view and errors are the note's: another note starts afresh.
@@ -313,7 +360,22 @@ export default function NoteView(props: {
           </>
         )}
       </article>
-      <NotePanel vault={vault} graph={graph} id={id} onOpenNote={onOpenNote} />
+      <NotePanel vault={vault} graph={graph} id={id} onOpenNote={onOpenNote}>
+        {comments === undefined || me === undefined ? null : (
+          <CommentsPanel
+            comments={comments}
+            me={me}
+            canComment={canComment}
+            active={activeThread}
+            onActivate={setActiveThread}
+            draft={draft}
+            onDraftDone={() => {
+              setDraft(undefined);
+            }}
+            commentKeys={commentKeys === undefined ? undefined : formatKeys(commentKeys)}
+          />
+        )}
+      </NotePanel>
     </div>
   );
 }
@@ -413,22 +475,25 @@ function useBacklinkContexts(
 }
 
 /**
- * Beside the note: its outline, the notes that link to it with the text
- * around each link, and the notes that mention it without a link.
+ * Beside the note: its comments, given as children, its outline, the notes
+ * that link to it with the text around each link, and the notes that
+ * mention it without a link.
  */
 function NotePanel(props: {
   readonly vault: Vault;
   readonly graph: LinkGraph;
   readonly id: NoteId;
   readonly onOpenNote: (id: NoteId, part?: NotePart) => void;
+  readonly children?: ReactNode;
 }) {
-  const { vault, graph, id, onOpenNote } = props;
+  const { vault, graph, id, onOpenNote, children } = props;
   const version = useGraph(graph);
   const headings = useMemo(() => graph.note(id)?.index.headings ?? [], [graph, id, version]);
   const backlinks = useMemo(() => graph.backlinks(id), [graph, id, version]);
   const contextsOf = useBacklinkContexts(vault, graph, id, backlinks);
   return (
     <aside className="note-panel" aria-label={t("aboutNote")}>
+      {children}
       <section aria-labelledby="outline-title">
         <h2 id="outline-title">{t("outline")}</h2>
         {headings.length === 0 ? (

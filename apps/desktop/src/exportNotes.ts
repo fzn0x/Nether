@@ -1,11 +1,12 @@
 // Exports notes: one, a folder's, or the whole vault's. As Markdown, the
-// notes' files as they are, with the files they show; as HTML, a page for
+// notes' files as they are, with the files they show and their comments as
+// JSON in `.nether/comments.json` (ADR 0044); as HTML, a page for
 // each note, its links leading to the pages exported with it and its files
 // beside it; as a PDF, every note printed from a view of the page, each on
 // a new page. The user chooses where first, and a ZIP goes to the app in
 // batches as it is made. This loads when an export starts.
 import type { LinkTarget } from "@nether/core";
-import { diagramToSvg, highlightCode, mathToMathml } from "@nether/editor";
+import { diagramToSvg, highlightCode, mathToMathml, readThreads } from "@nether/editor";
 import { type LinkGraph, noteSection } from "@nether/graph";
 import {
   type HtmlHooks,
@@ -17,7 +18,8 @@ import {
   noteToHtml,
   parseMarkdown,
 } from "@nether/markdown";
-import { type NoteEntry, type Vault, isNotePath } from "@nether/storage";
+import { type NoteEntry, type Vault, commentsDocument, isNotePath } from "@nether/storage";
+import * as Y from "yjs";
 import type { Exporter, VaultMedia } from "./backend.ts";
 import { pageStyle, printStyle } from "./exportStyle.ts";
 import type { ExportEntry, PDFPage } from "./mygo.ts";
@@ -265,6 +267,56 @@ function indexPage(name: string, notes: readonly NoteEntry[]): string {
   ].join("\n");
 }
 
+/** Where a Markdown export keeps its notes' comments. */
+export const commentsPath = ".nether/comments.json";
+
+/** A time, as JSON writes it. */
+function isoTime(time: number): string {
+  return new Date(time).toISOString();
+}
+
+/**
+ * The comments of the notes exported, so they leave Nether in an open form
+ * as the notes do: each note's threads, with what each comment says, who
+ * wrote it and when. Undefined when none of the notes has comments.
+ */
+export async function exportedComments(
+  vault: Vault,
+  notes: readonly NoteEntry[],
+): Promise<string | undefined> {
+  const exported = [];
+  for (const note of notes) {
+    const stored = await vault.documents.document(commentsDocument(note.id));
+    if (stored.updates.length === 0) continue;
+    const document = new Y.Doc();
+    for (const update of stored.updates) Y.applyUpdate(document, update.data);
+    const threads = readThreads(document);
+    document.destroy();
+    if (threads.length === 0) continue;
+    exported.push({
+      note: note.id,
+      path: note.path,
+      threads: threads.map((thread) => ({
+        id: thread.id,
+        quote: thread.anchor.quote,
+        ...(thread.anchor.block === undefined ? {} : { block: thread.anchor.block }),
+        created: isoTime(thread.created),
+        ...(thread.resolved === undefined
+          ? {}
+          : { resolved: { by: thread.resolved.by, at: isoTime(thread.resolved.at) } }),
+        comments: thread.comments.map((comment) => ({
+          id: comment.id,
+          author: comment.author,
+          body: comment.body,
+          created: isoTime(comment.created),
+          ...(comment.edited === undefined ? {} : { edited: isoTime(comment.edited) }),
+        })),
+      })),
+    });
+  }
+  return exported.length === 0 ? undefined : `${JSON.stringify({ notes: exported }, null, 2)}\n`;
+}
+
 async function sendInBatches(
   exporter: Exporter,
   token: string,
@@ -315,6 +367,8 @@ async function exportZip(job: ExportJob, token: string): Promise<string> {
   if (job.format === "html" && notes.length > 1) {
     await exporter.add(token, [{ path: "index.html", text: indexPage(job.name, notes) }]);
   }
+  const comments = job.format === "markdown" ? await exportedComments(vault, notes) : undefined;
+  if (comments !== undefined) await exporter.add(token, [{ path: commentsPath, text: comments }]);
   return exporter.finish(token);
 }
 

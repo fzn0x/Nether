@@ -1,8 +1,9 @@
 // The open vault's sync with its workspace, while the vault is open: the
 // engine starts once the vault's link and its server's token are known,
 // stops when the vault closes or is unlinked, and tells how it is going.
+import type { CommentAuthor } from "@nether/editor";
 import type { Vault } from "@nether/storage";
-import type { SyncStatus, VaultSync } from "@nether/sync-client";
+import type { Level, SyncStatus, VaultSync } from "@nether/sync-client";
 import { colorFor } from "./presence.ts";
 import type { GoLive } from "./useLive.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,6 +25,10 @@ export interface VaultSyncState {
   unlink(): Promise<void>;
   /** Syncs an open note live, with the others' carets (ADR 0043), while sync runs. */
   readonly live: GoLive | undefined;
+  /** Who this person is in the workspace, as their comments name them; undefined when not linked. */
+  readonly me: CommentAuthor | undefined;
+  /** The access this account has to a note, while sync runs and knows it. */
+  readonly levelOf: ((id: string) => Level | undefined) | undefined;
 }
 
 export function useSync(vault: Vault | undefined): VaultSyncState {
@@ -32,6 +37,8 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
   const [signedOut, setSignedOut] = useState(false);
   const [problem, setProblem] = useState<string | undefined>();
   const [live, setLive] = useState<GoLive | undefined>();
+  const [me, setMe] = useState<CommentAuthor | undefined>();
+  const [levelOf, setLevelOf] = useState<((id: string) => Level | undefined) | undefined>();
   // Bumped to start again, as after signing in.
   const [round, setRound] = useState(0);
   const running = useRef<VaultSync | undefined>(undefined);
@@ -47,6 +54,20 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
       current = false;
     };
   }, [vault]);
+
+  // The account the vault syncs as, known offline too, from the servers signed in to.
+  useEffect(() => {
+    setMe(undefined);
+    if (link === undefined) return;
+    let current = true;
+    void backend.servers().then((servers) => {
+      const user = servers.find((account) => account.url === link.server)?.user;
+      if (current && user !== undefined) setMe({ id: user.id, name: user.name });
+    });
+    return () => {
+      current = false;
+    };
+  }, [link, round]);
 
   useEffect(() => {
     setStatus(undefined);
@@ -116,11 +137,13 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
         setLive(
           () => (id: string, document: Parameters<GoLive>[1]) => started.live(id, document, editor),
         );
+        setLevelOf(() => (id: string) => started.level(id));
       }
     })();
     return () => {
       current = false;
       setLive(undefined);
+      setLevelOf(undefined);
       if (running.current === engine) running.current = undefined;
       void engine?.stop();
     };
@@ -169,5 +192,5 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
     setLink(undefined);
   }, [vault]);
 
-  return { link, status, signedOut, problem, linkTo, unlink, live };
+  return { link, status, signedOut, problem, linkTo, unlink, live, me, levelOf };
 }
