@@ -1,7 +1,7 @@
 {
   "name": "Nether",
   "identifier": "io.github.fzn0x.nether",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "copyright": "© 2026 Nether contributors",
   "devUrl": "http://localhost:5173",
   "devCommand": "pnpm exec vite",
@@ -13,5 +13,10 @@
     "comment": "Markdown notes with databases, offline first",
     "categories": ["Office", "Utility"],
     "command": "nether"
+  },
+  "updates": {
+    "publicKey": "Aw+3VmU/RcXs8m2DuEJZsPPP3TzV5LagfI2ymVfrIaY=",
+    "github": "fzn0x/Nether",
+    "changelog": "../../CHANGELOG.md"
   }
 }
