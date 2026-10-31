@@ -24,6 +24,7 @@ export {
   propertiesToHtml,
 } from "./html.ts";
 export { type WrittenLink, findLinks, relinkMarkdown } from "./links.ts";
+export { type Mention, findMentions, linkMention } from "./mentions.ts";
 export { alignBlocks, mergeBlocks, mergeProperties } from "./merge.ts";
 export { type Source, type SourceBlock, type Style, fingerprint } from "./source.ts";
 export { type TemplateCursor, type TemplateNote, templateNote } from "./template.ts";
