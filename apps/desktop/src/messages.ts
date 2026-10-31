@@ -277,6 +277,8 @@ export const messages = {
   monthNote: "This month",
   templateMissing: "The template {template} is not in the vault, so the note starts blank.",
   menus: "Menus",
+  resizeSidebar: "Sidebar width",
+  resizeSidebarHint: "Drag to resize; double-click to reset",
   menuFile: "File",
   menuNote: "Note",
   menuView: "View",

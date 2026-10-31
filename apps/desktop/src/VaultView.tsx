@@ -6,6 +6,7 @@ import type { NoteId, Period } from "@nether/core";
 import type { LinkGraph } from "@nether/graph";
 import type { NoteEntry } from "@nether/storage";
 import {
+  type CSSProperties,
   Suspense,
   lazy,
   useCallback,
@@ -25,6 +26,7 @@ import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
 import { type Menu, MenuBar } from "./MenuBar.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { NewFolderDialog } from "./NewFolderDialog.tsx";
+import { SidebarResizer, useSidebarWidth } from "./SidebarResizer.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { MergeNoteDialog } from "./MergeNoteDialog.tsx";
@@ -253,6 +255,7 @@ export function VaultView(props: {
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
   const folders = useFolders(vault);
+  const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const bookmarks = useBookmarks(vault);
   // Where notes are open: tabs in one pane or two (ADR 0046). Commands
   // about a note act on the note the focused pane shows.
@@ -1157,8 +1160,12 @@ export function VaultView(props: {
   ];
 
   return (
-    <div className="vault">
-      <aside className="sidebar" aria-label={info.name}>
+    <div
+      className="vault"
+      style={{ "--sidebar-width": `${String(sidebarWidth)}px` } as CSSProperties}
+    >
+      <aside id="sidebar" className="sidebar" aria-label={info.name}>
+        <SidebarResizer width={sidebarWidth} onResize={setSidebarWidth} controls="sidebar" />
         <header className="sidebar-header">
           <h2 title={info.path}>{info.name}</h2>
           <div className="sidebar-header-actions">
