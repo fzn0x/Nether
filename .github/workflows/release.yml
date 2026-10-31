@@ -1,0 +1,211 @@
+name: Release
+
+# A tag v<version> builds the desktop app for every platform, signs its
+# updates, and publishes the release: the installers and packages, the
+# archives and manifests installed apps update from, and SHA256SUMS. The
+# release is the repository's latest, which installed apps read their
+# updates from (releases/latest/download), so it is never a draft or a
+# prerelease.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  check:
+    name: Check the version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: The tag is the app's version, and the changelog has its section
+        run: |
+          version="$(jq -r .version apps/desktop/mygo.json)"
+          test "$GITHUB_REF_NAME" = "v$version" || {
+            echo "The tag $GITHUB_REF_NAME is not v$version, the version in apps/desktop/mygo.json."
+            exit 1
+          }
+          grep -q "^## \[$version\]" CHANGELOG.md || {
+            echo "CHANGELOG.md has no section for $version."
+            exit 1
+          }
+
+  desktop:
+    name: ${{ matrix.name }}
+    needs: check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-amd64, os: ubuntu-latest, platform: linux/amd64 }
+          - { name: windows-amd64, os: ubuntu-latest, platform: windows/amd64 }
+          # On macOS, as the disk image needs it.
+          - { name: darwin-universal, os: macos-latest, platform: darwin/universal }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/desktop/go.mod
+          cache-dependency-path: apps/desktop/go.sum
+      - run: pnpm install --frozen-lockfile
+      - name: Install NSIS, for the Windows installer
+        if: matrix.name == 'windows-amd64'
+        run: sudo apt-get update && sudo apt-get install -y nsis
+      # The builds are not code signed yet: Windows warns of an unknown
+      # publisher, and macOS asks to open the app from its settings. Their
+      # updates are signed, which installed apps check.
+      - name: Build, with its updates signed
+        working-directory: apps/desktop
+        env:
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -n "$MYGO_UPDATER_PRIVATE_KEY" || {
+            echo "MYGO_UPDATER_PRIVATE_KEY is not set: installed apps could not update to this release."
+            exit 1
+          }
+          go tool mygo build -platform "${{ matrix.platform }}"
+      - name: The release's files, in lowercase
+        working-directory: apps/desktop/build/${{ matrix.name }}
+        run: |
+          version="$(jq -r .version ../../mygo.json)"
+          out="$RUNNER_TEMP/release"
+          mkdir -p "$out"
+          # Archives, deltas and manifests keep their names: the manifests name them.
+          for file in *.tar.gz *.delta *.deb install.sh update-*.json; do
+            if [ -e "$file" ]; then cp "$file" "$out/"; fi
+          done
+          for file in *Setup*.exe; do
+            if [ -e "$file" ]; then cp "$file" "$out/nether-$version-windows-amd64-setup.exe"; fi
+          done
+          for file in *.dmg; do
+            if [ -e "$file" ]; then cp "$file" "$out/nether-$version-darwin-universal.dmg"; fi
+          done
+          ls -l "$out"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.name }}
+          path: ${{ runner.temp }}/release/
+      - name: Keep the Linux build for the AppImage and the Flatpak
+        if: matrix.name == 'linux-amd64'
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-linux-amd64
+          path: apps/desktop/build/
+          retention-days: 1
+
+  appimage:
+    name: AppImage
+    needs: desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: build-linux-amd64
+          path: apps/desktop/build
+      - name: Fetch appimagetool 1.9.1
+        run: |
+          curl -fsSLo /tmp/appimagetool https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          echo "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  /tmp/appimagetool" | sha256sum -c -
+          chmod +x /tmp/appimagetool
+      - name: Build the AppImage
+        working-directory: apps/desktop
+        run: |
+          sh packaging/appimage.sh build/linux-amd64 /tmp/appimagetool
+          version="$(jq -r .version mygo.json)"
+          mkdir -p "$RUNNER_TEMP/release"
+          mv build/linux-amd64/*.AppImage "$RUNNER_TEMP/release/nether-$version-x86_64.appimage"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-appimage
+          path: ${{ runner.temp }}/release/
+
+  flatpak:
+    name: Flatpak
+    needs: desktop
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-48
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: build-linux-amd64
+          path: apps/desktop/build
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: nether.flatpak
+          manifest-path: apps/desktop/packaging/flatpak/io.github.fzn0x.Nether.yml
+          cache: false
+          upload-artifact: false
+      - name: Name the bundle
+        run: |
+          version="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' apps/desktop/mygo.json)"
+          mkdir -p release
+          mv nether.flatpak "release/nether-$version-x86_64.flatpak"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-flatpak
+          path: release/
+
+  publish:
+    name: Publish
+    needs: [desktop, appimage, flatpak]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+      - name: Checksums and notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cd release
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+          cd ..
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+          {
+            cat .github/release-notes.md | sed "s|{version}|$version|g; s|{url}|$url|g"
+            echo
+            echo "## What's in $version"
+            echo
+            # The version's section of the changelog, without its heading.
+            awk -v head="## [$version]" '
+              index($0, head) == 1 { found = 1; next }
+              found && /^## \[/ { exit }
+              found && /^\[[^]]+\]: / { exit }
+              found { print }
+            ' CHANGELOG.md
+          } > notes.md
+      - name: Publish the release, the manifests last
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s extglob
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Nether $GITHUB_REF_NAME" --notes-file notes.md --latest \
+            release/!(update-*.json)
+          # Apps read a manifest, then download what it names: those are up first.
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" release/update-*.json
