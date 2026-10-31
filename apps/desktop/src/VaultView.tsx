@@ -25,6 +25,7 @@ import { CommandPalette } from "./CommandPalette.tsx";
 import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
 import { type Menu, MenuBar } from "./MenuBar.tsx";
 import { IconButton } from "./IconButton.tsx";
+import { commandIcons, itemIcons, menuIcons } from "./icons.ts";
 import { NewFolderDialog } from "./NewFolderDialog.tsx";
 import { SidebarResizer, useSidebarWidth } from "./SidebarResizer.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
@@ -584,12 +585,14 @@ export function VaultView(props: {
     return [
       {
         label: t("newNoteHere"),
+        icon: itemIcons.newNote,
         run: () => {
           newNoteIn(path);
         },
       },
       {
         label: t("newFolderHere"),
+        icon: itemIcons.newFolder,
         run: () => {
           setNewFolderIn(path);
         },
@@ -597,6 +600,7 @@ export function VaultView(props: {
       "separator",
       {
         label: t("deleteFolder"),
+        icon: itemIcons.trash,
         danger: true,
         disabled: !empty,
         run: () => {
@@ -649,18 +653,21 @@ export function VaultView(props: {
       return [
         {
           label: t("menuOpen"),
+          icon: itemIcons.open,
           run: () => {
             openNote(id);
           },
         },
         {
           label: t("menuOpenNewTab"),
+          icon: itemIcons.openNewTab,
           run: () => {
             openNote(id, undefined, "tab");
           },
         },
         {
           label: t("menuOpenRight"),
+          icon: itemIcons.openRight,
           run: () => {
             openNote(id, undefined, "right");
           },
@@ -668,12 +675,14 @@ export function VaultView(props: {
         "separator",
         {
           label: t("menuRename"),
+          icon: itemIcons.rename,
           run: () => {
             setNoteDialog({ kind: "rename", id });
           },
         },
         {
           label: t("menuCopy"),
+          icon: itemIcons.copy,
           run: () => {
             setNotice(undefined);
             copyNote(open, id).then((copy) => {
@@ -684,24 +693,28 @@ export function VaultView(props: {
         },
         {
           label: t("menuMove"),
+          icon: itemIcons.move,
           run: () => {
             setNoteDialog({ kind: "move", id });
           },
         },
         {
           label: t("menuMerge"),
+          icon: itemIcons.merge,
           run: () => {
             setNoteDialog({ kind: "merge", id });
           },
         },
         {
           label: t("menuTags"),
+          icon: itemIcons.tags,
           run: () => {
             setNoteDialog({ kind: "tags", id });
           },
         },
         {
           label: bookmarks.has(note.path) ? t("menuUnbookmark") : t("menuBookmark"),
+          icon: itemIcons.bookmark,
           run: () => {
             toggleBookmark(note.path);
           },
@@ -709,6 +722,7 @@ export function VaultView(props: {
         "separator",
         {
           label: t("menuCopyLink"),
+          icon: itemIcons.copyLink,
           run: () => {
             // The shortest link that finds it, as Obsidian writes one.
             const link = open.linkTo(note.path, "").replace(/\.md$/i, "");
@@ -717,12 +731,14 @@ export function VaultView(props: {
         },
         {
           label: t("menuCopyPath"),
+          icon: itemIcons.copyPath,
           run: () => {
             copyText(note.path, t("copiedPath", { name: note.title }));
           },
         },
         {
           label: t("menuCopyFullPath"),
+          icon: itemIcons.copyPath,
           run: () => {
             copyText(fullPath(info.path, note.path), t("copiedPath", { name: note.title }));
           },
@@ -733,6 +749,7 @@ export function VaultView(props: {
           : [
               {
                 label: t("menuOpenDefault"),
+                icon: itemIcons.openDefault,
                 run: () => {
                   openFile(note.path).catch(failed);
                 },
@@ -743,6 +760,7 @@ export function VaultView(props: {
           : [
               {
                 label: t("menuReveal"),
+                icon: itemIcons.reveal,
                 run: () => {
                   reveal(note.path).catch(failed);
                 },
@@ -751,6 +769,7 @@ export function VaultView(props: {
         "separator",
         {
           label: t("menuExport"),
+          icon: itemIcons.export,
           run: () => {
             openNote(id);
             setDialog("export");
@@ -758,6 +777,7 @@ export function VaultView(props: {
         },
         {
           label: t("menuHistory"),
+          icon: itemIcons.history,
           run: () => {
             openNote(id);
             setDialog("history");
@@ -766,6 +786,7 @@ export function VaultView(props: {
         "separator",
         {
           label: t("moveToTrash"),
+          icon: itemIcons.trash,
           danger: true,
           run: () => {
             trashNote(id);
@@ -1093,8 +1114,13 @@ export function VaultView(props: {
         : t(`command_${id}`);
 
   /** The menus' items, each a command; one that cannot run now shows, but cannot be chosen. */
-  const menuOf = (label: string, ids: readonly (CommandId | "separator")[]): Menu => ({
+  const menuOf = (
+    label: string,
+    icon: Menu["icon"],
+    ids: readonly (CommandId | "separator")[],
+  ): Menu => ({
     label,
+    icon,
     entries: ids.map((id) => {
       if (id === "separator") return id;
       const command = run[id];
@@ -1106,12 +1132,13 @@ export function VaultView(props: {
         },
         disabled: command === undefined,
         danger: id === "trashNote",
+        icon: commandIcons[id],
         ...(keys === undefined ? {} : { keys }),
       };
     }),
   });
   const menus: readonly Menu[] = [
-    menuOf(t("menuFile"), [
+    menuOf(t("menuFile"), menuIcons.file, [
       "newNote",
       "newFolder",
       "newDatabase",
@@ -1124,7 +1151,7 @@ export function VaultView(props: {
       "separator",
       "closeVault",
     ]),
-    menuOf(t("menuNote"), [
+    menuOf(t("menuNote"), menuIcons.note, [
       "rename",
       "bookmark",
       "toggleSource",
@@ -1134,7 +1161,7 @@ export function VaultView(props: {
       "separator",
       "trashNote",
     ]),
-    menuOf(t("menuView"), [
+    menuOf(t("menuView"), menuIcons.view, [
       "palette",
       "switcher",
       "search",
@@ -1148,8 +1175,15 @@ export function VaultView(props: {
       "previousTab",
       "closeTab",
     ]),
-    menuOf(t("menuSync"), ["servers", "sync", "members", "spaces", "share", "notifications"]),
-    menuOf(t("menuSettings"), [
+    menuOf(t("menuSync"), menuIcons.sync, [
+      "servers",
+      "sync",
+      "members",
+      "spaces",
+      "share",
+      "notifications",
+    ]),
+    menuOf(t("menuSettings"), menuIcons.settings, [
       "templateSettings",
       "appearance",
       "shortcuts",
@@ -1185,7 +1219,7 @@ export function VaultView(props: {
           <>
             <div className="sidebar-actions">
               <IconButton
-                icon="newNote"
+                icon={commandIcons.newNote}
                 label={t("newNote")}
                 keys={keysOf("newNote")}
                 ariaKeys={ariaOf("newNote")}
@@ -1196,7 +1230,7 @@ export function VaultView(props: {
                 }}
               />
               <IconButton
-                icon="newFolder"
+                icon={commandIcons.newFolder}
                 label={t("newFolder")}
                 keys={keysOf("newFolder")}
                 ariaKeys={ariaOf("newFolder")}
@@ -1206,7 +1240,7 @@ export function VaultView(props: {
                 }}
               />
               <IconButton
-                icon="newDatabase"
+                icon={commandIcons.newDatabase}
                 label={t("newDatabase")}
                 keys={keysOf("newDatabase")}
                 ariaKeys={ariaOf("newDatabase")}
@@ -1220,7 +1254,7 @@ export function VaultView(props: {
                 .map((period) => (
                   <IconButton
                     key={period}
-                    icon={`${period}Note`}
+                    icon={commandIcons[`${period}Note`]}
                     label={t(`${period}Note`)}
                     keys={keysOf(`${period}Note`)}
                     ariaKeys={ariaOf(`${period}Note`)}

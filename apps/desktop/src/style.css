@@ -353,7 +353,10 @@ button {
 }
 
 .menu-bar > button {
-  padding: 0.25rem 0.5rem;
+  display: inline-flex;
+  gap: 0.3rem;
+  align-items: center;
+  padding: 0.25rem 0.4rem;
   border: 0;
   border-radius: 4px;
   background: none;
@@ -1626,6 +1629,31 @@ button {
 .context-menu button[aria-disabled="true"] {
   color: var(--muted);
   cursor: default;
+}
+
+/* An item's icon before its text; items without one keep its room, so texts align. */
+.menu-label {
+  display: inline-flex;
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.menu-icon {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+
+.context-menu button:focus .menu-icon,
+.menu-bar > button:hover .menu-icon,
+.menu-bar > button[aria-expanded="true"] .menu-icon {
+  color: currentColor;
+}
+
+.context-menu button.danger .menu-icon {
+  color: currentColor;
 }
 
 .context-menu .menu-keys {

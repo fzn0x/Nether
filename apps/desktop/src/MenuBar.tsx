@@ -5,9 +5,11 @@
 // pointer moving onto another opens that one instead.
 import { type KeyboardEvent, useRef, useState } from "react";
 import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
+import type { Icon } from "./icons.ts";
 
 export interface Menu {
   readonly label: string;
+  readonly icon: Icon;
   readonly entries: readonly MenuEntry[];
 }
 
@@ -73,6 +75,7 @@ export function MenuBar(props: { readonly label: string; readonly menus: readonl
             onKeyDown(event, index);
           }}
         >
+          <menu.icon className="menu-icon" size={15} aria-hidden="true" />
           {menu.label}
         </button>
       ))}

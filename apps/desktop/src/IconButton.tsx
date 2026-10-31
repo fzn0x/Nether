@@ -1,76 +1,12 @@
 // A button shown as an icon, named by its label, which a tooltip shows on
 // hover and on keyboard focus, with its shortcut. The tooltip stays while
 // the pointer is on it and goes with Escape, and keeps inside the window.
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { Icon } from "./icons.ts";
 import { formatKeys } from "./shortcuts.ts";
 
-const stroke = {
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.4,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-} as const;
-
-/** A calendar's frame, which the periodic notes' icons mark within. */
-const calendar = (
-  <>
-    <path d="M2.5 3.5h11v10h-11z" />
-    <path d="M2.5 6.5h11M5.5 2v3M10.5 2v3" />
-  </>
-);
-
-const icons = {
-  newNote: (
-    <>
-      <path d="M9 1.5H4.5a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V5z" />
-      <path d="M9 1.5V5h3.5M8 7.5v4.5M5.75 9.75h4.5" />
-    </>
-  ),
-  newFolder: (
-    <>
-      <path d="M1.5 4a1 1 0 0 1 1-1h3.75l1.5 1.5h6.25a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-11.5a1 1 0 0 1-1-1z" />
-      <path d="M8 6.75v4.5M5.75 9h4.5" />
-    </>
-  ),
-  newDatabase: (
-    <>
-      <path d="M2 2.5h12v11H2z" />
-      <path d="M2 6h12M2 9.75h12M6 6v7.5" />
-    </>
-  ),
-  dayNote: (
-    <>
-      {calendar}
-      <path d="M7 9h2v2H7z" fill="currentColor" />
-    </>
-  ),
-  weekNote: (
-    <>
-      {calendar}
-      <path d="M4.5 10h7" strokeWidth={2} />
-    </>
-  ),
-  monthNote: (
-    <>
-      {calendar}
-      <path d="M5 9h.01M8 9h.01M11 9h.01M5 11.5h.01M8 11.5h.01M11 11.5h.01" strokeWidth={2} />
-    </>
-  ),
-} satisfies Record<string, ReactNode>;
-
-export type IconName = keyof typeof icons;
-
-export function Icon(props: { readonly name: IconName }) {
-  return (
-    <svg className="icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" {...stroke}>
-      {icons[props.name]}
-    </svg>
-  );
-}
-
 export function IconButton(props: {
-  readonly icon: IconName;
+  readonly icon: Icon;
   readonly label: string;
   /** Its shortcut, as the vault's hotkeys write it. */
   readonly keys?: string | undefined;
@@ -80,7 +16,7 @@ export function IconButton(props: {
   readonly hasPopup?: "dialog" | "menu";
   readonly onClick: () => void;
 }) {
-  const { icon, label, keys, ariaKeys, disabled = false, hasPopup, onClick } = props;
+  const { icon: Glyph, label, keys, ariaKeys, disabled = false, hasPopup, onClick } = props;
   const button = useRef<HTMLButtonElement>(null);
   const tip = useRef<HTMLSpanElement>(null);
   const [shown, setShown] = useState(false);
@@ -131,7 +67,7 @@ export function IconButton(props: {
         }
       }}
     >
-      <Icon name={icon} />
+      <Glyph className="icon" size={16} aria-hidden="true" />
       {shown ? (
         // Inside the button, so the pointer on it keeps it; its name is the button's label.
         <span ref={tip} className="tooltip" aria-hidden="true" style={place}>

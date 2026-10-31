@@ -5,6 +5,7 @@
 // what opened it; a click outside, or the window losing the focus or
 // changing size, closes it too.
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Icon } from "./icons.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
 
 export interface MenuItem {
@@ -16,6 +17,8 @@ export interface MenuItem {
   readonly disabled?: boolean;
   /** Its shortcut, as the vault's hotkeys write it, shown beside it. */
   readonly keys?: string;
+  /** The icon before its text. */
+  readonly icon?: Icon;
 }
 
 /** An item, or a line between groups of items. */
@@ -148,7 +151,14 @@ export function ContextMenu(props: {
               entry.run();
             }}
           >
-            {entry.label}
+            <span className="menu-label">
+              {entry.icon === undefined ? (
+                <span className="menu-icon" aria-hidden="true" />
+              ) : (
+                <entry.icon className="menu-icon" size={15} aria-hidden="true" />
+              )}
+              {entry.label}
+            </span>
             {entry.keys === undefined ? null : (
               <span className="menu-keys" aria-hidden="true">
                 {formatKeys(entry.keys)}
