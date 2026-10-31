@@ -14,6 +14,7 @@ test("a note's menu opens on a right click and from the keyboard, and closes bac
     "Rename…",
     "Make a copy",
     "Move to…",
+    "Merge into…",
     "Add tags…",
     "Bookmark",
     "Copy link",

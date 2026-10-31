@@ -24,6 +24,7 @@ import { CommandPalette } from "./CommandPalette.tsx";
 import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
+import { MergeNoteDialog } from "./MergeNoteDialog.tsx";
 import { MoveNoteDialog } from "./MoveNoteDialog.tsx";
 import { NewNoteDialog } from "./NewNoteDialog.tsx";
 import { copyNote, fullPath, vaultFolders } from "./noteActions.ts";
@@ -79,6 +80,7 @@ function useNoteViewModule(): NoteViewModule | undefined {
 const loadCreateNote = () => import("./createNote.ts");
 // Renaming a note reads the links to it with the parser.
 const loadRenameNote = () => import("./renameNote.ts");
+const loadMergeNote = () => import("./mergeNote.ts");
 // So does making a database, which writes its note's frontmatter.
 const loadDatabases = () => import("./databases.ts");
 // The graph, with Sigma and its layout, loads the first time it opens.
@@ -269,7 +271,7 @@ export function VaultView(props: {
   // A note's menu, open at a point, and the dialog one of its items opened for a note.
   const [menu, setMenu] = useState<{ readonly id: NoteId; readonly at: MenuPoint } | undefined>();
   const [noteDialog, setNoteDialog] = useState<
-    { readonly kind: "rename" | "move" | "tags"; readonly id: NoteId } | undefined
+    { readonly kind: "rename" | "move" | "merge" | "tags"; readonly id: NoteId } | undefined
   >();
   const { hotkeys, chosen: chosenHotkeys, save: saveHotkeys } = useHotkeys(vault);
   // Whether the app updates itself, and checks on its own.
@@ -435,6 +437,22 @@ export function VaultView(props: {
     setDialog("newNote");
   }, []);
 
+  /** Merges a note into another, which opens in its place when it was open. */
+  const mergeInto = useCallback(
+    async (id: NoteId, into: NoteEntry) => {
+      if (state.status !== "open") return;
+      const { vault: open, indexer } = state;
+      const name = open.note(id)?.title ?? "";
+      setNotice(undefined);
+      const { mergeNote } = await loadMergeNote();
+      await indexer.idle();
+      await mergeNote(open, indexer.graph, id, into.id);
+      setSelected((current) => (current === id ? into.id : current));
+      setNotice({ text: t("mergedNote", { name, into: into.title }) });
+    },
+    [state],
+  );
+
   /** Opens a note restored from the trash. */
   const openRestored = useCallback(
     (path: string) => {
@@ -513,6 +531,12 @@ export function VaultView(props: {
           label: t("menuMove"),
           run: () => {
             setNoteDialog({ kind: "move", id });
+          },
+        },
+        {
+          label: t("menuMerge"),
+          run: () => {
+            setNoteDialog({ kind: "merge", id });
           },
         },
         {
@@ -1296,6 +1320,15 @@ export function VaultView(props: {
                       moveInTree({ kind: "note", path: note.path }, folder);
                       return Promise.resolve();
                     }}
+                    onClose={close}
+                  />
+                );
+              case "merge":
+                return (
+                  <MergeNoteDialog
+                    note={note}
+                    notes={notes}
+                    onMerge={(into) => mergeInto(note.id, into)}
                     onClose={close}
                   />
                 );

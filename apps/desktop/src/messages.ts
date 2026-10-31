@@ -637,6 +637,16 @@ export const messages = {
   menuUnbookmark: "Remove bookmark",
   removeBookmark: "Remove the bookmark of {name}",
   bookmarkMissing: "{path} is not in the vault now.",
+  menuMerge: "Merge into…",
+  mergeNoteTitle: "Merge {name} into another note",
+  mergeNoteWhat:
+    "{name}'s text goes after the other note's, its properties join the other's, links to it lead to the other, and it moves to the trash.",
+  findNote: "Find a note",
+  mergeDo: "Merge",
+  mergeInto: "Merge into {name}",
+  mergedNote: "Merged {name} into {into}.",
+  mergeCannotRead: "{name} cannot be merged now: its text or its properties cannot be read.",
+  mergeIntoItself: "A note cannot be merged into itself.",
 } as const;
 
 export type MessageKey = keyof typeof messages;
