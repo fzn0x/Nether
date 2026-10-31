@@ -22,6 +22,7 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0053](docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)).
 - A signed-in browser accepts an invitation into its account with its
   cookie, as the desktop app does with its token.
+- End-to-end tests of the web app against a real server, in CI.
 - Sessions in a cookie for the web app: signing in with
   `X-Nether-Session: cookie` keeps the token in an `HttpOnly` cookie, with
   a CSRF value sent back on every change; sync and relay sockets take it

@@ -24,12 +24,13 @@ Notion exports. Self-hosting is available for enterprise.
 > from Obsidian, Notion, Logseq, HTML and CSV, within the performance
 > targets on 50,000 notes.
 >
-> Phase 3, sync and collaboration, the first public release, has 14 of its
+> Phase 3, sync and collaboration, the first public release, has 15 of its
 > 16 tasks done: the server with accounts and single sign-on, sync with
 > end-to-end encryption, attachments, version history, spaces and page
 > permissions, live co-editing, comments and mentions, server search, the
-> canvas, task assignment, and backups. The web app and `docker compose up`
-> are what remain; until then, sync stays out of the released app. The
+> canvas, task assignment, backups, and the web app the server serves,
+> which installs and works offline. `docker compose up` is what remains;
+> until then, sync stays out of the released app. The
 > [roadmap](docs/roadmap.md#phase-3-self-hosted-sync-and-collaboration)
 > ticks each task off as it lands.
 
@@ -64,7 +65,7 @@ Notion exports. Self-hosting is available for enterprise.
 | 0. Foundations | Decisions, the repository, CI, the data model, a 50,000-note test vault | ✅ |
 | 1. Local-first notes | The desktop app: a vault on disk, the block and Markdown editor, links and backlinks, tags, search, templates, export | ✅ |
 | 2. Databases and structure | Databases with six views, relations, rollups, formulas, synced blocks, the graph view, importers from Obsidian and Notion | ✅ |
-| 3. Sync and collaboration | The first public release: the server, end-to-end encrypted sync, co-editing, comments, permissions, the web app, the canvas, backups | 🚧 14 of 16 |
+| 3. Sync and collaboration | The first public release: the server, end-to-end encrypted sync, co-editing, comments, permissions, the web app, the canvas, backups | 🚧 15 of 16 |
 | 4. Platform | Plugins in a sandbox, bring-your-own AI, publishing, the REST API, the web clipper, automations | ❌ |
 | 5. Enterprise, mobile and scale | Single sign-on, SCIM, audit logs, data policies, high availability, the Helm chart, mobile apps | ❌ |
 

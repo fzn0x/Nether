@@ -38,3 +38,17 @@ pnpm --filter @nether/web build     # into dist/, which the server then serves
 ```
 
 `NETHER_SERVER` points the dev server at another server's address.
+
+## Tests
+
+```sh
+pnpm --filter @nether/web test:e2e
+```
+
+builds the app, starts a real server with it (`e2e/server.ts`: PGlite,
+email kept for the tests, and an OpenID Connect provider), and runs the
+app in Chromium: signing in with a password, a sign-in email's link and
+single sign-on; a note written in one browser reaching another; an
+invitation link making an account; offline once opened; one tab per
+workspace; accessibility in both themes; and nothing the content
+security policy refuses.

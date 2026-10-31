@@ -51,8 +51,8 @@ developer preview of it, is ready to [install](../install/).
 The fourth, sync and collaboration, is under way and will be Nether's
 first public release. Its server is built: accounts, sync with end-to-end
 encryption, attachments, history, spaces and permissions, co-editing,
-comments and mentions, search and backups. The web app and the
-`docker compose` setup come next. The [roadmap](../roadmap/) lists what
+comments and mentions, search and backups, and the web app it serves.
+The `docker compose` setup comes next. The [roadmap](../roadmap/) lists what
 each phase delivers.
 
 The full requirements, the architecture and the decision records live in
