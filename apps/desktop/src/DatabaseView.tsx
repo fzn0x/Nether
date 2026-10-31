@@ -12,9 +12,13 @@ import {
   type PropertyDefinition,
   type PropertyType,
   type PropertyEntry,
+  type Rollup,
+  type RollupFunction,
   type View,
+  rollupFunctions,
 } from "@nether/core";
 import {
+  type FindRow,
   type Row,
   basePath,
   databaseKey,
@@ -23,6 +27,7 @@ import {
   rowTitle,
   runView,
   viewIdOf,
+  withRollups,
   writeDatabase,
 } from "@nether/database";
 import { documentProperties, setDocumentProperties } from "@nether/editor";
@@ -53,7 +58,7 @@ import {
   syncBacklinks,
   syncBase,
 } from "./databases.ts";
-import { type MessageKey, t } from "./messages.ts";
+import { type MessageKey, language, t } from "./messages.ts";
 import { editableTypes, isListType, newPropertyKey } from "./properties.ts";
 import { useGraph } from "./useGraph.ts";
 import { useNotes } from "./useVault.ts";
@@ -97,6 +102,20 @@ function operatorsFor(type: PropertyType | "$title" | "$created" | "$updated"): 
 }
 
 const unary: readonly FilterOperator[] = ["isEmpty", "isNotEmpty"];
+
+/** What a rollup compares as: a date for the earliest or latest, else a number. */
+function rollupKind(schema: DatabaseSchema, key: string): PropertyType | undefined {
+  const rollup = schema.properties.find((property) => property.key === key)?.rollup;
+  if (rollup === undefined) return undefined;
+  return rollup.function === "earliest" || rollup.function === "latest" ? "date" : "number";
+}
+
+const numberFormat = new Intl.NumberFormat(language, { maximumFractionDigits: 2 });
+
+/** A rollup's value as its cell shows it: a number rounded for reading, a date as it is. */
+function rollupText(value: JsonValue | undefined): string {
+  return typeof value === "number" ? numberFormat.format(value) : valueText(value);
+}
 
 /** An object without one of its keys, as a view without its filter. */
 function without<T extends object, K extends keyof T>(object: T, key: K): Omit<T, K> {
@@ -237,7 +256,9 @@ function FilterBar(props: {
     "$created",
     "$updated",
   ];
-  const typeOf = (key: string) =>
+  const typeOf = (key: string): PropertyType | "$title" | "$created" | "$updated" =>
+    rollupKind(schema, key) ?? typeOfKey(key);
+  const typeOfKey = (key: string) =>
     key.startsWith("$")
       ? (key as "$title" | "$created" | "$updated")
       : (schema.properties.find((property) => property.key === key)?.type ?? "text");
@@ -375,14 +396,30 @@ function AddProperty(props: {
   /** The vault's databases a relation can point to, and this one's name. */
   readonly databases: readonly { readonly id: NoteId; readonly title: string }[];
   readonly self: string;
-  readonly onAdd: (key: string, type: PropertyType, relation?: NewRelation) => void;
+  /** This database's relations, each with the properties of the rows it links to, for a rollup. */
+  readonly relations: readonly { readonly key: string; readonly properties: readonly string[] }[];
+  readonly onAdd: (
+    key: string,
+    type: PropertyType,
+    more?: { readonly relation?: NewRelation; readonly rollup?: Rollup },
+  ) => void;
 }) {
-  const { taken, databases, self, onAdd } = props;
+  const { taken, databases, self, relations, onAdd } = props;
   const [key, setKey] = useState("");
   const [type, setType] = useState<PropertyType>("text");
-  const [target, setTarget] = useState<NoteId | undefined>(databases[0]?.id);
+  const [chosenTarget, setTarget] = useState<NoteId | undefined>();
   const [twoWay, setTwoWay] = useState(true);
   const [back, setBack] = useState(self);
+  const [chosenThrough, setThrough] = useState<string | undefined>();
+  // The first there is until one is chosen: the lists change as the vault and schema do.
+  const target = databases.some((database) => database.id === chosenTarget)
+    ? chosenTarget
+    : databases[0]?.id;
+  const through = relations.some((relation) => relation.key === chosenThrough)
+    ? chosenThrough
+    : relations[0]?.key;
+  const [source, setSource] = useState("$title");
+  const [calculate, setCalculate] = useState<RollupFunction>("count");
   const name = key.trim();
   const backName = back.trim();
   const free =
@@ -391,7 +428,9 @@ function AddProperty(props: {
     name !== databaseKey &&
     !taken.includes(name) &&
     (type !== "relation" ||
-      (target !== undefined && (!twoWay || (backName !== "" && backName !== name))));
+      (target !== undefined && (!twoWay || (backName !== "" && backName !== name)))) &&
+    (type !== "rollup" || through !== undefined);
+  const sources = relations.find((relation) => relation.key === through)?.properties ?? [];
   return (
     <form
       className="database-add-property"
@@ -399,11 +438,13 @@ function AddProperty(props: {
         event.preventDefault();
         if (!free) return;
         if (type === "relation" && target !== undefined) {
-          onAdd(
-            name,
-            type,
-            twoWay ? { database: target, backlink: backName } : { database: target },
-          );
+          onAdd(name, type, {
+            relation: twoWay ? { database: target, backlink: backName } : { database: target },
+          });
+        } else if (type === "rollup" && through !== undefined) {
+          onAdd(name, type, {
+            rollup: { relation: through, property: source, function: calculate },
+          });
         } else {
           onAdd(name, type);
         }
@@ -425,7 +466,7 @@ function AddProperty(props: {
           setType(event.target.value as PropertyType);
         }}
       >
-        {editableTypes
+        {[...editableTypes, ...(relations.length > 0 ? (["rollup"] as const) : [])]
           .filter((option) => option !== "relation" || databases.length > 0)
           .map((option) => (
             <option key={option} value={option}>
@@ -433,6 +474,51 @@ function AddProperty(props: {
             </option>
           ))}
       </select>
+      {type === "rollup" ? (
+        <>
+          <select
+            aria-label={t("rollupRelation")}
+            value={through ?? ""}
+            onChange={(event) => {
+              setThrough(event.target.value);
+              setSource("$title");
+            }}
+          >
+            {relations.map((relation) => (
+              <option key={relation.key} value={relation.key}>
+                {relation.key}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label={t("rollupProperty")}
+            value={source}
+            onChange={(event) => {
+              setSource(event.target.value);
+            }}
+          >
+            <option value="$title">{t("builtIn_title")}</option>
+            {sources.map((property) => (
+              <option key={property} value={property}>
+                {property}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label={t("rollupFunction")}
+            value={calculate}
+            onChange={(event) => {
+              setCalculate(event.target.value as RollupFunction);
+            }}
+          >
+            {rollupFunctions.map((option) => (
+              <option key={option} value={option}>
+                {t(`rollup_${option}`)}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : null}
       {type === "relation" ? (
         <>
           <select
@@ -769,7 +855,21 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
     return file === undefined ? undefined : media.url(file);
   };
 
-  const result = view === undefined ? undefined : runView(rows, view, schema);
+  // Each related row as the link index read it, for the rollups to work out from.
+  const findRow: FindRow = (link, from) => {
+    const id = resolveLink(graph, from.path)(link);
+    const note = id === undefined ? undefined : graph.note(id);
+    return note === undefined
+      ? undefined
+      : {
+          id: note.id,
+          path: note.path,
+          updated: vault.note(note.id)?.modified ?? 0,
+          properties: note.index.properties,
+        };
+  };
+  const shown = withRollups(rows, schema, findRow);
+  const result = view === undefined ? undefined : runView(shown, view, schema);
   const visible = (view?.visible ?? [])
     .map((key) => schema.properties.find((property) => property.key === key))
     .filter((property): property is PropertyDefinition => property !== undefined);
@@ -791,30 +891,36 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
           </th>
           {visible.map((property) => (
             <td key={property.key}>
-              <Cell
-                label={t("cellLabel", { name: property.key, row: title })}
-                property={property}
-                value={row.properties.find((entry) => entry.key === property.key)?.value}
-                onCommit={(value) => {
-                  write(row.id, property.key, value);
-                }}
-                {...(property.type === "relation"
-                  ? {
-                      related: {
-                        names: relatedRows(property).map(rowTitle),
-                        // The row of that name, by the shortest link that finds it; else a link to a note not yet written.
-                        toValue: (name: string) => {
-                          const found = relatedRows(property).find(
-                            (item) => rowTitle(item).toLowerCase() === name.toLowerCase(),
-                          );
-                          return found === undefined
-                            ? `[[${name}]]`
-                            : shortLink(vault, found.path, row.path);
+              {property.type === "rollup" ? (
+                <span className="database-rollup">
+                  {rollupText(row.properties.find((entry) => entry.key === property.key)?.value)}
+                </span>
+              ) : (
+                <Cell
+                  label={t("cellLabel", { name: property.key, row: title })}
+                  property={property}
+                  value={row.properties.find((entry) => entry.key === property.key)?.value}
+                  onCommit={(value) => {
+                    write(row.id, property.key, value);
+                  }}
+                  {...(property.type === "relation"
+                    ? {
+                        related: {
+                          names: relatedRows(property).map(rowTitle),
+                          // The row of that name, by the shortest link that finds it; else a link to a note not yet written.
+                          toValue: (name: string) => {
+                            const found = relatedRows(property).find(
+                              (item) => rowTitle(item).toLowerCase() === name.toLowerCase(),
+                            );
+                            return found === undefined
+                              ? `[[${name}]]`
+                              : shortLink(vault, found.path, row.path);
+                          },
                         },
-                      },
-                    }
-                  : {})}
-              />
+                      }
+                    : {})}
+                />
+              )}
             </td>
           ))}
         </tr>
@@ -1033,9 +1139,37 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                 taken={schema.properties.map((property) => property.key)}
                 databases={databaseNotes(graph).map((note) => ({ id: note.id, title: note.title }))}
                 self={self?.title ?? ""}
-                onAdd={(key, type, relation) => {
-                  if (relation !== undefined) {
-                    addRelation(key, relation, view);
+                relations={schema.properties.flatMap((property) => {
+                  if (property.relation === undefined) return [];
+                  const other = graph.note(property.relation.database);
+                  const theirs =
+                    other === undefined
+                      ? undefined
+                      : databaseOf(other.index.properties, resolveLink(graph, other.path));
+                  return [
+                    {
+                      key: property.key,
+                      properties: (theirs?.properties ?? [])
+                        .filter((item) => item.rollup === undefined)
+                        .map((item) => item.key),
+                    },
+                  ];
+                })}
+                onAdd={(key, type, more) => {
+                  if (more?.relation !== undefined) {
+                    addRelation(key, more.relation, view);
+                    return;
+                  }
+                  if (more?.rollup !== undefined) {
+                    saveSchema({
+                      properties: [
+                        ...schema.properties,
+                        { key, type: "rollup", rollup: more.rollup },
+                      ],
+                      views: schema.views.map((item) =>
+                        item.id === view.id ? { ...item, visible: [...item.visible, key] } : item,
+                      ),
+                    });
                     return;
                   }
                   const property: PropertyDefinition =

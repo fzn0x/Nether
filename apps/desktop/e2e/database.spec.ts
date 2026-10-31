@@ -353,3 +353,87 @@ test("a relation links rows of two databases both ways, each in its row's file",
     .toBe("---\nUntitled database 2: []\n---\n");
   expect(errors).toEqual([]);
 });
+
+test("a rollup works out a value from the related rows, and writes it nowhere", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  const database = page.getByRole("region", { name: "Database" });
+  const newDatabase = async (title: string) => {
+    await page.keyboard.press("Control+p");
+    await page.keyboard.type("new database");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#note-title")).toHaveText(title);
+    await database.getByRole("button", { name: "Properties" }).click();
+  };
+  const name = (text: string) =>
+    database.getByRole("textbox", { name: "Property name" }).fill(text);
+  const type = (value: string) =>
+    database.getByRole("combobox", { name: "Type of the new property" }).selectOption(value);
+  const add = () => database.getByRole("button", { name: "Add a property" }).click();
+
+  // Tasks, with their hours.
+  await newDatabase("Untitled database");
+  await name("Hours");
+  await type("number");
+  await add();
+  await database.getByRole("button", { name: "New row" }).click();
+  await database.getByRole("button", { name: "New row" }).click();
+  for (const [row, hours] of [
+    ["Untitled", "3"],
+    ["Untitled 2", "5"],
+  ] as const) {
+    await database.getByLabel(`Hours of ${row}`, { exact: true }).fill(hours);
+    await database.getByLabel(`Hours of ${row}`, { exact: true }).press("Enter");
+  }
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled 2.md"))
+    .toBe("---\nHours: 5\n---\n");
+
+  // A project, its tasks related one way, and their hours summed.
+  await newDatabase("Untitled database 2");
+  await name("Tasks");
+  await type("relation");
+  await database
+    .getByRole("combobox", { name: "Database it links to" })
+    .selectOption({ label: "Untitled database" });
+  await database.getByRole("checkbox", { name: "Both ways" }).uncheck();
+  await add();
+  await name("Total");
+  await type("rollup");
+  await expect(database.getByRole("combobox", { name: "Relation to roll up" })).toHaveValue(
+    "Tasks",
+  );
+  await database
+    .getByRole("combobox", { name: "Property of the related rows" })
+    .selectOption("Hours");
+  await database.getByRole("combobox", { name: "Calculate" }).selectOption("sum");
+  await add();
+  await database.getByRole("button", { name: "New row" }).click();
+  const tasks = database.getByLabel("Tasks of Untitled", { exact: true });
+  for (const task of ["Untitled", "Untitled 2"]) {
+    await tasks.fill(task);
+    await tasks.press("Enter");
+  }
+  const total = database.getByRole("table").locator(".database-rollup");
+  await expect(total).toHaveText("8");
+  // Only the links are written; the total is worked out.
+  await expect
+    .poll(() => fileText(page, "Untitled database 2/Untitled.md"))
+    .toBe('---\nTasks:\n  - "[[Untitled database/Untitled]]"\n  - "[[Untitled 2]]"\n---\n');
+
+  // Filtered by what it works out.
+  await database.getByRole("button", { name: "Filter" }).click();
+  await database.getByRole("button", { name: "Add a condition" }).click();
+  await database.getByRole("combobox", { name: "Property of condition 1" }).selectOption("Total");
+  await database
+    .getByRole("combobox", { name: "Comparison of condition 1" })
+    .selectOption("greaterThan");
+  const value = database.getByRole("spinbutton", { name: "Value of condition 1" });
+  await value.fill("5");
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveText(["Untitled"]);
+  await value.fill("10");
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

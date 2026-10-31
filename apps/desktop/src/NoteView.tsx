@@ -244,7 +244,11 @@ export default function NoteView(props: {
         ) : (
           <>
             {state.frontmatterError === undefined ? (
-              <PropertiesPanel key={state.document.guid} document={state.document} vault={vault} />
+              <PropertiesPanel
+                key={`properties-${state.document.guid}`}
+                document={state.document}
+                vault={vault}
+              />
             ) : (
               <p className="notice" role="status">
                 {t("unreadableFrontmatter", { error: state.frontmatterError })}
@@ -263,6 +267,9 @@ export default function NoteView(props: {
               {...(focus === undefined ? {} : { focus })}
             />
             <DatabaseView
+              // Its panels, view and errors are the note's: another note starts afresh.
+              // Each sibling's key its own, or React keeps the last note's editor too.
+              key={`database-${state.document.guid}`}
               vault={vault}
               media={media}
               graph={graph}
