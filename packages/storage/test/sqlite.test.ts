@@ -1,4 +1,7 @@
 import type { NoteId } from "@nether/core";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MemoryStore, SqliteStore, migrate, schemaVersion } from "../src/index.ts";
 import { nodeDatabase } from "./node-database.ts";
@@ -71,6 +74,25 @@ describe("migrate", () => {
     const database = nodeDatabase();
     await database.execute(`PRAGMA user_version = ${String(schemaVersion + 1)}`);
     await expect(migrate(database)).rejects.toThrow(/newer version of Nether/);
+  });
+
+  it("lets two connections to a new index migrate it at once", async () => {
+    // As when the app opens a folder for the first time twice over, before
+    // the first open has finished.
+    const folder = mkdtempSync(join(tmpdir(), "nether-migrate-"));
+    const first = nodeDatabase(join(folder, "index.db"));
+    const second = nodeDatabase(join(folder, "index.db"));
+    try {
+      await Promise.all([migrate(first), migrate(second)]);
+      for (const database of [first, second]) {
+        const { rows } = await database.query("PRAGMA user_version");
+        expect(rows[0]?.[0]).toBe(schemaVersion);
+      }
+    } finally {
+      await first.close();
+      await second.close();
+      rmSync(folder, { recursive: true, force: true });
+    }
   });
 });
 

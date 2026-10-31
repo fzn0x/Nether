@@ -143,22 +143,36 @@ function integer(value: SqlValue | undefined): number {
   throw new Error("The index holds a value of the wrong type.");
 }
 
+async function userVersion(database: Database): Promise<number> {
+  const { rows } = await database.query("PRAGMA user_version");
+  return integer(rows[0]?.[0] ?? 0);
+}
+
 /** Brings the database up to the current schema, refusing one written by a newer Nether. */
 export async function migrate(database: Database): Promise<void> {
-  const { rows } = await database.query("PRAGMA user_version");
-  const version = integer(rows[0]?.[0] ?? 0);
+  let version = await userVersion(database);
   if (version > schemaVersion) {
     throw new Error(
       `This vault's index was written by a newer version of Nether (schema ${String(version)}). Update Nether to open it.`,
     );
   }
-  for (let next = version; next < schemaVersion; next++) {
-    const statements = (migrations[next] ?? []).map((sql) => ({ sql }));
-    await database.transaction([
-      ...statements,
-      // PRAGMA takes no parameters: the version is a number this code chose.
-      { sql: `PRAGMA user_version = ${String(next + 1)}` },
-    ]);
+  while (version < schemaVersion) {
+    const statements = (migrations[version] ?? []).map((sql) => ({ sql }));
+    try {
+      await database.transaction([
+        ...statements,
+        // PRAGMA takes no parameters: the version is a number this code chose.
+        { sql: `PRAGMA user_version = ${String(version + 1)}` },
+      ]);
+      version += 1;
+    } catch (error) {
+      // Another connection to the same file, such as a second open of a new
+      // vault before the first has finished, may have run this version's
+      // migration first: this one then fails, and the index has moved on.
+      const now = await userVersion(database);
+      if (now <= version) throw error;
+      version = now;
+    }
   }
 }
 
