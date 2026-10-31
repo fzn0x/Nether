@@ -1359,7 +1359,7 @@ export function VaultView(props: {
               />
             ) : panel === "tags" ? (
               <TagList graph={state.indexer.graph} onSelect={showTag} />
-            ) : notes.length === 0 ? (
+            ) : notes.length === 0 && folders.length === 0 ? (
               <p className="placeholder">{t("noNotes")}</p>
             ) : (
               <>
