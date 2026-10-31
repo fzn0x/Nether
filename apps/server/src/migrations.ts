@@ -343,6 +343,19 @@ export const migrations: readonly Migration[] = [
       INSERT INTO search_backfill VALUES (true);
     `,
   },
+  {
+    version: 13,
+    name: "backups",
+    sql: `
+      -- When the last scheduled backup began (ADR 0052): a node claims the
+      -- next by moving it on, so of several nodes one makes each backup.
+      CREATE TABLE backup_state (
+        only_row boolean PRIMARY KEY DEFAULT true CHECK (only_row),
+        last_started timestamptz
+      );
+      INSERT INTO backup_state (only_row) VALUES (true);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */
@@ -364,9 +377,15 @@ export class NewerDatabase extends Error {
 /** The lock every node takes to migrate, by a number of Nether's own. */
 const migrationLock = 7_446_872_101;
 
-/** Brings the database to this server's schema, and says from which version to which. */
+/**
+ * Brings the database to this server's schema, or to an earlier version, as
+ * a restore does to load a backup made at that version, and says from which
+ * version to which. Versions in between are applied in order, in one
+ * transaction, so a database may skip any number of them.
+ */
 export async function migrate(
   db: Database,
+  upTo = schemaVersion,
 ): Promise<{ readonly from: number; readonly to: number }> {
   return db.transaction(async (tx) => {
     await tx.query("SELECT pg_advisory_xact_lock($1)", [migrationLock]);
@@ -381,13 +400,13 @@ export async function migrate(
     const from = Number(rows[0]?.version ?? 0);
     if (from > schemaVersion) throw new NewerDatabase(from);
     for (const migration of migrations) {
-      if (migration.version <= from) continue;
+      if (migration.version <= from || migration.version > upTo) continue;
       await tx.query(migration.sql);
       await tx.query("INSERT INTO schema_migrations (version, name) VALUES ($1, $2)", [
         migration.version,
         migration.name,
       ]);
     }
-    return { from, to: schemaVersion };
+    return { from, to: Math.max(from, Math.min(upTo, schemaVersion)) };
   });
 }

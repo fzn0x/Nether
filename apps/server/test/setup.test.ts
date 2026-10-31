@@ -42,6 +42,7 @@ describe("migrate", () => {
     );
     expect(tables.rows.map((row) => row.table_name)).toEqual([
       "attachments",
+      "backup_state",
       "document_versions",
       "documents",
       "encrypted_updates",
