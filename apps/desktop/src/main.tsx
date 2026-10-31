@@ -33,4 +33,9 @@ if (build.web && location.pathname === providerReturn) {
       <App />
     </StrictMode>,
   );
+  // The web app's service worker keeps its files, so it opens offline;
+  // the dev server has none.
+  if (build.web && import.meta.env.PROD && "serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  }
 }
