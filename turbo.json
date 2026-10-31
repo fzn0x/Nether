@@ -9,6 +9,7 @@
     },
     "typecheck": {},
     "test": {
+      "env": ["NETHER_TEST_DATABASE_URL"],
       "outputs": ["coverage/**"]
     },
     "test:e2e": {
