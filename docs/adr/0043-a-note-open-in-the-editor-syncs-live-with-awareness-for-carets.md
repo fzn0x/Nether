@@ -40,6 +40,13 @@ desktop app asks the sync engine for the note live
   closes, the note waits for the next round, rather than starting one
   beside the live provider's close.
 
+**A note's provider signs in once the last one for it has gone.** On one
+socket, a provider for a note signs in only half a second after the last
+one for that note was let go: a sign-in the server takes before it has
+closed the last one is never answered. A live provider not let in within
+five seconds while connected asks again, and a round's sync not let in
+within twenty fails, for the next round, rather than waiting for ever.
+
 **Awareness shows who is where.** The engine makes the note's awareness
 up front, with who is editing: the account's name, and a color from its
 ID, the same on every device, each dark enough for white text. The editor

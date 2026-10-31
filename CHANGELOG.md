@@ -352,6 +352,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A note's sync no longer waits for ever when the server never lets it in,
+  as when it signed in just as the last sync of that note left: it waits
+  for the last to go, and asks again or fails for the next round.
 - Stopping sync no longer waits for ever when it stops while a note is
   still loading to sync: the note is not synced once sync has stopped.
 - A note moved while sync was still fetching other notes stays where it
