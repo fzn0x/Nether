@@ -62,6 +62,14 @@ The app then moves its entry from one vault document to the other. A vault
 document that lists a note the record puts elsewhere grants nothing, so
 someone who may only view a unit cannot claim its notes into another.
 
+**Lists stay in step with what only the server changes.** Renaming a
+teamspace moves its notes and files to the new folder in its vault
+document, and a page that stops being shared on its own has its list
+merged into the one where it sits before its unit goes. An app moves a
+note to its path's unit unasked only into somewhere narrower, out of
+General or into a shared page, so learning a teamspace's new name before
+its notes' new paths sends nothing to General.
+
 **Paths stay whole.** A note has the same path for everyone who sees it. A
 guest given a page sees the folders above it in its path; they learn those
 folders' names, not their notes.
