@@ -294,6 +294,36 @@ button {
   flex-shrink: 0;
 }
 
+/* The app's menus, under the vault's name. */
+.menu-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem;
+  padding: 0 0.5rem 0.5rem;
+}
+
+.menu-bar > button {
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.menu-bar > button:hover,
+.menu-bar > button[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+}
+
+.sidebar-actions button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
 /* New note, and the periodic notes, above the tabs. */
 .sidebar-actions {
   display: flex;
@@ -1490,6 +1520,23 @@ button {
   height: 1px;
   margin: 0.25rem 0.4rem;
   background: var(--rule);
+}
+
+.context-menu button {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+}
+
+.context-menu button[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: default;
+}
+
+.context-menu .menu-keys {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
 }
 
 .context-menu button.danger {

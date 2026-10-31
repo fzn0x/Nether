@@ -22,6 +22,7 @@ import { backend } from "./backend.ts";
 import { BookmarkList } from "./BookmarkList.tsx";
 import { CommandPalette } from "./CommandPalette.tsx";
 import { ContextMenu, type MenuEntry, type MenuPoint } from "./ContextMenu.tsx";
+import { type Menu, MenuBar } from "./MenuBar.tsx";
 import { type CommandId, commandIds, defaultHotkeys } from "./commands.ts";
 import { ExportDialog } from "./ExportDialog.tsx";
 import { MergeNoteDialog } from "./MergeNoteDialog.tsx";
@@ -1005,29 +1006,92 @@ export function VaultView(props: {
     return notes.filter((note) => tagged.has(note.id));
   }, [notes, tag, graph, version]);
 
+  /** A command's name, as it reads now: a bookmarked note's is to remove it. */
+  const commandName = (id: CommandId): string =>
+    id === "updateChecks" && !updates.automatic
+      ? t("command_updateChecksOn")
+      : id === "bookmark" && selectedPath !== undefined && bookmarks.has(selectedPath)
+        ? t("command_bookmarkRemove")
+        : t(`command_${id}`);
+
+  /** The menus' items, each a command; one that cannot run now shows, but cannot be chosen. */
+  const menuOf = (label: string, ids: readonly (CommandId | "separator")[]): Menu => ({
+    label,
+    entries: ids.map((id) => {
+      if (id === "separator") return id;
+      const command = run[id];
+      const keys = keysOf(id);
+      return {
+        label: commandName(id),
+        run: () => {
+          command?.();
+        },
+        disabled: command === undefined,
+        danger: id === "trashNote",
+        ...(keys === undefined ? {} : { keys }),
+      };
+    }),
+  });
+  const menus: readonly Menu[] = [
+    menuOf(t("menuFile"), [
+      "newNote",
+      "newDatabase",
+      "dayNote",
+      "weekNote",
+      "monthNote",
+      "separator",
+      "import",
+      "export",
+      "separator",
+      "closeVault",
+    ]),
+    menuOf(t("menuNote"), [
+      "rename",
+      "bookmark",
+      "toggleSource",
+      "history",
+      "comment",
+      "splitRight",
+      "separator",
+      "trashNote",
+    ]),
+    menuOf(t("menuView"), [
+      "palette",
+      "switcher",
+      "search",
+      "openGraph",
+      "separator",
+      "showNotes",
+      "showTags",
+      "showTrash",
+      "separator",
+      "nextTab",
+      "previousTab",
+      "closeTab",
+    ]),
+    menuOf(t("menuSync"), ["servers", "sync", "members", "spaces", "share", "notifications"]),
+    menuOf(t("menuSettings"), [
+      "templateSettings",
+      "appearance",
+      "shortcuts",
+      "separator",
+      "checkUpdates",
+      "updateChecks",
+    ]),
+  ];
+
   return (
     <div className="vault">
       <aside className="sidebar" aria-label={info.name}>
         <header className="sidebar-header">
           <h2 title={info.path}>{info.name}</h2>
           <div className="sidebar-header-actions">
-            {state.status === "open" ? (
-              <button
-                type="button"
-                className="quiet"
-                aria-haspopup="dialog"
-                onClick={() => {
-                  setDialog("settings");
-                }}
-              >
-                {t("vaultSettings")}
-              </button>
-            ) : null}
             <button type="button" className="quiet" onClick={onClose}>
               {t("closeVault")}
             </button>
           </div>
         </header>
+        {state.status === "open" ? <MenuBar label={t("menus")} menus={menus} /> : null}
         {state.status === "opening" ? (
           <p className="placeholder" role="status">
             {t("indexing")}
@@ -1048,6 +1112,15 @@ export function VaultView(props: {
                 }}
               >
                 {t("newNote")}
+              </button>
+              <button
+                type="button"
+                disabled={run.newDatabase === undefined}
+                onClick={() => {
+                  run.newDatabase?.();
+                }}
+              >
+                {t("newDatabase")}
               </button>
               {periods
                 .filter((period) => settings[period].enabled)
@@ -1520,14 +1593,7 @@ export function VaultView(props: {
               : [
                   {
                     id,
-                    name:
-                      id === "updateChecks" && !updates.automatic
-                        ? t("command_updateChecksOn")
-                        : id === "bookmark" &&
-                            selectedPath !== undefined &&
-                            bookmarks.has(selectedPath)
-                          ? t("command_bookmarkRemove")
-                          : t(`command_${id}`),
+                    name: commandName(id),
                     keys: hotkeys[id] ?? [],
                   },
                 ],
