@@ -114,7 +114,7 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
     relay.disconnect(userId);
   };
   registerMembers(app, services.db, reconnect);
-  registerUnits(app, services.db, reconnect);
+  registerUnits(app, services.db, reconnect, sync);
   if (services.mailer !== undefined) registerCodes(app, services.db, services.mailer);
   const { oidc, publicUrl } = config;
   if (oidc !== null && publicUrl !== null) registerOidc(app, services.db, oidc, publicUrl);

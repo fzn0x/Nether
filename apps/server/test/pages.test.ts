@@ -4,6 +4,8 @@
 // longer shared on its own goes back where it sits.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
+import * as Y from "yjs";
+import { readBytes } from "../src/db.ts";
 import { storeDocument } from "../src/sync.ts";
 import { type SetUp, type TestServer, bearer, setUp, startServer } from "./app.ts";
 
@@ -64,6 +66,28 @@ async function share(test: Test, token: string, note: string, restricted = false
   return { status: made.statusCode, id: made.json<{ id?: string }>().id ?? "" };
 }
 
+/** A vault document's state listing these notes and files. */
+function listing(notes: Record<string, string>, files: Record<string, object> = {}): Uint8Array {
+  const document = new Y.Doc();
+  for (const [id, path] of Object.entries(notes)) document.getMap("notes").set(id, path);
+  for (const [path, file] of Object.entries(files)) document.getMap("files").set(path, file);
+  return Y.encodeStateAsUpdate(document);
+}
+
+/** A stored vault document's notes and files. */
+async function listed(test: Test, name: string) {
+  const { rows } = await test.db.query(
+    "SELECT state FROM documents WHERE workspace_id = $1 AND name = $2",
+    [test.workspaceId, name],
+  );
+  const document = new Y.Doc();
+  if (rows[0] !== undefined) Y.applyUpdate(document, readBytes(rows[0], "state"));
+  return {
+    notes: Object.fromEntries(document.getMap("notes").entries()),
+    files: [...document.getMap("files").keys()].sort(),
+  };
+}
+
 describe("shared pages", () => {
   it("keep the people where the page sits, unless restricted to their own", async () => {
     const test = await start();
@@ -119,6 +143,50 @@ describe("shared pages", () => {
     const { rows } = await test.db.query("SELECT note, unit_id FROM note_units ORDER BY note");
     expect(rows).toEqual([{ note: inner, unit_id: child.id }]);
     expect((await levels(test, bea.token))[child.id]).toBe("full");
+  });
+
+  it("list their notes where they sit before they stop being shared on their own", async () => {
+    const test = await start();
+    const launch = randomUUID();
+    const tasks = randomUUID();
+    const page = await share(test, test.token, launch);
+    await storeDocument(
+      test.db,
+      test.workspaceId,
+      `vault.${page.id}`,
+      listing(
+        { [launch]: "Projects/Launch.md", [tasks]: "Projects/Launch/Tasks.md" },
+        { "Projects/Launch/plan.png": { hash: "a".repeat(64), blob: "a".repeat(64) } },
+      ),
+    );
+    expect((await call(test, "DELETE", `/pages/${page.id}`, test.token)).statusCode).toBe(204);
+    expect(await listed(test, "vault")).toEqual({
+      notes: { [launch]: "Projects/Launch.md", [tasks]: "Projects/Launch/Tasks.md" },
+      files: ["Projects/Launch/plan.png"],
+    });
+  });
+
+  it("move a renamed teamspace's notes and files to its new folder in its list", async () => {
+    const test = await start();
+    const design = (await call(test, "POST", "/teamspaces", test.token, { name: "Design" })).json<{
+      id: string;
+    }>().id;
+    const plan = randomUUID();
+    const other = randomUUID();
+    await storeDocument(
+      test.db,
+      test.workspaceId,
+      `vault.${design}`,
+      listing(
+        { [plan]: "Design/Plan.md", [other]: "Designs.md" },
+        { "Design/a.png": { hash: "b".repeat(64), blob: "b".repeat(64) } },
+      ),
+    );
+    await call(test, "PATCH", `/teamspaces/${design}`, test.token, { name: "Studio" });
+    expect(await listed(test, `vault.${design}`)).toEqual({
+      notes: { [plan]: "Studio/Plan.md", [other]: "Designs.md" },
+      files: ["Studio/a.png"],
+    });
   });
 
   it("are shared only by those with full access where the page is", async () => {

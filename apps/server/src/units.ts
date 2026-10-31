@@ -14,6 +14,17 @@ export type Level = "view" | "comment" | "edit" | "full";
 
 const levels: readonly Level[] = ["view", "comment", "edit", "full"];
 
+/**
+ * What the units' routes ask of sync, so every app's lists stay in step
+ * with a change only the server makes.
+ */
+export interface VaultEditor {
+  /** Lists a unit's notes and files in another unit's vault document too. */
+  merge(workspaceId: string, from: string, into: string): Promise<void>;
+  /** Moves the notes and files under one folder of a unit's vault document to another. */
+  rename(workspaceId: string, unit: string, from: string, to: string): Promise<void>;
+}
+
 /** General's key, beside the units' IDs. */
 export const general = "general";
 
@@ -244,6 +255,7 @@ export function registerUnits(
   app: FastifyInstance,
   db: Database,
   changed: (userId: string) => void,
+  vaults: VaultEditor,
 ): void {
   const account = signedIn(db);
 
@@ -338,6 +350,11 @@ export function registerUnits(
         [unit.id, workspace, name],
       );
       if (rows.length === 0) return fail(reply, 409, "A teamspace has that name already.");
+      // Its folder takes the new name in its list, so no app finds its notes
+      // outside it and puts them elsewhere.
+      if (unit.name !== null && unit.name !== name) {
+        await vaults.rename(workspace, unit.id, `${unit.name}/`, `${name}/`);
+      }
       return { id: unit.id, name };
     },
   );
@@ -579,6 +596,9 @@ export function registerUnits(
       if (!writesAt(found.get(unit.parentId ?? general))) {
         return fail(reply, 403, "Its notes go back where it sits, which takes edit access there.");
       }
+      // Its list joins the one where it sits first, so no app, once it no
+      // longer opens the page's, takes its notes for removed.
+      await vaults.merge(workspace, unit.id, unit.parentId ?? general);
       await db.transaction(async (tx) => {
         if (unit.parentId === null) {
           await tx.query("DELETE FROM note_units WHERE unit_id = $1", [unit.id]);

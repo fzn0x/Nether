@@ -17,7 +17,14 @@ import * as Y from "yjs";
 import { type Database, readBytes, readCount, readText } from "./db.ts";
 import { fail, uuidField } from "./http.ts";
 import { sessionAccount, signedIn, accountOf } from "./sessions.ts";
-import { accessible, general, unitOfDocument, vaultDocument, writesAt } from "./units.ts";
+import {
+  type VaultEditor,
+  accessible,
+  general,
+  unitOfDocument,
+  vaultDocument,
+  writesAt,
+} from "./units.ts";
 import { membership } from "./workspaces.ts";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -104,9 +111,14 @@ function headersOf(raw: Record<string, string | string[] | undefined>): Headers 
 }
 
 /** What the rest of the server asks of sync. */
-export interface SyncControl {
+export interface SyncControl extends VaultEditor {
   /** Closes an account's connections, so its apps connect again and are checked anew. */
   disconnect(userId: string): void;
+}
+
+/** Whether a path is under a folder, `folder` ending with a slash, in any case. */
+function under(path: string, folder: string): boolean {
+  return path.toLowerCase().startsWith(folder.toLowerCase());
 }
 
 export async function registerSync(app: FastifyInstance, db: Database): Promise<SyncControl> {
@@ -278,7 +290,55 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
     }
   });
 
+  /** Changes a vault document as a member's app would: those syncing it hear at once. */
+  async function editVault(
+    workspaceId: string,
+    unit: string,
+    change: (document: Y.Doc) => void,
+  ): Promise<void> {
+    const connection = await hocuspocus.openDirectConnection(
+      `${workspaceId}/${vaultDocument(unit)}`,
+      { userId: "" },
+    );
+    try {
+      await connection.transact(change);
+    } finally {
+      // Let go, it is stored.
+      await connection.disconnect();
+    }
+  }
+
   return {
+    async merge(workspaceId, from, into) {
+      let notes: [string, unknown][] = [];
+      let files: [string, unknown][] = [];
+      await editVault(workspaceId, from, (document) => {
+        notes = [...document.getMap("notes").entries()];
+        files = [...document.getMap("files").entries()];
+      });
+      await editVault(workspaceId, into, (document) => {
+        const listed = document.getMap("notes");
+        for (const [id, path] of notes) if (!listed.has(id)) listed.set(id, path);
+        const kept = document.getMap("files");
+        for (const [path, file] of files) if (!kept.has(path)) kept.set(path, file);
+      });
+    },
+
+    async rename(workspaceId, unit, from, to) {
+      await editVault(workspaceId, unit, (document) => {
+        const notes = document.getMap<string>("notes");
+        for (const [id, path] of [...notes.entries()]) {
+          if (under(path, from)) notes.set(id, to + path.slice(from.length));
+        }
+        const files = document.getMap("files");
+        for (const [path, file] of [...files.entries()]) {
+          if (!under(path, from)) continue;
+          files.delete(path);
+          files.set(to + path.slice(from.length), file);
+        }
+      });
+    },
+
     disconnect(userId) {
       for (const document of hocuspocus.documents.values()) {
         for (const connection of document.getConnections()) {
