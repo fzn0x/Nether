@@ -25,6 +25,28 @@ Nothing else records which page is inside which, so the two views always
 agree, and other apps, such as Obsidian, see ordinary folders. Notion's
 Markdown export has the same shape.
 
+## Making folders
+
+Click the **New folder** icon at the top of the sidebar, or choose
+**File**, then **New folder**, and give it a name; write `/` between names
+to make folders inside folders at once, as `Projects/Website`. Right-click
+a folder, or press Shift+F10 on it, for its menu:
+
+- **New note here** and **New folder here** make one inside it.
+- **Delete folder** deletes it while it is empty. A folder with notes or
+  files in it stays: move them out, or move them to the trash, first.
+
+A folder shows in the sidebar from the moment it is made, with or without
+notes in it, and so do the vault's other folders, such as one that holds
+only images. An empty folder is on this device alone: sync and export
+carry notes and files, not folders, so a folder reaches another device
+with the first note put in it.
+
+The buttons at the top of the sidebar are icons: **New note**, **New
+folder**, **New database**, and **Today**, **This week** and **This month**
+when they are turned on. Point at one, or move to it with Tab, to see its
+name and shortcut.
+
 ## Opening and closing
 
 Click a folder, or the arrow beside a page, to open or close it; click a
@@ -50,7 +72,8 @@ of the vault.
 
 - A page moves with its pages, and a folder with the page that names it, so
   pages stay inside their pages.
-- Images and other files in a moving folder move with it.
+- Images and other files in a moving folder move with it, and so do the
+  empty folders in it.
 - Every link to what moved is rewritten to find it, as when you
   [rename a note](../links/#renaming-a-note).
 

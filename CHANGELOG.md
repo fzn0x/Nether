@@ -8,6 +8,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- New folders in the desktop app, from the sidebar, the File menu and a
+  folder's own menu, which also makes notes and folders in it and deletes
+  it while it is empty; the sidebar shows empty folders, and a moved
+  folder takes its empty folders with it, leaving none behind
+  ([ADR 0048](docs/adr/0048-the-vault-knows-its-folders-empty-ones-too.md)).
+- The sidebar's New note, New folder, New database and periodic note
+  buttons are icons, each named by a tooltip with its shortcut.
 - Menus at the top of the desktop app's sidebar, File, Note, View, Sync
   and Settings, with every command and its shortcut, so the graph,
   databases, import, appearance and sync no longer hide in the command
