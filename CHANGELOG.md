@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- A Logseq graph imports with its folders, its page properties as
+  frontmatter, namespaces as folders, journals named by their dates with
+  Logseq's titles as aliases, block IDs and references, embeds and tasks
+  written as Obsidian writes them, and every other line as it was
+  ([ADR 0029](docs/adr/0029-a-logseq-graph-keeps-its-folders-and-is-written-as-obsidian-writes.md)).
 - A Notion export, Markdown and CSV in a ZIP file or in parts, imports as
   pages without Notion's IDs in their names, its databases as databases
   whose rows have their properties as frontmatter, and its links as wiki

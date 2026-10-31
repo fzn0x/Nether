@@ -36,3 +36,4 @@ record supersedes it and says so. Start a new one from
 | [0026](0026-themes-and-snippets-are-css-files-of-the-vault.md) | Themes and snippets are CSS files of the vault | Accepted |
 | [0027](0027-imports-are-plans-made-from-sources-read-only.md) | Imports are plans, made from sources only read | Accepted |
 | [0028](0028-a-notion-export-becomes-pages-and-databases-without-ids.md) | A Notion export becomes pages and databases without their IDs | Accepted |
+| [0029](0029-a-logseq-graph-keeps-its-folders-and-is-written-as-obsidian-writes.md) | A Logseq graph keeps its folders, and is written as Obsidian writes | Accepted |

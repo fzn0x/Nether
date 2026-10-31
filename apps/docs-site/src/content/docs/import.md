@@ -1,6 +1,6 @@
 ---
 title: Importing
-description: How to bring an Obsidian vault, a folder of Markdown, a Notion export, Markdown files or CSV tables into your vault, and what each import makes.
+description: How to bring an Obsidian vault, a folder of Markdown, a Notion export, a Logseq graph, Markdown files or CSV tables into your vault, and what each import makes.
 ---
 
 Run **Import…** from the command palette (Ctrl+P, or Cmd+P on macOS),
@@ -49,6 +49,27 @@ named **Notion**:
 A large export, which Notion splits into ZIP files inside its ZIP file,
 imports as one.
 
+## A Logseq graph
+
+Choose the graph's folder, the one with `pages` and `journals` in it. It
+goes in a folder named after it, with its folders as they are, so pages
+still find their files in `assets`. Logseq's settings stay behind.
+
+- A page's properties, its `key:: value` lines at the top, become its
+  properties, with `tags` and `alias` as lists.
+- A namespace becomes folders: `area/project` is the note
+  `pages/area/project.md`.
+- A journal is named by its date, `journals/2026-10-30.md`, with the title
+  Logseq gave it, as `Oct 30th, 2026`, as its alias; links to it by that
+  title link to it.
+- A block's ID, `id:: …`, goes after the block, as `^…`, and references to
+  it, `((…))`, become links to it, as Obsidian writes block links;
+  `{{embed …}}` becomes an embed.
+- `TODO` and `LATER` become open tasks and `DONE` a done one; other
+  markers stay as words.
+- Everything else stays as Logseq wrote it, the outline and other
+  properties of blocks among it.
+
 ## Markdown files
 
 Choose one or more `.md` files. Each becomes a note, as it is written, in a
@@ -71,4 +92,4 @@ first cell, in the folder beside it:
 - Cells past the header's columns get columns of their own, named
   `Column 7` and so on, and the import says so.
 
-Logseq graphs and web pages come next.
+Web pages come next.
