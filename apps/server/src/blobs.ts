@@ -121,7 +121,8 @@ export class S3Blobs implements BlobStore {
     if (await this.has(key)) return;
     await this.#send(key, {
       method: "PUT",
-      body: data,
+      // A copy, since fetch takes only bytes backed by an ArrayBuffer.
+      body: data.slice(),
       headers: { "content-type": "application/octet-stream" },
     });
   }
