@@ -30,6 +30,8 @@ import { SearchPanel } from "./SearchPanel.tsx";
 import { ShortcutsDialog } from "./ShortcutsDialog.tsx";
 import { ariaKeys, commandFor, eventKeys } from "./shortcuts.ts";
 import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
+import { AppearanceDialog } from "./AppearanceDialog.tsx";
+import { useAppearance } from "./useAppearance.ts";
 import { TrashPanel } from "./TrashPanel.tsx";
 import type { NotePart } from "./noteLinks.ts";
 import type { NoteMode } from "./NoteView.tsx";
@@ -152,6 +154,8 @@ export function VaultView(props: {
   const { info, note: startNote, onClose } = props;
   const state = useVault(info);
   const vault = state.status === "open" ? state.vault : undefined;
+  // The vault's light or dark, theme and snippets, on the page while it is open.
+  const appearance = useAppearance(vault);
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
@@ -193,7 +197,7 @@ export function VaultView(props: {
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
   const [dialog, setDialog] = useState<
-    "newNote" | "settings" | "export" | "palette" | "shortcuts" | undefined
+    "newNote" | "settings" | "appearance" | "export" | "palette" | "shortcuts" | undefined
   >();
   // Asks the open note to switch modes, or to take a new name.
   const [sourceRequest, setSourceRequest] = useState(0);
@@ -468,6 +472,11 @@ export function VaultView(props: {
       templateSettings: open
         ? () => {
             setDialog("settings");
+          }
+        : undefined,
+      appearance: open
+        ? () => {
+            setDialog("appearance");
           }
         : undefined,
       shortcuts: open
@@ -761,6 +770,15 @@ export function VaultView(props: {
           folder={newIn}
           settings={settings}
           onCreate={(path, template) => makeNote(path, template, new Date())}
+          onClose={() => {
+            setDialog(undefined);
+          }}
+        />
+      ) : null}
+      {dialog === "appearance" && state.status === "open" ? (
+        <AppearanceDialog
+          vault={state.vault}
+          state={appearance}
           onClose={() => {
             setDialog(undefined);
           }}

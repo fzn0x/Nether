@@ -23,9 +23,15 @@
   line-height: 1.5;
 }
 
-/* Matches BackgroundColor in main.go, so the window never flashes. */
+/*
+ * Dark: as the system prefers until the page says otherwise, then as its
+ * data-mode says, which a vault's appearance sets (ADR 0026). Each rule
+ * weighs what :root does, so a theme's :root, which comes after, replaces
+ * it in both modes. Matches BackgroundColor in main.go, so the window
+ * never flashes.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:where(:not([data-mode="light"])) {
     --bg: #131118;
     --text: #ece8e1;
     --muted: #a39da8;
@@ -39,6 +45,26 @@
     --code-type: #e8c47e;
     --mark-bg: color-mix(in srgb, #f5d547 30%, transparent);
   }
+}
+
+:root:where([data-mode="dark"]) {
+  color-scheme: dark;
+  --bg: #131118;
+  --text: #ece8e1;
+  --muted: #a39da8;
+  --accent: #ff7a50;
+  --rule: #2a2631;
+  --panel-shadow: 0 6px 24px rgb(0 0 0 / 45%);
+  --code-keyword: #dda3f2;
+  --code-string: #a8da8d;
+  --code-number: #f4ae74;
+  --code-title: #92c6ff;
+  --code-type: #e8c47e;
+  --mark-bg: color-mix(in srgb, #f5d547 30%, transparent);
+}
+
+:root:where([data-mode="light"]) {
+  color-scheme: light;
 }
 
 * {

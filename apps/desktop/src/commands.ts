@@ -21,6 +21,7 @@ export const commandIds = [
   "showTrash",
   "openGraph",
   "templateSettings",
+  "appearance",
   "shortcuts",
   "checkUpdates",
   "updateChecks",
