@@ -10,6 +10,8 @@ export interface Config {
   /** The port to listen on; 0 picks a free one. */
   readonly port: number;
   readonly logLevel: LogLevel;
+  /** The PostgreSQL database's address, as `postgres://user:password@host:5432/nether`. */
+  readonly databaseUrl: string;
   readonly enterprise: EnterpriseSwitches;
 }
 
@@ -54,6 +56,20 @@ function readLogLevel(env: NodeJS.ProcessEnv): LogLevel {
   return level;
 }
 
+function readDatabaseUrl(env: NodeJS.ProcessEnv): string {
+  const value = env.NETHER_DATABASE_URL?.trim() ?? "";
+  if (value === "") {
+    throw new ConfigError(
+      "NETHER_DATABASE_URL",
+      "must be set to the PostgreSQL database's address, as postgres://user:password@host:5432/nether",
+    );
+  }
+  if (!/^postgres(ql)?:\/\//i.test(value)) {
+    throw new ConfigError("NETHER_DATABASE_URL", "must be a postgres:// address");
+  }
+  return value;
+}
+
 /** Reads the configuration, throwing a ConfigError that names the variable at fault. */
 export function readConfig(env: NodeJS.ProcessEnv): Config {
   const enterprise = Object.fromEntries(
@@ -64,6 +80,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     host: host === "" ? "127.0.0.1" : host,
     port: readPort(env),
     logLevel: readLogLevel(env),
+    databaseUrl: readDatabaseUrl(env),
     enterprise,
   };
 }

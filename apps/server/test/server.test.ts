@@ -2,30 +2,40 @@ import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp, serverVersion } from "../src/app.ts";
 import { type Config, readConfig } from "../src/config.ts";
+import type { Database } from "../src/db.ts";
 import { type EnterpriseModule, enterpriseFeatures, switchVariable } from "../src/enterprise.ts";
+import { migrate } from "../src/migrations.ts";
+import { testDatabase } from "./database.ts";
 
-const quiet = { NETHER_LOG_LEVEL: "silent" };
+const database = { NETHER_DATABASE_URL: "postgres://nether@localhost:5432/nether" };
+const quiet = { ...database, NETHER_LOG_LEVEL: "silent" };
 let app: FastifyInstance | undefined;
+let db: Database | undefined;
 
 afterEach(async () => {
   await app?.close();
   app = undefined;
+  await db?.close();
+  db = undefined;
 });
 
 async function start(
   config: Config,
   modules: readonly EnterpriseModule[] = [],
 ): Promise<FastifyInstance> {
-  app = await buildApp(config, modules);
+  db ??= await testDatabase();
+  await migrate(db);
+  app = await buildApp(config, { db, enterpriseModules: modules });
   return app;
 }
 
 describe("readConfig", () => {
   it("defaults to localhost:3000, info logs and every enterprise feature off", () => {
-    expect(readConfig({})).toEqual({
+    expect(readConfig(database)).toEqual({
       host: "127.0.0.1",
       port: 3000,
       logLevel: "info",
+      databaseUrl: database.NETHER_DATABASE_URL,
       enterprise: {
         sso: false,
         scim: false,
@@ -39,6 +49,7 @@ describe("readConfig", () => {
 
   it("reads the address, the port, the log level and each switch", () => {
     const config = readConfig({
+      ...database,
       NETHER_HOST: "0.0.0.0",
       NETHER_PORT: "0",
       NETHER_LOG_LEVEL: "WARN",
@@ -56,8 +67,16 @@ describe("readConfig", () => {
     [{ NETHER_PORT: "-1" }, "NETHER_PORT must be a port number"],
     [{ NETHER_LOG_LEVEL: "loud" }, "NETHER_LOG_LEVEL must be one of fatal, error, warn, info"],
     [{ NETHER_ENTERPRISE_SCIM: "maybe" }, 'NETHER_ENTERPRISE_SCIM must be on or off, not "maybe"'],
+    [
+      { NETHER_DATABASE_URL: "" },
+      "NETHER_DATABASE_URL must be set to the PostgreSQL database's address",
+    ],
+    [
+      { NETHER_DATABASE_URL: "mysql://db/nether" },
+      "NETHER_DATABASE_URL must be a postgres:// address",
+    ],
   ])("rejects %j", (env, message) => {
-    expect(() => readConfig(env)).toThrow(message);
+    expect(() => readConfig({ ...database, ...env })).toThrow(message);
   });
 
   it("names a switch for every enterprise feature", () => {
@@ -91,7 +110,7 @@ describe("GET /health", () => {
     });
   });
 
-  it("is the only route so far", async () => {
+  it("answers no route it does not have", async () => {
     const server = await start(readConfig(quiet));
     expect((await server.inject({ method: "GET", url: "/" })).statusCode).toBe(404);
   });
