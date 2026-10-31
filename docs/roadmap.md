@@ -110,7 +110,7 @@ The first public release, one feature per pull request, in this order:
 
 - [x] Headroom in the desktop app's memory: find what Phase 2 added to it at idle, before sync adds its own. Phase 2's code added about 5 MB, now 2.5 MB with the database, query and dialog code loaded when used; the rest of the rise was the machine, where the Phase 1 build itself now idles at 287 MB. The page's renderer, 208 MB of 291, is where more must come from.
 - [x] The server's data model in PostgreSQL, with migrations that run on start, and the first-run setup that makes the admin account ([ADR 0031](adr/0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md)).
-- [ ] Accounts: email and password with argon2id, magic links and OIDC, with rate limits.
+- [x] Accounts: email and password with argon2id, magic links and OIDC, with rate limits. Sessions and invitations ([ADR 0032](adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md)), a code by email whose link comes with the web app ([ADR 0033](adr/0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md)), and OIDC ([ADR 0034](adr/0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md)).
 - [ ] Sync: the Hocuspocus server, Yjs updates kept in PostgreSQL, and the desktop app's provider with its offline queue, so a vault syncs between devices with no conflict dialogs for text.
 - [ ] End-to-end encryption, per vault, with libsodium and a recovery phrase.
 - [ ] Attachments on disk or in S3-compatible storage, deduplicated by hash.
@@ -118,7 +118,7 @@ The first public release, one feature per pull request, in this order:
 - [ ] Workspaces, teamspaces and private spaces; roles and page permissions inherited down the page tree; guests.
 - [ ] Real-time co-editing with live cursors.
 - [ ] Comments and threads; mentions and notifications, by email through the admin's SMTP.
-- [ ] The web app, served by the server, installable as a PWA, with its content security policy.
+- [ ] The web app, served by the server, installable as a PWA, with its content security policy, its sessions in a cookie with a CSRF defence, and the link to sign in by email.
 - [ ] Workspace search on the server, by permission.
 - [ ] The canvas, in the JSON Canvas format.
 - [ ] Task assignment: the person property, and "assigned to me".

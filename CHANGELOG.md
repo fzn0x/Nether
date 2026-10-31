@@ -142,6 +142,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Signing in with an OpenID Connect provider, such as Keycloak, Okta or
+  Microsoft Entra ID: the app opens the provider in the browser and gets a
+  session through a code and its PKCE verifier, as RFC 8252 describes. The
+  provider's identity links to the account its verified address names, an
+  invitation makes an account for whoever it invites, and
+  `NETHER_OIDC_SIGN_UP` lets everyone the provider signs in have one
+  ([ADR 0034](docs/adr/0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md)).
 - Signing in by email: a server with the admin's SMTP server, set by
   `NETHER_SMTP_URL` and `NETHER_MAIL_FROM`, emails a code of eight digits
   to an address that has an account, which signs in once within 15

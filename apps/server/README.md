@@ -11,8 +11,9 @@ people in, invites others into workspaces, and holds the extension point
 through which the free [enterprise features](../../enterprise/) plug in.
 Sync, sharing and the rest arrive in Phase 3. See ADRs
 [0031](../../docs/adr/0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md),
-[0032](../../docs/adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md)
-and [0033](../../docs/adr/0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md).
+[0032](../../docs/adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md),
+[0033](../../docs/adr/0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md)
+and [0034](../../docs/adr/0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md).
 
 ## Run it
 
@@ -59,10 +60,13 @@ token as `Authorization: Bearer <token>`. Every error is
 | --- | --- | --- |
 | `GET /health` | | The server's version, and which enterprise features are on |
 | `GET /api/setup`, `POST /api/setup` | | First-run setup, above |
-| `GET /api/sign-in-methods` | | Which ways to sign in this server offers: `password`, and `emailCode` when it can send email |
+| `GET /api/sign-in-methods` | | Which ways to sign in this server offers: `password`, `emailCode` when it can send email, and `oidc` with the provider's name |
 | `POST /api/sessions` | | Signs in with `email` and `password`; gives `token` and `expiresAt` |
 | `POST /api/sign-in-codes` | | Emails a code to sign in to `email`, if it has an account; answers 202 either way |
 | `POST /api/sign-in-codes/redeem` | | Signs in with `email` and its `code`, as signing in with a password does |
+| `POST /api/oidc/flows` | | Starts signing in with the OIDC provider: the app's `redirect` and PKCE `challenge`, and an `invitation` if any; gives the provider's `url` to open |
+| `GET /api/oidc/callback` | | Where the provider sends the browser; sends it on to the app's `redirect` with a `code` or an `error` |
+| `POST /api/oidc/redeem` | | Signs in with that `code` and the app's PKCE `verifier` |
 | `GET /api/sessions` | yes | The account's sessions, the current one marked |
 | `DELETE /api/sessions/current` | yes | Signs out |
 | `POST /api/sessions/revoke` | yes | Ends the session `session`, or every other one, with `password` |
@@ -101,6 +105,32 @@ NETHER_MAIL_FROM='Nether <nether@example.org>'
 465) uses TLS from the start. A message that cannot be sent is written to
 the server's log.
 
+## Signing in with OpenID Connect
+
+People can sign in with the team's OpenID Connect provider, such as
+Keycloak, Authentik, Okta, Microsoft Entra ID or Google. Register Nether
+with it as a confidential client whose redirect address is
+`NETHER_PUBLIC_URL/api/oidc/callback`, then set:
+
+```sh
+NETHER_PUBLIC_URL=https://nether.example.org
+NETHER_OIDC_ISSUER=https://login.example.org/realms/team
+NETHER_OIDC_CLIENT_ID=nether
+NETHER_OIDC_CLIENT_SECRET=…
+NETHER_OIDC_NAME=Keycloak
+```
+
+The provider's identity signs in to the account whose address the provider
+has verified, and stays linked to it. A person without an account signs in
+only with an invitation, unless `NETHER_OIDC_SIGN_UP=on` lets everyone the
+provider signs in have one. A provider named with `http://` is used, with a
+warning in the log: do that only on a private network.
+
+The app opens the provider in the browser and listens on a loopback
+address, by IP, for the browser to come back with a code, which it redeems
+with its PKCE verifier (RFC 8252). The web app comes back to the server's
+own address.
+
 ## Database
 
 The schema is a list of numbered migrations in
@@ -119,6 +149,12 @@ refuses to start on a database a newer server has migrated.
 | `NETHER_DATABASE_URL` | none, required | The PostgreSQL database, as `postgres://user:password@host:5432/nether` |
 | `NETHER_SMTP_URL` | none | The SMTP server email goes through, as `smtp://user:password@host:587` or `smtps://user:password@host:465` |
 | `NETHER_MAIL_FROM` | none, required with `NETHER_SMTP_URL` | The sender, as `Nether <nether@example.org>` |
+| `NETHER_PUBLIC_URL` | none | The address people reach the server at, as `https://nether.example.org`; needed for OIDC |
+| `NETHER_OIDC_ISSUER` | none | The OpenID Connect provider's issuer; sets up signing in with it |
+| `NETHER_OIDC_CLIENT_ID` | none, required with the issuer | Nether's client ID at the provider |
+| `NETHER_OIDC_CLIENT_SECRET` | none | Its secret; without one, a public client using PKCE alone |
+| `NETHER_OIDC_NAME` | `single sign-on` | The provider's name on the app's button |
+| `NETHER_OIDC_SIGN_UP` | `off` | Whether anyone the provider signs in gets an account, not only the invited |
 | `NETHER_TRUST_PROXY` | `off` | Behind a reverse proxy, whose `X-Forwarded-For` to believe: `on` for any, or addresses and ranges such as `10.0.0.2, 172.16.0.0/12` or `uniquelocal` |
 | `NETHER_ENTERPRISE_SSO` | `off` | Single sign-on |
 | `NETHER_ENTERPRISE_SCIM` | `off` | Provisioning through SCIM and LDAP |

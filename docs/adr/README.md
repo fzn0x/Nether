@@ -41,3 +41,4 @@ record supersedes it and says so. Start a new one from
 | [0031](0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md) | The server keeps its data in PostgreSQL, and is set up with a code from its log | Accepted |
 | [0032](0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md) | Sessions are bearer tokens kept as hashes, and accounts come by invitation | Accepted |
 | [0033](0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md) | Sign in by email with a code now, and with a link once the web app can open one | Accepted |
+| [0034](0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md) | Sign in with OpenID Connect through the server, and hand the session back to the app | Accepted |
