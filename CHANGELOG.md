@@ -376,6 +376,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Opening a folder as a vault for the first time no longer fails with
+  "table settings already exists" (or another table) when the app opens
+  it twice at once: a second migration of the new index finds the first
+  has run, and carries on from there.
 - A note's sync no longer waits for ever when the server never lets it in,
   as when it signed in just as the last sync of that note left: it waits
   for the last to go, and asks again or fails for the next round.
