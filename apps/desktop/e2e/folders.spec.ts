@@ -84,3 +84,39 @@ test("the sidebar's icons are named, with a tooltip on hover and focus", async (
   await page.keyboard.press("Escape");
   await expect(page.locator(".tooltip")).toBeHidden();
 });
+
+test("a vault with folders and no notes shows its folders, and a new one at once", async ({
+  page,
+}) => {
+  await openSampleTree(page);
+  // Every file gone, as from another app: the vault has no notes.
+  await page.evaluate(async () => {
+    const files = (
+      globalThis as unknown as {
+        netherPreview: {
+          files: {
+            list(folder: string, each: (files: readonly { path: string }[]) => void): Promise<void>;
+            edit(path: string, text: string | undefined): void;
+          };
+        };
+      }
+    ).netherPreview.files;
+    const paths: string[] = [];
+    await files.list("", (batch) => {
+      for (const file of batch) paths.push(file.path);
+    });
+    for (const path of paths) files.edit(path, undefined);
+  });
+  // Its folders stay, as on disk, and show without a note in them.
+  const tree = page.getByRole("tree", { name: "Notes" });
+  await expect(tree.getByRole("treeitem", { name: "Projects" })).toBeVisible();
+  await expect(page.getByText("This vault has no notes yet.")).toBeHidden();
+  await page.getByRole("button", { name: "New folder" }).click();
+  const dialog = page.getByRole("dialog", { name: "New folder" });
+  await dialog.getByRole("textbox", { name: "Name" }).fill("First");
+  await dialog.getByRole("button", { name: "Create" }).click();
+  await expect(
+    page.getByRole("tree", { name: "Notes" }).getByRole("treeitem", { name: "First" }),
+  ).toBeVisible();
+  await expect(page.getByText("This vault has no notes yet.")).toBeHidden();
+});
