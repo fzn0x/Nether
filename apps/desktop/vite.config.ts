@@ -28,6 +28,11 @@ export default defineConfig({
     format: "es",
     plugins: () => [decodeEntitiesWithoutDom()],
   },
+  // The dev server bundles micromark with its decoder ahead, apart from the
+  // plugins above; without this the worker gets the browser build and fails.
+  optimizeDeps: {
+    rolldownOptions: { plugins: [decodeEntitiesWithoutDom()] },
+  },
   server: {
     // `mygo dev` loads this address (devUrl in mygo.json).
     port: 5173,
