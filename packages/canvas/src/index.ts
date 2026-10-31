@@ -30,3 +30,23 @@ export {
   snap,
   within,
 } from "./geometry.ts";
+export {
+  type History,
+  addNode,
+  bringToFront,
+  canvasIds,
+  connect,
+  historyLimit,
+  minNodeSize,
+  moveNodes,
+  record,
+  redo,
+  removeItems,
+  resizeNode,
+  setColor,
+  setLabel,
+  setText,
+  startHistory,
+  undo,
+  updateNode,
+} from "./edit.ts";
