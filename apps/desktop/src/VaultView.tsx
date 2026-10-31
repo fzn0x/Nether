@@ -926,6 +926,7 @@ export function VaultView(props: {
                 <HistoryDialog
                   vault={state.vault}
                   note={note}
+                  link={sync.link}
                   onClose={() => {
                     setDialog(undefined);
                   }}

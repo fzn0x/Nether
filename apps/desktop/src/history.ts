@@ -1,12 +1,74 @@
-// A note's history in the desktop app (ADR 0041): what changed between one
-// of its versions and the note now, with long runs of unchanged lines
-// folded away, and putting a version back through the note's document, so
-// the editor and sync take it as they take any edit.
-import type { NoteId } from "@nether/core";
-import { type DiffPart, diffLines } from "@nether/markdown";
+// A note's history in the desktop app (ADR 0041): the versions this
+// computer keeps, and those the server keeps of a note in a workspace it
+// can read; what changed between one and the note now, with long runs of
+// unchanged lines folded away; and putting a version back through the
+// note's document, so the editor and sync take it as they take any edit.
+import { type NoteId, newBlockId } from "@nether/core";
+import { documentBlocks, documentProperties } from "@nether/editor";
+import { type DiffPart, diffLines, serializeMarkdown } from "@nether/markdown";
 import type { Vault } from "@nether/storage";
+import * as Y from "yjs";
 import { t } from "./messages.ts";
 import { noteDocuments, whenLoaded } from "./noteDocuments.ts";
+import { noteVersionState, noteVersions } from "./server.ts";
+import type { VaultLink } from "./sync.ts";
+
+/** A version as the history lists it, kept on this computer or on the server. */
+export interface ListedVersion {
+  readonly key: string;
+  /** When the note last had it, in milliseconds since 1970. */
+  readonly time: number;
+  readonly where: "here" | "server";
+  /** Its text, as Markdown. */
+  text(): Promise<string>;
+}
+
+/** The versions this computer keeps of a note, the latest first. */
+export async function localVersions(vault: Vault, id: NoteId): Promise<ListedVersion[]> {
+  return (await vault.versions(id)).map((version) => ({
+    key: `here:${String(version.id)}`,
+    time: version.time,
+    where: "here",
+    text: async () => (await vault.versionText(version.id)) ?? "",
+  }));
+}
+
+/**
+ * The versions the server keeps of a note, the latest first: none for an
+ * encrypted workspace, whose server cannot read its notes.
+ */
+export async function serverVersions(
+  fetcher: typeof fetch,
+  link: VaultLink,
+  token: string,
+  id: NoteId,
+): Promise<ListedVersion[]> {
+  if (link.encrypted === true) return [];
+  const listed = await noteVersions(fetcher, link.server, token, link.workspaceId, id);
+  return listed.map((version) => ({
+    key: `server:${version.id}`,
+    time: version.time,
+    where: "server",
+    text: async () =>
+      markdownOf(
+        await noteVersionState(fetcher, link.server, token, link.workspaceId, id, version.id),
+      ),
+  }));
+}
+
+/** A note's document state as the Markdown Nether writes for it. */
+function markdownOf(state: Uint8Array): string {
+  const document = new Y.Doc();
+  try {
+    Y.applyUpdate(document, state);
+    return serializeMarkdown({
+      properties: documentProperties(document),
+      content: documentBlocks(document, newBlockId),
+    }).text;
+  } finally {
+    document.destroy();
+  }
+}
 
 /** A row of a diff as shown: lines kept, removed or added, or unchanged lines folded away. */
 export type DiffRow = DiffPart | { readonly kind: "folded"; readonly count: number };

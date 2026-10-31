@@ -266,6 +266,9 @@ export const messages = {
   historyEmpty:
     "No earlier versions yet. This computer keeps the note as it was before each spell of editing, and every ten minutes while it goes on.",
   historyVersions: "Versions",
+  historyHere: "On this computer",
+  historyOnServer: "On {server}",
+  historyServerFailed: "The versions on {server} could not be listed: {error}",
   historyChanges: "Changes from this version to the note now",
   historySame: "This version is the note as it is now.",
   historyUnchanged: "{count} lines unchanged",

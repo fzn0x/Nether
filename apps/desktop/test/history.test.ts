@@ -1,12 +1,14 @@
 // A note's history in the desktop app: what changed since a version, with
-// long unchanged runs folded, and a version put back through the document
-// an open editor shares, keeping the note as it was as a version first.
-import { newBlockId } from "@nether/core";
-import { documentBlocks } from "@nether/editor";
-import { serializeMarkdown } from "@nether/markdown";
+// long unchanged runs folded; the server's versions, as Markdown; and a
+// version put back through the document an open editor shares, keeping the
+// note as it was as a version first.
+import { type NoteId, newBlockId } from "@nether/core";
+import { documentBlocks, setDocumentBlocks } from "@nether/editor";
+import { parseMarkdown, serializeMarkdown } from "@nether/markdown";
 import { MemoryFiles, MemoryStore, Vault } from "@nether/storage";
 import { afterEach, describe, expect, it } from "vitest";
-import { historyDiff, restoreVersion } from "../src/history.ts";
+import * as Y from "yjs";
+import { historyDiff, restoreVersion, serverVersions } from "../src/history.ts";
 import { noteDocuments, whenLoaded } from "../src/noteDocuments.ts";
 
 const watching: AbortController[] = [];
@@ -38,6 +40,45 @@ describe("historyDiff", () => {
       { kind: "same", lines: ["line 1", "line 2", "line 3", "line 4"] },
     ]);
     expect(historyDiff("\uFEFFsame\n", "same\n")).toEqual([]);
+  });
+});
+
+describe("serverVersions", () => {
+  const link = { server: "https://nether.test", workspaceId: "w1", workspaceName: "Team" };
+  const note = "01929f4c-7b00-7a00-8000-000000000001" as NoteId;
+
+  it("lists the server's versions of a note, each read as the Markdown Nether writes", async () => {
+    const document = new Y.Doc();
+    setDocumentBlocks(document, parseMarkdown("# Plan\n\nAs it was.\n").content);
+    const state = Y.encodeStateAsUpdate(document);
+    const asked: string[] = [];
+    const fetcher = ((input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      asked.push(`${url} ${new Headers(init?.headers).get("authorization") ?? ""}`);
+      if (url.endsWith("/versions")) {
+        return Promise.resolve(
+          Response.json({ versions: [{ id: "7", time: "2026-10-31T09:00:00.000Z" }] }),
+        );
+      }
+      return Promise.resolve(
+        new Response(state.slice(), { headers: { "content-type": "application/octet-stream" } }),
+      );
+    }) as typeof fetch;
+
+    const versions = await serverVersions(fetcher, link, "token", note);
+    expect(versions.map(({ key, time, where }) => ({ key, time, where }))).toEqual([
+      { key: "server:7", time: Date.parse("2026-10-31T09:00:00.000Z"), where: "server" },
+    ]);
+    expect(await versions[0]?.text()).toBe("# Plan\n\nAs it was.\n");
+    expect(asked).toEqual([
+      `https://nether.test/api/workspaces/w1/documents/${note}/versions Bearer token`,
+      `https://nether.test/api/workspaces/w1/documents/${note}/versions/7 Bearer token`,
+    ]);
+  });
+
+  it("asks nothing of the server of an encrypted workspace, which cannot read notes", async () => {
+    const fetcher = (() => Promise.reject(new Error("asked"))) as typeof fetch;
+    expect(await serverVersions(fetcher, { ...link, encrypted: true }, "token", note)).toEqual([]);
   });
 });
 

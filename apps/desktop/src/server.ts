@@ -125,6 +125,53 @@ export async function request(
   return answer;
 }
 
+/** The versions a server keeps of a note, the latest first (ADR 0041). */
+export async function noteVersions(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  note: string,
+): Promise<{ id: string; time: number }[]> {
+  const path = `/api/workspaces/${workspaceId}/documents/${note}/versions`;
+  const answer = record(await request(fetcher, base, path, { token }));
+  const versions = Array.isArray(answer.versions) ? (answer.versions as unknown[]) : [];
+  return versions.map((item) => {
+    const version = record(item);
+    const time = Date.parse(text(version.time, base));
+    if (Number.isNaN(time)) throw new ServerError(0, t("serverOddAnswer", { server: base }));
+    return { id: text(version.id, base), time };
+  });
+}
+
+/** One of a note's versions on a server, as the Yjs state it was. */
+export async function noteVersionState(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  note: string,
+  version: string,
+): Promise<Uint8Array> {
+  let response: Response;
+  try {
+    response = await fetcher(
+      `${base}/api/workspaces/${workspaceId}/documents/${note}/versions/${version}`,
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new ServerError(0, t("serverUnreachable", { server: base, reason }));
+  }
+  if (!response.ok) {
+    throw new ServerError(
+      response.status,
+      t("serverAnswered", { server: base, status: response.status }),
+    );
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
+
 function userOf(answer: unknown, base: string): ServerUser {
   const user = record(answer);
   return {

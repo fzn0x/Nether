@@ -1,9 +1,10 @@
-// A note's history on this device (ADR 0041): the versions kept of it, the
-// latest first, each shown as what changed from it to the note now.
+// A note's history (ADR 0041): the versions this computer keeps of it, and
+// for a vault synced with a workspace the server can read, the server's,
+// the latest first, each shown as what changed from it to the note now.
 // Restoring one keeps the note as it is now as a version first, so a
-// restore is undone the same way. How many days versions are kept is set
-// here.
-import { type NoteEntry, type NoteVersion, type Vault, defaultHistoryDays } from "@nether/storage";
+// restore is undone the same way. How many days this computer keeps
+// versions is set here.
+import { type NoteEntry, type Vault, defaultHistoryDays } from "@nether/storage";
 import {
   type KeyboardEvent,
   type SyntheticEvent,
@@ -13,22 +14,39 @@ import {
   useRef,
   useState,
 } from "react";
-import { historyDiff, restoreVersion } from "./history.ts";
+import { backend } from "./backend.ts";
+import {
+  type ListedVersion,
+  historyDiff,
+  localVersions,
+  restoreVersion,
+  serverVersions,
+} from "./history.ts";
 import { t } from "./messages.ts";
+import { type VaultLink, hostOf } from "./sync.ts";
 import { useModal } from "./useModal.ts";
 
 const when = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
+/** The versions of both places, the latest first. */
+function merged(here: readonly ListedVersion[], server: readonly ListedVersion[]): ListedVersion[] {
+  return [...here, ...server].sort((a, b) => b.time - a.time);
+}
+
 export function HistoryDialog(props: {
   readonly vault: Vault;
   readonly note: NoteEntry;
+  /** The workspace the vault syncs with, whose server may keep versions too. */
+  readonly link: VaultLink | undefined;
   readonly onClose: () => void;
 }) {
-  const { vault, note, onClose } = props;
-  const [versions, setVersions] = useState<readonly NoteVersion[] | undefined>();
+  const { vault, note, link, onClose } = props;
+  const [here, setHere] = useState<readonly ListedVersion[] | undefined>();
+  const [server, setServer] = useState<readonly ListedVersion[]>([]);
+  const [serverProblem, setServerProblem] = useState<string | undefined>();
   // The note as it is now, and the chosen version's text.
   const [now, setNow] = useState<string | undefined>();
-  const [chosen, setChosen] = useState<number | undefined>();
+  const [chosen, setChosen] = useState<string | undefined>();
   const [text, setText] = useState<string | undefined>();
   const [keepDays, setKeepDays] = useState(defaultHistoryDays);
   const [daysDraft, setDaysDraft] = useState(String(defaultHistoryDays));
@@ -43,12 +61,11 @@ export function HistoryDialog(props: {
 
   useEffect(() => {
     let current = true;
-    Promise.all([vault.versions(note.id), vault.read(note.id), vault.historyDays()]).then(
+    Promise.all([localVersions(vault, note.id), vault.read(note.id), vault.historyDays()]).then(
       ([list, file, days]) => {
         if (!current) return;
-        setVersions(list);
+        setHere(list);
         setNow(file.missing === true ? "" : file.text);
-        setChosen(list[0]?.id);
         setKeepDays(days);
         setDaysDraft(String(days));
       },
@@ -59,17 +76,52 @@ export function HistoryDialog(props: {
     };
   }, [vault, note.id, report]);
 
+  // The server's versions come when they come; without them, this computer's still show.
+  useEffect(() => {
+    if (link === undefined || link.encrypted === true) return;
+    let current = true;
+    // Read through a function: the effect's cleanup changes it during the waits.
+    const live = () => current;
+    void (async () => {
+      try {
+        const token = await backend.serverToken(link.server);
+        if (token === undefined) return;
+        const found = await serverVersions(backend.serverFetch, link, token, note.id);
+        if (live()) setServer(found);
+      } catch (reason) {
+        if (!live()) return;
+        setServerProblem(
+          t("historyServerFailed", {
+            server: hostOf(link.server),
+            error: reason instanceof Error ? reason.message : String(reason),
+          }),
+        );
+      }
+    })();
+    return () => {
+      current = false;
+    };
+  }, [link, note.id]);
+
+  const versions = useMemo(
+    () => (here === undefined ? undefined : merged(here, server)),
+    [here, server],
+  );
+  // The latest is chosen until someone chooses another.
+  const shown = chosen ?? versions?.[0]?.key;
+  const version = versions?.find((item) => item.key === shown);
+
   useEffect(() => {
     setText(undefined);
-    if (chosen === undefined) return;
+    if (version === undefined) return;
     let current = true;
-    vault.versionText(chosen).then((found) => {
-      if (current) setText(found ?? "");
+    version.text().then((found) => {
+      if (current) setText(found);
     }, report);
     return () => {
       current = false;
     };
-  }, [vault, chosen, report]);
+  }, [version, report]);
 
   const rows = useMemo(
     () => (text === undefined || now === undefined ? undefined : historyDiff(text, now)),
@@ -129,18 +181,25 @@ export function HistoryDialog(props: {
           <div className="history-body">
             <fieldset className="history-versions" disabled={restoring}>
               <legend>{t("historyVersions")}</legend>
-              {versions.map((version, index) => (
-                <label key={version.id} className="field-check">
+              {versions.map((item, index) => (
+                <label key={item.key} className="field-check">
                   <input
                     type="radio"
                     name="history-version"
-                    checked={chosen === version.id}
+                    checked={shown === item.key}
                     autoFocus={index === 0}
                     onChange={() => {
-                      setChosen(version.id);
+                      setChosen(item.key);
                     }}
                   />
-                  {when.format(version.time)}
+                  {when.format(item.time)}
+                  {link === undefined ? null : (
+                    <span className="hint">
+                      {item.where === "here"
+                        ? t("historyHere")
+                        : t("historyOnServer", { server: hostOf(link.server) })}
+                    </span>
+                  )}
                 </label>
               ))}
             </fieldset>
@@ -195,6 +254,7 @@ export function HistoryDialog(props: {
           />
           {t("days")}
         </label>
+        {serverProblem === undefined ? null : <p role="status">{serverProblem}</p>}
         {error === undefined ? null : <p role="alert">{error}</p>}
         <div className="dialog-actions">
           <button type="button" className="quiet" onClick={onClose} disabled={restoring}>
