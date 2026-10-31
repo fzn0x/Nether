@@ -29,3 +29,4 @@ record supersedes it and says so. Start a new one from
 | [0019](0019-relations-are-links-both-ways-and-rollups-are-worked-out.md) | Relations are links, kept both ways, and rollups are worked out | Accepted |
 | [0020](0020-formulas-in-a-language-nether-reads-and-runs-itself.md) | Formulas in a language Nether reads and runs itself | Accepted |
 | [0021](0021-query-blocks-are-obsidian-bases-in-a-code-block.md) | Query blocks are Obsidian bases in a code block | Accepted |
+| [0022](0022-a-database-exports-to-csv-as-its-view-shows-it.md) | A database exports to CSV as its view shows it | Accepted |

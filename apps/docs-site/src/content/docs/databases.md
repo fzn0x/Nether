@@ -111,6 +111,23 @@ and change it under **Properties**. Like a rollup, its value is worked out
 each time the database shows, and never written to a row's file. The
 [formula language](../formulas/) has every operator, function and method.
 
+## Exporting a view as CSV
+
+**Export CSV** in a view's toolbar saves the view as a CSV file, for a
+spreadsheet or any tool that reads a table: the rows its filter keeps, in
+its order, with a column of their names and then the properties the view
+shows. Choose where to save it; its name is the database's and the view's.
+
+- Text, numbers and dates are written as the rows hold them, a checkbox
+  as `true` or `false`, and a list's items between commas.
+- A link, as a relation's value, is written as the name of the note it
+  names.
+- Rollups and formulas are written as they work out.
+
+The file is UTF-8, with the byte order mark Excel needs to read every
+language's letters. To export every row and property, make a view that
+shows them all.
+
 ## How a database is written
 
 A database is a note with a `database` property in its frontmatter, which

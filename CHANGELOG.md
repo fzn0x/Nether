@@ -142,6 +142,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- A database's view exports as CSV from its toolbar: the rows it keeps, in
+  its order, with the properties it shows, as UTF-8 that spreadsheets read
+  ([ADR 0022](docs/adr/0022-a-database-exports-to-csv-as-its-view-shows-it.md)).
 - Query blocks: a `base` code block in a note, written as Obsidian writes a
   base, shows the notes its filters find anywhere in the vault, by folder,
   tag or property, as a table, a list or cards, with its own formulas,

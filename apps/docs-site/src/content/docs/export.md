@@ -39,3 +39,6 @@ the files it shows beside it, and an `index.html` that lists every page.
 **A PDF.** Every note, in the order of their paths, each starting on a new
 page, with its properties, math, code and diagrams. Links between notes in
 the PDF lead to the note's first page.
+
+A database's view exports as a CSV table from its toolbar; see
+[Databases](../databases/#exporting-a-view-as-csv).
