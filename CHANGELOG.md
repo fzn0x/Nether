@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- End-to-end encryption in the desktop app: an account turns it on in
+  Servers and signing in, writing down the recovery phrase it shows once,
+  and unlocks it on another computer with the phrase; Sync this vault makes
+  encrypted workspaces and syncs them, and a member's app seals a
+  workspace's key for the members waiting for it. The account's private
+  key stays in the system's keychain.
 - End-to-end encryption in `@nether/sync-client`: a 24-word recovery
   phrase that opens an account's private key, workspace keys sealed to
   each member, and every update of an encrypted workspace encrypted with

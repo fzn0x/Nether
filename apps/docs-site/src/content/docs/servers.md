@@ -57,6 +57,34 @@ edits, with no conflict to resolve. A note moved or removed on one computer
 is moved, or sent to the trash, on the other. **Stop syncing** keeps the
 notes where they are, on the computer and on the server.
 
+## End-to-end encryption
+
+A workspace can be encrypted, so that only its members' computers can read
+its notes: the server keeps them and syncs them, but holds
+nothing it can read, not even their titles. Encryption is chosen when a
+workspace is made, and stays.
+
+**Turn it on** once for your account: in **Servers and signing in**, choose
+**Turn on end-to-end encryption**. Nether shows a recovery phrase of 24
+words. Write them down, in order, and keep them somewhere safe: they are the
+only way to open your encrypted workspaces on a new computer, and no one,
+not the server's admin nor Nether's makers, can recover them for you.
+
+**Make an encrypted workspace** in **Sync this vault**: give it a name and
+choose **Make it encrypted**, then sync the vault with it.
+
+**On another computer**, sign in to the server, choose **Unlock with the
+recovery phrase**, and type the 24 words. Your encrypted workspaces then
+sync there as the others do.
+
+**Members** of an encrypted workspace get its key from another member's
+computer, sealed so only theirs can open it, the first time a member who
+has it opens Nether after they turn encryption on. Until then, their sync
+waits for it.
+
+The server cannot search an encrypted workspace, publish it, or keep its
+history; those come from the apps that can read it.
+
 ## For admins
 
 The server's README covers running a server, its first-run setup, email,
