@@ -46,7 +46,8 @@ Files and folders whose names start with a dot, such as `.obsidian` or
 ## Deleting and restoring notes
 
 **Move to trash**, at the top of a note, moves it to the vault's `.trash`
-folder. The sidebar then says so, with **Restore** to put it straight back.
+folder. The sidebar then says so, with **Restore** to put it straight back,
+and × to close the message.
 
 The **Trash** tab lists every note in the trash, the latest first, with the
 folder it was in, when it was deleted and how many days it has left. From
