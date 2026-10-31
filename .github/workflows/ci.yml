@@ -61,6 +61,11 @@ jobs:
         run: pnpm --filter @nether/server smoke
         env:
           NETHER_DATABASE_URL: postgres://nether:nether@localhost:5432/nether
+      # The documented restore procedure, as an admin runs it (ADR 0052).
+      - name: Back the server up and restore it
+        run: pnpm --filter @nether/server drill
+        env:
+          NETHER_DATABASE_URL: postgres://nether:nether@localhost:5432/nether
 
   licenses:
     name: Licenses

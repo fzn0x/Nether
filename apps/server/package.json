@@ -10,7 +10,8 @@
     "start": "node dist/main.js",
     "smoke": "node scripts/smoke.mjs",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "drill": "node scripts/drill.mjs"
   },
   "dependencies": {
     "@fastify/rate-limit": "^11.2.1",
