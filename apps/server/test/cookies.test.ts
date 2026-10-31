@@ -6,7 +6,7 @@
 // the sign-in email links to the web app.
 import { afterEach, describe, expect, it } from "vitest";
 import { readCookies, socketCookieToken } from "../src/cookies.ts";
-import { type TestServer, TestMailer, admin, bearer, startServer } from "./app.ts";
+import { type TestServer, TestMailer, admin, bearer, setUp, startServer } from "./app.ts";
 
 let running: TestServer | undefined;
 
@@ -74,6 +74,60 @@ describe("sessions in a cookie", () => {
       (await running.server.inject({ method: "GET", url: "/api/me", headers: { cookie } }))
         .statusCode,
     ).toBe(401);
+  });
+
+  it("accept an invitation into the account a page signed in to", async () => {
+    running = await startServer();
+    const test = { ...running, ...(await setUp(running)) };
+    const invite = async (workspace: string) =>
+      (
+        await test.server.inject({
+          method: "POST",
+          url: `/api/workspaces/${workspace}/invitations`,
+          headers: bearer(test.token),
+          payload: { role: "member" },
+        })
+      ).json<{ token: string }>().token;
+    // Grace has an account, from an invitation to the first workspace.
+    const grace = { name: "Grace", email: "grace@example.org", password: "a long password" };
+    const joined = await test.server.inject({
+      method: "POST",
+      url: "/api/invitations/accept",
+      payload: { token: await invite(test.workspaceId), ...grace },
+    });
+    expect(joined.statusCode).toBe(201);
+    // She signs in from the web app, and is invited to a second workspace.
+    const signIn = await test.server.inject({
+      method: "POST",
+      url: "/api/sessions",
+      headers: { "x-nether-session": "cookie" },
+      payload: { email: grace.email, password: grace.password },
+    });
+    const cookie = cookieHeader(setCookies(signIn.headers["set-cookie"]));
+    const csrf = readCookies(cookie).get("nether_csrf") ?? "";
+    const second = (
+      await test.server.inject({
+        method: "POST",
+        url: "/api/workspaces",
+        headers: bearer(test.token),
+        payload: { name: "Second" },
+      })
+    ).json<{ id: string }>().id;
+    const token = await invite(second);
+    const accept = (headers: Record<string, string>) =>
+      test.server.inject({
+        method: "POST",
+        url: "/api/invitations/accept",
+        headers: { cookie, ...headers },
+        payload: { token },
+      });
+    expect((await accept({})).statusCode).toBe(403);
+    const accepted = await accept({ "x-nether-csrf": csrf });
+    expect(accepted.statusCode).toBe(200);
+    const me = await test.server.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+    expect(me.json<{ workspaces: { id: string }[] }>().workspaces.map((w) => w.id)).toContain(
+      second,
+    );
   });
 
   it("leave bearer tokens as they were", async () => {
