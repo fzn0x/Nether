@@ -53,14 +53,14 @@ shared projects, synced through **a server you control**, or through none.
 
 ## Roadmap
 
-| Phase | What it delivers |
-| --- | --- |
-| 0. Foundations (done) | Decisions, the repository, CI, the data model, a 50,000-note test vault |
-| 1. Local-first notes (under way) | The desktop app: a vault on disk, the block and Markdown editor, links and backlinks, tags, search, templates, export |
-| 2. Databases and structure | Databases with six views, relations, rollups, formulas, synced blocks, the graph view, importers from Obsidian and Notion |
-| 3. Sync and collaboration | The first public release: the server, end-to-end encrypted sync, co-editing, comments, permissions, the web app, the canvas, backups |
-| 4. Platform | Plugins in a sandbox, bring-your-own AI, publishing, the REST API, the web clipper, automations |
-| 5. Enterprise, mobile and scale | Single sign-on, SCIM, audit logs, data policies, high availability, the Helm chart, mobile apps |
+| Phase | What it delivers | Complete |
+| --- | --- | :---: |
+| 0. Foundations | Decisions, the repository, CI, the data model, a 50,000-note test vault | ✅ |
+| 1. Local-first notes | The desktop app: a vault on disk, the block and Markdown editor, links and backlinks, tags, search, templates, export | ✅ |
+| 2. Databases and structure | Databases with six views, relations, rollups, formulas, synced blocks, the graph view, importers from Obsidian and Notion | ✅ |
+| 3. Sync and collaboration | The first public release: the server, end-to-end encrypted sync, co-editing, comments, permissions, the web app, the canvas, backups | ❌ |
+| 4. Platform | Plugins in a sandbox, bring-your-own AI, publishing, the REST API, the web clipper, automations | ❌ |
+| 5. Enterprise, mobile and scale | Single sign-on, SCIM, audit logs, data policies, high availability, the Helm chart, mobile apps | ❌ |
 
 Each phase ends with a gate it must pass before the next one starts; the
 [roadmap](docs/roadmap.md) lists them, and the
