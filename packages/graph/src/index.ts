@@ -7,3 +7,4 @@ export {
   type TagCount,
 } from "./graph.ts";
 export { noteSection } from "./section.ts";
+export { type GraphData, type GraphEdge, type GraphOptions, graphData } from "./view.ts";
