@@ -239,6 +239,21 @@ describe("backups", () => {
     );
   });
 
+  it("read a file's lines only once they are asked for, losing none", async () => {
+    const store = new DiskBlobs(await folder());
+    const db = await database();
+    await migrate(db);
+    const file = join(await folder(), "late.ndjson.gz");
+    await writeBackupFile(db, store, file);
+    const lines = backupFileLines(file);
+    // Asked for well after the reader was made, as a restore does after its first queries.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const read: string[] = [];
+    for await (const line of lines) read.push(line);
+    expect(JSON.parse(read[0] ?? "{}")).toMatchObject({ format: "nether-backup" });
+    expect(read.length).toBeGreaterThan(10);
+  });
+
   it("read a backup held in memory, as one fetched from S3", async () => {
     const gzip = createGzip();
     const chunks: Buffer[] = [];

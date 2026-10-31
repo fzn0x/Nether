@@ -333,17 +333,21 @@ export async function restoreBackupLines(
   return { rows: rowCount, blobs: blobCount, schema };
 }
 
-/** The lines of a gzipped backup file. */
-export function backupFileLines(path: string): AsyncIterable<string> {
-  return createInterface({
+/**
+ * The lines of a gzipped backup file. The file is opened when the first
+ * line is asked for: a reader made sooner reads on its own, and lines it
+ * reads before they are asked for are lost.
+ */
+export async function* backupFileLines(path: string): AsyncGenerator<string> {
+  yield* createInterface({
     input: createReadStream(path).pipe(createGunzip()),
     crlfDelay: Infinity,
   });
 }
 
-/** The lines of a gzipped backup held in memory, as one fetched from S3. */
-export function backupBytesLines(bytes: Uint8Array): AsyncIterable<string> {
-  return createInterface({
+/** The lines of a gzipped backup held in memory, as one fetched from S3, read as they are asked for. */
+export async function* backupBytesLines(bytes: Uint8Array): AsyncGenerator<string> {
+  yield* createInterface({
     input: Readable.from([bytes]).pipe(createGunzip()),
     crlfDelay: Infinity,
   });
