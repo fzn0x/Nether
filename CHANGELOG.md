@@ -142,6 +142,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Servers and signing in, in the desktop app's command palette: connect
+  to a Nether server by its address and sign in with a password, a code
+  it emails, or its single sign-on in the system's browser, which comes
+  back to the app on a loopback address. Each session's token is kept in
+  the system's keychain, never in a file, and the app's requests to a
+  server go through Go, outside the page's CORS
+  ([ADR 0036](docs/adr/0036-the-desktop-app-reaches-servers-through-go-and-keeps-tokens-in-the-keychain.md)).
 - Sync on the server: Hocuspocus at `/api/sync`, on the API's port, syncs
   each note's Yjs document and each vault's list of notes for the members
   of their workspace, and read-only for its guests. Documents are kept in

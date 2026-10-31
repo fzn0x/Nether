@@ -38,6 +38,7 @@ export default defineConfig({
             "markdown",
           ],
         },
+        { label: "Servers", items: ["servers"] },
       ],
     }),
   ],
