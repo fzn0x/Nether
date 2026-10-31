@@ -107,6 +107,7 @@ token as `Authorization: Bearer <token>`. Every error is
 | `GET /api/notifications` | yes | The account's latest 50 notifications, or the `unread` ones, with the `unread` count |
 | `POST /api/notifications/read` | yes | Marks the notifications `ids`, or `all`, read |
 | `GET /api/me/notification-settings`, `PUT /api/me/notification-settings` | yes | Whether the account is emailed when mentioned, `email` |
+| `GET /api/search` | yes | Searches `q` in every workspace the account is in that the server can read, in the units it opens (ADR 0050): words, the last one a prefix, `"phrases"`, `-exclusions`, `tag:`, `path:` and `prop:` filters; gives up to `limit` (50) `results`, each with `workspace`, `note`, `title`, `path`, a `snippet` and its `matches` as offsets, and the `encrypted` workspaces not searched |
 | `GET /api/relay` | per message | The WebSocket encrypted workspaces sync over, below |
 | `GET /api/workspaces/:id/documents` | member | The documents stored since `since`, a number, in order, a thousand at a time with `more` |
 | `GET /api/sync` | per document | The WebSocket that Hocuspocus providers sync documents over, below |
@@ -122,7 +123,7 @@ or of a code, is kept.
 Signing in is limited to 30 tries in five minutes from one address, and 10
 in 15 minutes for one account from anywhere. One email address gets at
 most three codes in 15 minutes. One account mentions people 60 times in
-10 minutes. Setup, invitations, ending sessions and changing passwords
+10 minutes, and searches 120 times a minute. Setup, invitations, ending sessions and changing passwords
 have limits of their own. Each answers `429` with `Retry-After`.
 
 ## Notifications

@@ -6,6 +6,14 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Workspace search on the server, `GET /api/search`: every note an account
+  may open, across the workspaces the server can read, with the app's
+  query syntax, ranked titles first, with marked snippets; indexed as
+  notes are stored, and once for those stored before
+  ([ADR 0050](docs/adr/0050-the-server-searches-what-it-can-read-indexed-as-notes-are-stored.md)).
+
 ## [0.0.1] - 2026-11-01
 
 ### Added
