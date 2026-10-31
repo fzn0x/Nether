@@ -11,7 +11,7 @@ import {
   addToDate,
   startOfPeriod,
 } from "@nether/core";
-import { type Group, type Row, rowDate, rowTitle } from "@nether/database";
+import { type Group, type Row, linkName, rowDate, rowTitle } from "@nether/database";
 import { type CSSProperties, type DragEvent, type ReactNode, useState } from "react";
 import { language, t } from "./messages.ts";
 
@@ -25,6 +25,7 @@ export function valueText(value: JsonValue | undefined): string {
     const items: readonly JsonValue[] = value;
     return items.map((item) => valueText(item)).join(", ");
   }
+  if (typeof value === "string") return linkName(value);
   return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 

@@ -5,7 +5,7 @@ import { type JsonValue, type PropertyEntry, type PropertyType, propertyTypes } 
 import { databaseKey } from "@nether/database";
 import { documentProperties, setDocumentProperties } from "@nether/editor";
 import type { Vault } from "@nether/storage";
-import { type KeyboardEvent, useEffect, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useState } from "react";
 import type * as Y from "yjs";
 import { t } from "./messages.ts";
 import {
@@ -36,11 +36,19 @@ export function ListEditor(props: {
   readonly label: string;
   readonly values: readonly string[];
   readonly onChange: (values: string[]) => void;
+  /** What to offer as a value is typed, as a relation's rows. */
+  readonly suggestions?: readonly string[];
+  /** How a value shows in its chip, as a link by the note's name. */
+  readonly show?: (value: string) => string;
+  /** What a typed value is written as, as a row's name becomes a link to it. */
+  readonly toValue?: (typed: string) => string;
 }) {
-  const { label, values, onChange } = props;
+  const { label, values, onChange, suggestions, show, toValue } = props;
   const [draft, setDraft] = useState("");
+  const list = useId();
   const add = () => {
-    const value = draft.trim();
+    const typed = draft.trim();
+    const value = typed === "" || toValue === undefined ? typed : toValue(typed);
     if (value !== "" && !values.includes(value)) onChange([...values, value]);
     setDraft("");
   };
@@ -56,10 +64,10 @@ export function ListEditor(props: {
     <span className="property-list">
       {values.map((value) => (
         <span key={value} className="property-chip">
-          {value}
+          {show === undefined ? value : show(value)}
           <button
             type="button"
-            aria-label={t("removeValue", { value })}
+            aria-label={t("removeValue", { value: show === undefined ? value : show(value) })}
             onClick={() => {
               onChange(values.filter((item) => item !== value));
             }}
@@ -71,12 +79,20 @@ export function ListEditor(props: {
       <input
         aria-label={label}
         value={draft}
+        list={suggestions === undefined || suggestions.length === 0 ? undefined : list}
         onChange={(event) => {
           setDraft(event.target.value);
         }}
         onKeyDown={onKeyDown}
         onBlur={add}
       />
+      {suggestions === undefined || suggestions.length === 0 ? null : (
+        <datalist id={list}>
+          {suggestions.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      )}
     </span>
   );
 }

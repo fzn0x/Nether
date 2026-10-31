@@ -295,3 +295,61 @@ test("a calendar places rows on their days, and a timeline from their date to th
   expect(await violations()).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+test("a relation links rows of two databases both ways, each in its row's file", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  const newDatabase = async (title: string) => {
+    await page.keyboard.press("Control+p");
+    await page.keyboard.type("new database");
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#note-title")).toHaveText(title);
+  };
+  const database = page.getByRole("region", { name: "Database" });
+  await newDatabase("Untitled database");
+  await database.getByRole("button", { name: "New row" }).click();
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveText(["Untitled"]);
+
+  // A second database, related to the first both ways.
+  await newDatabase("Untitled database 2");
+  await database.getByRole("button", { name: "Properties" }).click();
+  await database.getByRole("textbox", { name: "Property name" }).fill("Projects");
+  await database
+    .getByRole("combobox", { name: "Type of the new property" })
+    .selectOption("relation");
+  await database
+    .getByRole("combobox", { name: "Database it links to" })
+    .selectOption({ label: "Untitled database" });
+  await expect(database.getByRole("checkbox", { name: "Both ways" })).toBeChecked();
+  await expect(database.getByRole("textbox", { name: "Name of the property there" })).toHaveValue(
+    "Untitled database 2",
+  );
+  await database.getByRole("button", { name: "Add a property" }).click();
+  await database.getByRole("button", { name: "New row" }).click();
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveText(["Untitled"]);
+
+  // The first database's row, by its name; as two notes have it, by its path.
+  const cell = database.getByLabel("Projects of Untitled", { exact: true });
+  await cell.fill("Untitled");
+  await cell.press("Enter");
+  await expect(database.getByRole("table").locator(".property-chip")).toHaveText(["Untitled×"]);
+  await expect
+    .poll(() => fileText(page, "Untitled database 2/Untitled.md"))
+    .toBe('---\nProjects:\n  - "[[Untitled database/Untitled]]"\n---\n');
+  // And back, in the other row's file and the other database's schema.
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled.md"))
+    .toBe('---\nUntitled database 2:\n  - "[[Untitled database 2/Untitled]]"\n---\n');
+  await expect
+    .poll(() => fileText(page, "Untitled database.md"))
+    .toContain("    - key: Untitled database 2\n      type: relation\n");
+
+  // Taken away here, taken away there.
+  await database.getByRole("button", { name: "Remove Untitled" }).click();
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled.md"))
+    .toBe("---\nUntitled database 2: []\n---\n");
+  expect(errors).toEqual([]);
+});

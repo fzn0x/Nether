@@ -19,6 +19,7 @@ import {
   basePath,
   databaseKey,
   databaseOf,
+  linkName,
   rowTitle,
   runView,
   viewIdOf,
@@ -43,10 +44,13 @@ import { ListEditor } from "./PropertiesPanel.tsx";
 import type { VaultMedia } from "./backend.ts";
 import {
   createRow,
+  databaseNotes,
   databaseRows,
   linkToNote,
   resolveLink,
   setNoteProperty,
+  shortLink,
+  syncBacklinks,
   syncBase,
 } from "./databases.ts";
 import { type MessageKey, t } from "./messages.ts";
@@ -121,8 +125,13 @@ function Cell(props: {
   readonly property: PropertyDefinition;
   readonly value: JsonValue | undefined;
   readonly onCommit: (value: JsonValue) => void;
+  /** A relation's rows, by name, and the link a name is written as. */
+  readonly related?: {
+    readonly names: readonly string[];
+    readonly toValue: (name: string) => string;
+  };
 }) {
-  const { label, property, value, onCommit } = props;
+  const { label, property, value, onCommit, related } = props;
   const shown =
     value === undefined || value === null || typeof value === "object" ? "" : String(value);
   const [draft, setDraft] = useState(shown);
@@ -145,7 +154,16 @@ function Cell(props: {
     const values = (
       Array.isArray(value) ? value : value === undefined || value === null ? [] : [value]
     ).map((item) => (typeof item === "string" ? item : JSON.stringify(item)));
-    return <ListEditor label={label} values={values} onChange={onCommit} />;
+    return (
+      <ListEditor
+        label={label}
+        values={values}
+        onChange={onCommit}
+        {...(related === undefined
+          ? {}
+          : { suggestions: related.names, toValue: related.toValue, show: linkName })}
+      />
+    );
   }
   const commit = () => {
     if (draft === shown) return;
@@ -346,23 +364,49 @@ function FilterBar(props: {
 }
 
 /** The form that adds a property to the database and shows it in the view. */
+/** A relation as the form makes it: the database it points to, and the property there that points back. */
+interface NewRelation {
+  readonly database: NoteId;
+  readonly backlink?: string;
+}
+
 function AddProperty(props: {
   readonly taken: readonly string[];
-  readonly onAdd: (key: string, type: PropertyType) => void;
+  /** The vault's databases a relation can point to, and this one's name. */
+  readonly databases: readonly { readonly id: NoteId; readonly title: string }[];
+  readonly self: string;
+  readonly onAdd: (key: string, type: PropertyType, relation?: NewRelation) => void;
 }) {
-  const { taken, onAdd } = props;
+  const { taken, databases, self, onAdd } = props;
   const [key, setKey] = useState("");
   const [type, setType] = useState<PropertyType>("text");
+  const [target, setTarget] = useState<NoteId | undefined>(databases[0]?.id);
+  const [twoWay, setTwoWay] = useState(true);
+  const [back, setBack] = useState(self);
   const name = key.trim();
+  const backName = back.trim();
   const free =
-    name !== "" && !name.startsWith("$") && name !== databaseKey && !taken.includes(name);
+    name !== "" &&
+    !name.startsWith("$") &&
+    name !== databaseKey &&
+    !taken.includes(name) &&
+    (type !== "relation" ||
+      (target !== undefined && (!twoWay || (backName !== "" && backName !== name))));
   return (
     <form
       className="database-add-property"
       onSubmit={(event) => {
         event.preventDefault();
         if (!free) return;
-        onAdd(name, type);
+        if (type === "relation" && target !== undefined) {
+          onAdd(
+            name,
+            type,
+            twoWay ? { database: target, backlink: backName } : { database: target },
+          );
+        } else {
+          onAdd(name, type);
+        }
         setKey("");
       }}
     >
@@ -382,13 +426,49 @@ function AddProperty(props: {
         }}
       >
         {editableTypes
-          .filter((option) => option !== "relation")
+          .filter((option) => option !== "relation" || databases.length > 0)
           .map((option) => (
             <option key={option} value={option}>
               {t(`type_${option}` as MessageKey)}
             </option>
           ))}
       </select>
+      {type === "relation" ? (
+        <>
+          <select
+            aria-label={t("relationDatabase")}
+            value={target ?? ""}
+            onChange={(event) => {
+              setTarget(event.target.value as NoteId);
+            }}
+          >
+            {databases.map((database) => (
+              <option key={database.id} value={database.id}>
+                {database.title}
+              </option>
+            ))}
+          </select>
+          <label>
+            <input
+              type="checkbox"
+              checked={twoWay}
+              onChange={(event) => {
+                setTwoWay(event.target.checked);
+              }}
+            />
+            {t("relationBothWays")}
+          </label>
+          {twoWay ? (
+            <input
+              aria-label={t("relationBacklink")}
+              value={back}
+              onChange={(event) => {
+                setBack(event.target.value);
+              }}
+            />
+          ) : null}
+        </>
+      ) : null}
       <button type="submit" disabled={!free}>
         {t("addProperty")}
       </button>
@@ -475,6 +555,48 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
       views: schema.views.map((item) => (item.id === next.id ? next : item)),
     });
   };
+  const self = vault.noteAt(path);
+  /** The rows a relation's database has, by name, for its cells to offer. */
+  const relatedRows = (property: PropertyDefinition) => {
+    const database =
+      property.relation === undefined ? undefined : graph.note(property.relation.database);
+    return database === undefined ? [] : databaseRows(notes, graph, database.path);
+  };
+  /** Adds a relation, and its other end to the database it points to when it goes both ways. */
+  const addRelation = (key: string, relation: NewRelation, visibleIn: View) => {
+    const own: PropertyDefinition = { key, type: "relation", relation };
+    const back =
+      relation.backlink === undefined || self === undefined
+        ? undefined
+        : ({
+            key: relation.backlink,
+            type: "relation",
+            relation: { database: self.id, backlink: key },
+          } satisfies PropertyDefinition);
+    const show = (views: readonly View[]) =>
+      views.map((item) =>
+        item.id === visibleIn.id ? { ...item, visible: [...item.visible, key] } : item,
+      );
+    if (relation.database === self?.id) {
+      const taken = back !== undefined && schema.properties.some((item) => item.key === back.key);
+      saveSchema({
+        properties: [...schema.properties, own, ...(back === undefined || taken ? [] : [back])],
+        views: show(schema.views),
+      });
+      return;
+    }
+    saveSchema({ properties: [...schema.properties, own], views: show(schema.views) });
+    const other = graph.note(relation.database);
+    if (back === undefined || other === undefined) return;
+    const theirs = databaseOf(other.index.properties, resolveLink(graph, other.path));
+    if (theirs === undefined || theirs.properties.some((item) => item.key === back.key)) return;
+    setNoteProperty(
+      vault,
+      other.id,
+      databaseKey,
+      writeDatabase({ ...theirs, properties: [...theirs.properties, back] }, linkToNote(graph)),
+    ).catch(fail);
+  };
   const write = (row: NoteId, key: string, value: JsonValue) => {
     setError(undefined);
     // A select's new value becomes one of its options.
@@ -496,9 +618,25 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
         ),
       });
     }
-    setNoteProperty(vault, row, key, value).catch((problem: unknown) => {
-      setError(problem instanceof Error ? problem.message : String(problem));
-    });
+    const before = rows.find((item) => item.id === row);
+    const backlink = property?.relation?.backlink;
+    setNoteProperty(vault, row, key, value)
+      .then(() =>
+        // The other end of a two-way relation, in the rows it now names or no longer does.
+        backlink === undefined || before === undefined
+          ? undefined
+          : syncBacklinks(
+              vault,
+              graph,
+              before,
+              before.properties.find((entry) => entry.key === key)?.value,
+              value,
+              backlink,
+            ),
+      )
+      .catch((problem: unknown) => {
+        setError(problem instanceof Error ? problem.message : String(problem));
+      });
   };
 
   const nameOf = (key: string) =>
@@ -660,6 +798,22 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                 onCommit={(value) => {
                   write(row.id, property.key, value);
                 }}
+                {...(property.type === "relation"
+                  ? {
+                      related: {
+                        names: relatedRows(property).map(rowTitle),
+                        // The row of that name, by the shortest link that finds it; else a link to a note not yet written.
+                        toValue: (name: string) => {
+                          const found = relatedRows(property).find(
+                            (item) => rowTitle(item).toLowerCase() === name.toLowerCase(),
+                          );
+                          return found === undefined
+                            ? `[[${name}]]`
+                            : shortLink(vault, found.path, row.path);
+                        },
+                      },
+                    }
+                  : {})}
               />
             </td>
           ))}
@@ -877,7 +1031,13 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
               ))}
               <AddProperty
                 taken={schema.properties.map((property) => property.key)}
-                onAdd={(key, type) => {
+                databases={databaseNotes(graph).map((note) => ({ id: note.id, title: note.title }))}
+                self={self?.title ?? ""}
+                onAdd={(key, type, relation) => {
+                  if (relation !== undefined) {
+                    addRelation(key, relation, view);
+                    return;
+                  }
                   const property: PropertyDefinition =
                     type === "select" || type === "multiSelect"
                       ? { key, type, options: [] }

@@ -14,7 +14,11 @@ import {
   linkToNote,
   resolveLink,
   setNoteProperty,
+  databaseNotes,
+  shortLink,
+  syncBacklinks,
   syncBase,
+  updateNoteProperty,
 } from "../src/databases.ts";
 import { pageMoves } from "../src/renameNote.ts";
 
@@ -186,5 +190,64 @@ describe("the Obsidian base beside a database", () => {
     expect(pageMoves(vault, "Plain.md", "Other.md")).toEqual([
       { from: "Plain.md", to: "Other.md" },
     ]);
+  });
+});
+
+describe("relations both ways", () => {
+  const files = {
+    "Projects.md": "---\ndatabase:\n  properties: []\n  views: []\n---\n",
+    "Clients.md": "---\ndatabase:\n  properties: []\n  views: []\n---\n",
+    "Projects/Launch.md": "---\nclient: []\n---\n",
+    "Clients/Acme.md": '---\nprojects:\n  - "[[Old]]"\n---\nAcme\'s notes.\n',
+    "Clients/Globex.md": "",
+    "Elsewhere/Launch.md": "Another note of the same name\n",
+  };
+
+  it("adds a link back to the rows a relation now finds, and takes it from those it no longer does", async () => {
+    const { vault, graph, text } = await setUp(files);
+    const launch = vault.noteAt("Projects/Launch.md");
+    if (launch === undefined) throw new Error("The row is missing.");
+    await syncBacklinks(vault, graph, launch, [], ["[[Acme]]", "[[Clients/Globex]]"], "projects");
+    // The shortest link that finds the row from each, a path where another note has its name.
+    expect(await text("Clients/Acme.md")).toBe(
+      '---\nprojects:\n  - "[[Old]]"\n  - "[[Projects/Launch]]"\n---\nAcme\'s notes.\n',
+    );
+    expect(await text("Clients/Globex.md")).toBe(
+      '---\nprojects:\n  - "[[Projects/Launch]]"\n---\n',
+    );
+    // Again, nothing changes; a link written another way finds the same row.
+    await syncBacklinks(
+      vault,
+      graph,
+      launch,
+      ["[[Acme]]"],
+      ["[[Clients/Acme|Acme Inc]]"],
+      "projects",
+    );
+    expect(await text("Clients/Acme.md")).toContain('  - "[[Projects/Launch]]"\n---');
+    // Taken away: Globex loses its link back, and Acme keeps what else it has.
+    await syncBacklinks(vault, graph, launch, ["[[Acme]]", "[[Globex]]"], ["[[Acme]]"], "projects");
+    expect(await text("Clients/Globex.md")).toBe("---\nprojects: []\n---\n");
+    await syncBacklinks(vault, graph, launch, ["[[Acme]]"], [], "projects");
+    expect(await text("Clients/Acme.md")).toBe(
+      '---\nprojects:\n  - "[[Old]]"\n---\nAcme\'s notes.\n',
+    );
+  });
+
+  it("changes a property from its value in the file, and leaves the file when nothing changes", async () => {
+    const { vault, text } = await setUp(files);
+    const acme = vault.noteAt("Clients/Acme.md")?.id;
+    if (acme === undefined) throw new Error("The row is missing.");
+    await updateNoteProperty(vault, acme, "projects", () => undefined);
+    expect(await text("Clients/Acme.md")).toBe(files["Clients/Acme.md"]);
+    await updateNoteProperty(vault, acme, "count", (current) => (current === undefined ? 1 : null));
+    expect(await text("Clients/Acme.md")).toContain("count: 1\n");
+  });
+
+  it("lists the vault's databases, and links a note by its shortest link", async () => {
+    const { vault, graph } = await setUp(files);
+    expect(databaseNotes(graph).map((note) => note.path)).toEqual(["Clients.md", "Projects.md"]);
+    expect(shortLink(vault, "Clients/Acme.md", "Projects/Launch.md")).toBe("[[Acme]]");
+    expect(shortLink(vault, "Projects/Launch.md", "Clients/Acme.md")).toBe("[[Projects/Launch]]");
   });
 });

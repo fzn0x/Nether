@@ -11,7 +11,7 @@ import {
   rowsOf,
   writeBase,
 } from "@nether/database";
-import type { LinkGraph } from "@nether/graph";
+import type { GraphNote, LinkGraph } from "@nether/graph";
 import { parseMarkdown, serializeMarkdown } from "@nether/markdown";
 import { ChangedOnDisk, type NoteEntry, type Vault } from "@nether/storage";
 
@@ -74,17 +74,33 @@ export async function createRow(vault: Vault, path: string, name: string): Promi
  * Obsidian writes an empty property. Read again and retried when another
  * write lands first.
  */
-export async function setNoteProperty(
+export function setNoteProperty(
   vault: Vault,
   id: NoteId,
   key: string,
   value: JsonValue,
+): Promise<void> {
+  return updateNoteProperty(vault, id, key, () => value);
+}
+
+/**
+ * Changes a property of a note that is not open, from its value in the
+ * file as it is now, so that two changes made one after another both land;
+ * `next` returning undefined leaves the file as it is.
+ */
+export async function updateNoteProperty(
+  vault: Vault,
+  id: NoteId,
+  key: string,
+  next: (current: JsonValue | undefined) => JsonValue | undefined,
 ): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     const file = await vault.read(id);
     if (file.missing === true || file.binary === true) return;
     const parsed = parseMarkdown(file.text);
     if (parsed.frontmatterError !== undefined) throw new Error(parsed.frontmatterError);
+    const value = next(parsed.properties.find((entry) => entry.key === key)?.value);
+    if (value === undefined) return;
     const properties = parsed.properties.some((entry) => entry.key === key)
       ? parsed.properties.map((entry) => (entry.key === key ? { key, value } : entry))
       : [...parsed.properties, { key, value }];
@@ -135,4 +151,60 @@ export async function syncBase(
       ? file.hash
       : (await vault.writeFile(where, text, exists ? file.hash : "")).hash;
   if (written[path] !== hash) await vault.writeData("bases", { ...written, [path]: hash });
+}
+
+/** The vault's databases: the notes whose frontmatter has a schema. */
+export function databaseNotes(graph: LinkGraph): GraphNote[] {
+  return [...graph.notes()]
+    .filter((note) => note.index.properties.some((entry) => entry.key === databaseKey))
+    .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** The shortest link that finds the note at `path` from the note at `from`, as Obsidian writes one. */
+export function shortLink(vault: Vault, path: string, from: string): string {
+  return `[[${vault.linkTo(path, from).replace(/\.md$/i, "")}]]`;
+}
+
+/** A property's links: a list's, or the one link it holds. */
+function linksOf(value: JsonValue | undefined): string[] {
+  const items: readonly JsonValue[] = Array.isArray(value)
+    ? value
+    : value === undefined || value === null
+      ? []
+      : [value];
+  return items.filter((item): item is string => typeof item === "string" && item.trim() !== "");
+}
+
+/**
+ * Keeps the other end of a two-way relation (ADR 0019): each row a row's
+ * links now find, and did not, gets a link back to it in `backlink`, and
+ * each it no longer finds loses it. Links are matched by the note they
+ * find, not by how they are written.
+ */
+export async function syncBacklinks(
+  vault: Vault,
+  graph: LinkGraph,
+  row: { readonly id: NoteId; readonly path: string },
+  before: JsonValue | undefined,
+  after: JsonValue,
+  backlink: string,
+): Promise<void> {
+  const resolve = resolveLink(graph, row.path);
+  const found = (value: JsonValue | undefined) =>
+    new Set(linksOf(value).flatMap((link) => resolve(link) ?? []));
+  const was = found(before);
+  const now = found(after);
+  const change = async (target: NoteId, add: boolean) => {
+    const path = graph.note(target)?.path;
+    if (path === undefined) return;
+    const back = resolveLink(graph, path);
+    await updateNoteProperty(vault, target, backlink, (current) => {
+      const links = linksOf(current);
+      const has = links.some((link) => back(link) === row.id);
+      if (add) return has ? undefined : [...links, shortLink(vault, row.path, path)];
+      return has ? links.filter((link) => back(link) !== row.id) : undefined;
+    });
+  };
+  for (const target of now) if (!was.has(target)) await change(target, true);
+  for (const target of was) if (!now.has(target)) await change(target, false);
 }
