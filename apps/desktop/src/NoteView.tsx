@@ -13,15 +13,19 @@ import { t } from "./messages.ts";
 import { ariaKeys, formatKeys } from "./shortcuts.ts";
 import { linkPreviews } from "./linkPreviews.ts";
 import { noteFiles } from "./noteFiles.ts";
-import { DatabaseView } from "./DatabaseView.tsx";
+import { DatabaseSlot } from "./DatabaseSlot.tsx";
 import { PropertiesPanel } from "./PropertiesPanel.tsx";
-import { QueryView } from "./QueryView.tsx";
 import { UnlinkedMentions } from "./UnlinkedMentions.tsx";
 import { type NotePart, noteLinks } from "./noteLinks.ts";
 import { useGraph } from "./useGraph.ts";
 import { useNote } from "./useNote.ts";
 
 export type NoteMode = "blocks" | "source";
+
+// A query block's view, and the database code it brings, load with the first query block.
+const QueryView = lazy(() =>
+  import("./QueryView.tsx").then(({ QueryView: view }) => ({ default: view })),
+);
 
 // CodeMirror loads the first time a note shows its source.
 const SourceEditor = lazy(() =>
@@ -123,15 +127,17 @@ export default function NoteView(props: {
       ),
       // A `base` code block shows the notes its query finds.
       renderQuery: (source: string) => (
-        <QueryView
-          source={source}
-          vault={vault}
-          media={media}
-          graph={graph}
-          onOpen={(note) => {
-            onOpenNote(note);
-          }}
-        />
+        <Suspense fallback={null}>
+          <QueryView
+            source={source}
+            vault={vault}
+            media={media}
+            graph={graph}
+            onOpen={(note) => {
+              onOpenNote(note);
+            }}
+          />
+        </Suspense>
       ),
     }),
     [vault, media, graph, id, onOpenNote, onOpenTag],
@@ -284,7 +290,7 @@ export default function NoteView(props: {
               autofocus={switched}
               {...(focus === undefined ? {} : { focus })}
             />
-            <DatabaseView
+            <DatabaseSlot
               // Its panels, view and errors are the note's: another note starts afresh.
               // Each sibling's key its own, or React keeps the last note's editor too.
               key={`database-${state.document.guid}`}

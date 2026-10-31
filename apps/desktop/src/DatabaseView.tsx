@@ -33,7 +33,7 @@ import {
   withRollups,
   writeDatabase,
 } from "@nether/database";
-import { documentProperties, setDocumentProperties } from "@nether/editor";
+import { setDocumentProperties } from "@nether/editor";
 import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -48,6 +48,7 @@ import {
   groupLabel,
   valueText,
 } from "./DatabaseLayouts.tsx";
+import { useDocumentProperties } from "./DatabaseSlot.tsx";
 import { ListEditor } from "./PropertiesPanel.tsx";
 import type { Exporter, VaultMedia } from "./backend.ts";
 import {
@@ -178,22 +179,6 @@ function rollupText(value: JsonValue | undefined): string {
 /** An object without one of its keys, as a view without its filter. */
 function without<T extends object, K extends keyof T>(object: T, key: K): Omit<T, K> {
   return Object.fromEntries(Object.entries(object).filter(([name]) => name !== key)) as Omit<T, K>;
-}
-
-/** The note's properties, kept current as its document changes. */
-function useDocumentProperties(document: Y.Doc): readonly PropertyEntry[] {
-  const [entries, setEntries] = useState(() => documentProperties(document));
-  useEffect(() => {
-    const refresh = () => {
-      setEntries(documentProperties(document));
-    };
-    refresh();
-    document.on("update", refresh);
-    return () => {
-      document.off("update", refresh);
-    };
-  }, [document]);
-  return entries;
 }
 
 /** A cell of a row: an editor for its property's type, which writes when it is done. */
@@ -667,7 +652,7 @@ function AddProperty(props: {
   );
 }
 
-interface DatabaseProps {
+export interface DatabaseProps {
   readonly vault: Vault;
   readonly media: VaultMedia;
   /** Where a view's CSV is saved. */

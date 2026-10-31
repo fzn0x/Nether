@@ -30,8 +30,7 @@ import { SearchPanel } from "./SearchPanel.tsx";
 import { ShortcutsDialog } from "./ShortcutsDialog.tsx";
 import { ariaKeys, commandFor, eventKeys } from "./shortcuts.ts";
 import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
-import { AppearanceDialog } from "./AppearanceDialog.tsx";
-import { ImportDialog } from "./ImportDialog.tsx";
+
 import { useAppearance } from "./useAppearance.ts";
 import { TrashPanel } from "./TrashPanel.tsx";
 import type { NotePart } from "./noteLinks.ts";
@@ -73,6 +72,13 @@ const loadRenameNote = () => import("./renameNote.ts");
 const loadDatabases = () => import("./databases.ts");
 // The graph, with Sigma and its layout, loads the first time it opens.
 const GraphView = lazy(() => import("./GraphView.tsx"));
+// The import and appearance dialogs, with the importers, load when they open.
+const ImportDialog = lazy(() =>
+  import("./ImportDialog.tsx").then(({ ImportDialog: dialog }) => ({ default: dialog })),
+);
+const AppearanceDialog = lazy(() =>
+  import("./AppearanceDialog.tsx").then(({ AppearanceDialog: dialog }) => ({ default: dialog })),
+);
 
 const numbers = new Intl.NumberFormat();
 
@@ -789,27 +795,31 @@ export function VaultView(props: {
         />
       ) : null}
       {dialog === "import" && state.status === "open" ? (
-        <ImportDialog
-          vault={state.vault}
-          importer={state.importer}
-          onOpen={(path) => {
-            const note = state.vault.noteAt(path);
-            setDialog(undefined);
-            if (note !== undefined) openNote(note.id);
-          }}
-          onClose={() => {
-            setDialog(undefined);
-          }}
-        />
+        <Suspense fallback={null}>
+          <ImportDialog
+            vault={state.vault}
+            importer={state.importer}
+            onOpen={(path) => {
+              const note = state.vault.noteAt(path);
+              setDialog(undefined);
+              if (note !== undefined) openNote(note.id);
+            }}
+            onClose={() => {
+              setDialog(undefined);
+            }}
+          />
+        </Suspense>
       ) : null}
       {dialog === "appearance" && state.status === "open" ? (
-        <AppearanceDialog
-          vault={state.vault}
-          state={appearance}
-          onClose={() => {
-            setDialog(undefined);
-          }}
-        />
+        <Suspense fallback={null}>
+          <AppearanceDialog
+            vault={state.vault}
+            state={appearance}
+            onClose={() => {
+              setDialog(undefined);
+            }}
+          />
+        </Suspense>
       ) : null}
       {dialog === "settings" && state.status === "open" ? (
         <TemplateSettingsDialog
