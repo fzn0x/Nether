@@ -88,7 +88,7 @@ The Notion core, one feature per pull request, in this order:
 - [x] The Obsidian base beside each database, written from its schema, with Obsidian's edits read back
 - [x] The board, list and gallery views
 - [x] The calendar and timeline views
-- [ ] Relations between databases, both ways, and rollups
+- [x] Relations between databases, both ways, and rollups ([ADR 0019](adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md))
 - [ ] Formulas: a documented, sandboxed expression language
 - [ ] Query blocks: a live table or list of the notes a folder, tag or property finds
 - [ ] Databases exported to CSV

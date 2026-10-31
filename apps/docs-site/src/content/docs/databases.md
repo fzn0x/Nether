@@ -88,8 +88,21 @@ Client:
 ---
 ```
 
-A link that is taken away is taken away at the other end too. Rollups and
-formulas come next.
+A link that is taken away is taken away at the other end too.
+
+## Rollups
+
+A rollup works out a value from the rows a relation links to: a project's
+hours from its tasks, a client's latest invoice date. Add a property of
+type **Rollup**, and choose the **Relation to roll up**, a **Property of
+the related rows**, and what to **Calculate**: count the rows, count their
+values, their sum, average, lowest or highest number, or their earliest
+or latest date.
+
+A rollup's value is worked out each time Nether shows the database, so it
+follows the related rows as they change; it is never written to a row's
+file, and Obsidian's view of the database leaves it out. Filters, sorts
+and groups use it as any other value. Formulas come next.
 
 ## How a database is written
 

@@ -142,6 +142,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Rollups: a property that works out, from the rows a relation links to,
+  their count, the count of their values, the sum, average, lowest or
+  highest of a number, or the earliest or latest of a date, each time a
+  view shows it, never written to a row's file.
 - Calendars and timelines: a calendar shows a month with each row on the
   day of its date, and makes a row on a day; a timeline shows six weeks
   with each row a bar from its date to its end.
