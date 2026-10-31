@@ -175,6 +175,15 @@ function MathInlineView(props: ViewProps) {
   return <MathView {...props} display={false} />;
 }
 
+/**
+ * Whether the page shows dark: as its root's `data-mode` says, which an
+ * app sets apart from the system, or else as the system prefers.
+ */
+function shownDark(): boolean {
+  const mode = document.documentElement.dataset.mode;
+  return mode === undefined ? matchMedia("(prefers-color-scheme: dark)").matches : mode === "dark";
+}
+
 /** A Mermaid diagram drawn from a code block's text. Mermaid loads with the first diagram. */
 function MermaidPreview(props: { readonly source: string; readonly errorLabel: string }) {
   const { source, errorLabel } = props;
@@ -196,7 +205,8 @@ function MermaidPreview(props: { readonly source: string; readonly errorLabel: s
             // Mermaid's default is the ELK layout, which Nether does not
             // include (ADR 0009); dagre lays out the same diagrams.
             layout: "dagre",
-            theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default",
+            // Dark as the page shows it, which the app may set apart from the system.
+            theme: shownDark() ? "dark" : "default",
           });
           await mermaid.parse(source);
           const result = await mermaid.render(id, source);
