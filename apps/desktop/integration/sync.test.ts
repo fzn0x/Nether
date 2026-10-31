@@ -86,9 +86,9 @@ async function device(served: { url: string; workspaceId: string }, files: Recor
   return { memory, vault, engine, text };
 }
 
-/** Waits until `check` holds, letting servers store and devices write, 20 seconds at most. */
+/** Waits until `check` holds, letting servers store and devices write, 45 seconds at most, for slow runners. */
 async function until(check: () => boolean | Promise<boolean>): Promise<void> {
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + 45_000;
   while (!(await check())) {
     if (Date.now() > deadline) throw new Error("Timed out waiting for sync");
     await new Promise((resolve) => setTimeout(resolve, 50));

@@ -98,6 +98,14 @@ function escapePath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 
+/** Base64 as bytes, as the Go services give them. */
+function fromBase64(text: string): Uint8Array {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
 /** Bytes as base64, which is how the Go services take them. */
 function base64(data: Uint8Array): string {
   let binary = "";
@@ -134,8 +142,12 @@ export interface Backend {
   saveServer(account: ServerAccount, token: string): Promise<void>;
   /** A server's session token; undefined when signed out of it. */
   serverToken(url: string): Promise<string | undefined>;
-  /** Signs out of a server on this device, forgetting its token. */
+  /** Signs out of a server on this device, forgetting its token and private key. */
   forgetServer(url: string): Promise<void>;
+  /** The account's private key for a server's encrypted workspaces, if this device has it. */
+  serverKey(url: string): Promise<Uint8Array | undefined>;
+  /** Keeps the account's private key for a server in the system's keychain. */
+  saveServerKey(url: string, key: Uint8Array): Promise<void>;
   /** Waits on a loopback address for the browser to come back from a provider. */
   loopback(): Promise<LoopbackWait>;
   /**
@@ -234,6 +246,11 @@ const desktop: Backend = {
     return token === "" ? undefined : token;
   },
   forgetServer: (url) => Servers.forget(url),
+  async serverKey(url) {
+    const key = await Servers.key(url);
+    return key === "" ? undefined : fromBase64(key);
+  },
+  saveServerKey: (url, key) => Servers.saveKey(url, base64(key)),
   async loopback() {
     const { id, redirect } = await Servers.listen();
     return { redirect, wait: () => Servers.wait(id), close: () => Servers.close(id) };
@@ -424,6 +441,8 @@ interface PreviewHooks {
 
 /** The servers signed in to in the preview, which forgets them when the page closes. */
 const previewServers = new Map<string, { account: ServerAccount; token: string }>();
+/** The private keys of the preview's accounts, as the keychain keeps them in the app. */
+const previewKeys = new Map<string, Uint8Array>();
 
 const preview: Backend = {
   kind: "preview",
@@ -450,6 +469,12 @@ const preview: Backend = {
   serverToken: (url) => Promise.resolve(previewServers.get(url)?.token),
   forgetServer(url) {
     previewServers.delete(url);
+    previewKeys.delete(url);
+    return Promise.resolve();
+  },
+  serverKey: (url) => Promise.resolve(previewKeys.get(url)),
+  saveServerKey(url, key) {
+    previewKeys.set(url, key);
     return Promise.resolve();
   },
   loopback() {

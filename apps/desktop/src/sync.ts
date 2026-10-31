@@ -12,6 +12,8 @@ export interface VaultLink {
   readonly server: string;
   readonly workspaceId: string;
   readonly workspaceName: string;
+  /** Whether the workspace is end-to-end encrypted, and syncs through the relay (ADR 0038). */
+  readonly encrypted?: boolean;
 }
 
 const linkKey = "sync.link";
@@ -44,6 +46,7 @@ export async function vaultLink(vault: Vault): Promise<VaultLink | undefined> {
     server: value.server,
     workspaceId: value.workspaceId,
     workspaceName: value.workspaceName,
+    ...(value.encrypted === true ? { encrypted: true } : {}),
   };
 }
 
@@ -89,9 +92,11 @@ export function syncSummary(
   link: VaultLink,
   status: SyncStatus | undefined,
   signedOut: boolean,
+  problem?: string,
 ): string {
   const values = { workspace: link.workspaceName, server: hostOf(link.server) };
   if (signedOut) return t("syncSignedOut", values);
+  if (problem !== undefined) return t("syncFailed", { ...values, error: problem });
   if (status === undefined) return t("syncStarting", values);
   if (status.state === "offline") {
     return status.error === undefined

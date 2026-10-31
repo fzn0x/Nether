@@ -14,6 +14,8 @@ export interface VaultSyncState {
   readonly status: SyncStatus | undefined;
   /** Whether the app has no session for the link's server, and must sign in again. */
   readonly signedOut: boolean;
+  /** Why sync cannot start, as an encrypted workspace locked on this device; tried again meanwhile. */
+  readonly problem: string | undefined;
   /** Links the vault to a workspace, and starts syncing it. */
   linkTo(link: VaultLink): Promise<void>;
   /** Stops syncing the vault, forgetting what sync knew. */
@@ -24,6 +26,7 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
   const [link, setLink] = useState<VaultLink | undefined>();
   const [status, setStatus] = useState<SyncStatus | undefined>();
   const [signedOut, setSignedOut] = useState(false);
+  const [problem, setProblem] = useState<string | undefined>();
   // Bumped to start again, as after signing in.
   const [round, setRound] = useState(0);
   const running = useRef<VaultSync | undefined>(undefined);
@@ -43,6 +46,7 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
   useEffect(() => {
     setStatus(undefined);
     setSignedOut(false);
+    setProblem(undefined);
     if (vault === undefined || link === undefined) return;
     let engine: VaultSync | undefined;
     let current = true;
@@ -62,6 +66,23 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
         backend.syncSocket(),
       ]);
       if (stopped()) return;
+      // An encrypted workspace's key, opened with this device's private key;
+      // members waiting for it get it from whoever has it and is here.
+      let encryption:
+        Awaited<ReturnType<typeof import("./encryption.ts").workspaceEncryption>> | undefined;
+      if (link.encrypted === true) {
+        const { shareWorkspaceKey, workspaceEncryption } = await import("./encryption.ts");
+        try {
+          encryption = await workspaceEncryption(link.server, token, link.workspaceId);
+        } catch (error) {
+          if (!stopped()) setProblem(error instanceof Error ? error.message : String(error));
+          return;
+        }
+        void shareWorkspaceKey(link.server, token, link.workspaceId, encryption).catch(
+          () => undefined,
+        );
+      }
+      if (stopped()) return;
       const started = await VaultSync.start({
         server: link.server,
         token,
@@ -70,6 +91,7 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
         store: settingsStore(vault),
         fetch: backend.serverFetch,
         WebSocket: socket,
+        ...(encryption === undefined ? {} : { encryption }),
         onStatus: (next) => {
           if (!stopped()) setStatus(next);
         },
@@ -102,6 +124,18 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
     };
   }, [signedOut, link]);
 
+  // A workspace locked here, or whose key no member has shared yet, is tried
+  // again now and then: unlocking it, or a member sharing it, starts sync.
+  useEffect(() => {
+    if (problem === undefined) return;
+    const timer = setInterval(() => {
+      setRound((count) => count + 1);
+    }, 15_000);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [problem]);
+
   const linkTo = useCallback(
     async (next: VaultLink) => {
       if (vault === undefined) return;
@@ -119,5 +153,5 @@ export function useSync(vault: Vault | undefined): VaultSyncState {
     setLink(undefined);
   }, [vault]);
 
-  return { link, status, signedOut, linkTo, unlink };
+  return { link, status, signedOut, problem, linkTo, unlink };
 }
