@@ -761,6 +761,25 @@ export const messages = {
   mergedNote: "Merged {name} into {into}.",
   mergeCannotRead: "{name} cannot be merged now: its text or its properties cannot be read.",
   mergeIntoItself: "A note cannot be merged into itself.",
+  previewNeedsApp: "Link previews are fetched by the desktop app.",
+  invitationJoinedHere: "You joined {workspace}. It is in your workspaces.",
+  invitationOtherServer: "This invitation is to {server}. Open its link to join there.",
+  webSignInLead: "Sign in to {server} to open your workspaces.",
+  webSignIn: "Sign in",
+  webWorkspaces: "Your workspaces",
+  webNoWorkspaces:
+    "You are in no workspace yet. Make one, or ask a workspace's owner to invite you.",
+  webNewWorkspace: "New workspace",
+  webWorkspaceName: "Workspace name",
+  webEncrypted: "End-to-end encrypted",
+  webSignedInAs: "Signed in as {name}, {email}",
+  webAccount: "Account and encryption",
+  webServedBy: "The web app of {server}",
+  webSigningIn: "Signing in…",
+  webProviderDone: "Signed in. You can close this page.",
+  webNoSuchWorkspace: "That workspace is not one of yours on this server.",
+  webOpenElsewhere:
+    "This workspace is open in another tab of this browser. Use that tab, or close it and try again.",
 } as const;
 
 export type MessageKey = keyof typeof messages;

@@ -6,7 +6,9 @@
 // end-to-end encryption (ADR 0038) is turned on here, showing its recovery
 // phrase once, or unlocked on a new device with the phrase. Someone invited
 // to a workspace joins here with the invitation's link, into the account
-// they are signed in to on its server, or a new one.
+// they are signed in to on its server, or a new one. The web app keeps to
+// its own server (ADR 0053): it starts at signing in there, and offers no
+// other.
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { backend } from "./backend.ts";
 import type { PreparedKeys } from "./encryption.ts";
@@ -88,8 +90,16 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function ServersDialog(props: { readonly onClose: () => void }) {
-  const { onClose } = props;
+export function ServersDialog(props: {
+  readonly onClose: () => void;
+  /** The one server to sign in to, as the web app's own. */
+  readonly only?: string;
+  /** An invitation's link to start with, as the web app opened at. */
+  readonly invitation?: string;
+  /** Called when an account signs in or out. */
+  readonly onAccount?: () => void;
+}) {
+  const { onClose, only, onAccount } = props;
   const [accounts, setAccounts] = useState<readonly ServerAccount[] | undefined>();
   const [step, setStep] = useState<Step>({ kind: "list" });
   const [address, setAddress] = useState("");
@@ -97,7 +107,9 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [phrase, setPhrase] = useState("");
-  const [invitation, setInvitation] = useState("");
+  const [invitation, setInvitation] = useState(props.invitation ?? "");
+  /** Signing in to the one server, once its ways are known. */
+  const [onlySignIn, setOnlySignIn] = useState<Step | undefined>();
   const [name, setName] = useState("");
   const [written, setWritten] = useState(false);
   const [encryption, setEncryption] = useState<ReadonlyMap<string, Encryption>>(new Map());
@@ -125,8 +137,26 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
     void backend.servers().then(async (list) => {
       if (!live()) return;
       setAccounts(list);
-      // With no server yet, the dialog starts at the address.
-      if (list.length === 0) setStep({ kind: "address" });
+      if (props.invitation !== undefined) {
+        setStep({ kind: "join" });
+      } else if (list.length === 0 && only !== undefined) {
+        // With the one server, the dialog starts at signing in there.
+        try {
+          const signIn: Step = {
+            kind: "signIn",
+            url: only,
+            methods: await signInMethods(backend.serverFetch, only),
+          };
+          if (!live()) return;
+          setOnlySignIn(signIn);
+          setStep(signIn);
+        } catch (reason) {
+          if (live()) setError(messageOf(reason));
+        }
+      } else if (list.length === 0) {
+        // With no server yet, the dialog starts at the address.
+        setStep({ kind: "address" });
+      }
       const found = await encryptionOf(list);
       if (live()) setEncryption(found);
     });
@@ -164,6 +194,7 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
     setCode("");
     setStep({ kind: "list" });
     setStatus(t("signedInTo", { server: hostOf(url), name: signedIn.user.name }));
+    onAccount?.();
   };
 
   const submit = () => {
@@ -196,6 +227,10 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
         setError(t("invitationLinkInvalid"));
         return;
       }
+      if (only !== undefined && found.server !== only) {
+        setError(t("invitationOtherServer", { server: hostOf(found.server) }));
+        return;
+      }
       void act(async () => {
         const offer = await lookUpInvitation(backend.serverFetch, found.server, found.token);
         if (offer.email !== null) setEmail(offer.email);
@@ -225,7 +260,11 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
           setStep({ kind: "list" });
         }
         setInvitation("");
-        setStatus(t("invitationJoined", { workspace: offer.workspace.name }));
+        setStatus(
+          t(only === undefined ? "invitationJoined" : "invitationJoinedHere", {
+            workspace: offer.workspace.name,
+          }),
+        );
       });
     } else if (step.kind === "keys") {
       if (!written) return;
@@ -272,6 +311,7 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
       await backend.forgetServer(account.url);
       await refresh();
       setStatus(t("signedOutOf", { server: hostOf(account.url) }));
+      onAccount?.();
     });
   };
 
@@ -388,18 +428,20 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
             ))}
           </ul>
         )}
-        <button
-          type="button"
-          className="quiet"
-          disabled={busy}
-          onClick={() => {
-            setError(undefined);
-            setStatus(undefined);
-            setStep({ kind: "address" });
-          }}
-        >
-          {t("connectServer")}
-        </button>
+        {only !== undefined ? null : (
+          <button
+            type="button"
+            className="quiet"
+            disabled={busy}
+            onClick={() => {
+              setError(undefined);
+              setStatus(undefined);
+              setStep({ kind: "address" });
+            }}
+          >
+            {t("connectServer")}
+          </button>
+        )}
         <button
           type="button"
           className="quiet"
@@ -416,7 +458,12 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
     );
   } else if (step.kind === "join") {
     primary = t("continueStep");
-    back = accounts === undefined || accounts.length === 0 ? { kind: "address" } : { kind: "list" };
+    back =
+      accounts === undefined || accounts.length === 0
+        ? only === undefined
+          ? { kind: "address" }
+          : onlySignIn
+        : { kind: "list" };
     body = (
       <label className="field">
         {t("invitationLink")}
@@ -599,7 +646,12 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
   } else if (step.kind === "signIn") {
     const { url, methods } = step;
     primary = t("signIn");
-    back = { kind: "address" };
+    back =
+      only === undefined
+        ? { kind: "address" }
+        : accounts === undefined || accounts.length === 0
+          ? undefined
+          : { kind: "list" };
     body = (
       <fieldset>
         <legend>{t("signInTo", { server: hostOf(url) })}</legend>
@@ -707,7 +759,7 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
         }}
         onKeyDown={onKeyDown}
       >
-        <h2 id="servers-title">{t("servers")}</h2>
+        <h2 id="servers-title">{only === undefined ? t("servers") : t("webAccount")}</h2>
         {/* Nothing shows until the servers signed in to are known. */}
         <div className="dialog-body">{accounts === undefined ? null : body}</div>
         <p role="status">{status}</p>
