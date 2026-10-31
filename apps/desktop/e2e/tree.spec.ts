@@ -20,9 +20,9 @@ test("the file tree shows folders and their notes, opened by click or key", asyn
   const errors = errorsOf(page);
   const tree = await openSampleTree(page);
   const rows = tree.getByRole("treeitem");
-  // Folders first, closed, then the notes at the top.
+  // Folders first, closed, the one with only images too, then the notes at the top.
   await expect(rows).toHaveText(
-    ["Daily", "Projects", "Templates", "Welcome+"].map((name) => new RegExp(name)),
+    ["attachments", "Daily", "Projects", "Templates", "Welcome+"].map((name) => new RegExp(name)),
   );
   const projects = tree.getByRole("treeitem", { name: /Projects/ });
   await expect(projects).toHaveAttribute("aria-expanded", "false");
