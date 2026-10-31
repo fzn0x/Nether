@@ -37,8 +37,10 @@ import type { NotePart } from "./noteLinks.ts";
 import type { NoteMode } from "./NoteView.tsx";
 import { findTemplate, nameOf, periodicNote, periods, templateChoices } from "./templates.ts";
 import { useGraph } from "./useGraph.ts";
+import { syncSummary } from "./sync.ts";
 import { useHotkeys } from "./useHotkeys.ts";
 import { useTemplateSettings } from "./useTemplateSettings.ts";
+import { useSync } from "./useSync.ts";
 import { useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
@@ -81,6 +83,9 @@ const AppearanceDialog = lazy(() =>
 );
 const ServersDialog = lazy(() =>
   import("./ServersDialog.tsx").then(({ ServersDialog: dialog }) => ({ default: dialog })),
+);
+const SyncDialog = lazy(() =>
+  import("./SyncDialog.tsx").then(({ SyncDialog: dialog }) => ({ default: dialog })),
 );
 
 const numbers = new Intl.NumberFormat();
@@ -164,6 +169,7 @@ export function VaultView(props: {
   const { info, note: startNote, onClose } = props;
   const state = useVault(info);
   const vault = state.status === "open" ? state.vault : undefined;
+  const sync = useSync(vault);
   // The vault's light or dark, theme and snippets, on the page while it is open.
   const appearance = useAppearance(vault);
   const graph = state.status === "open" ? state.indexer.graph : undefined;
@@ -211,6 +217,7 @@ export function VaultView(props: {
     | "settings"
     | "appearance"
     | "servers"
+    | "sync"
     | "export"
     | "import"
     | "palette"
@@ -505,6 +512,11 @@ export function VaultView(props: {
       servers: () => {
         setDialog("servers");
       },
+      sync: open
+        ? () => {
+            setDialog("sync");
+          }
+        : undefined,
       shortcuts: open
         ? () => {
             setDialog("shortcuts");
@@ -777,6 +789,20 @@ export function VaultView(props: {
               </>
             )}
             <IndexStatus indexer={state.indexer} />
+            {sync.link === undefined ? null : (
+              <p className="sync-line" aria-live="polite">
+                <button
+                  type="button"
+                  className="quiet"
+                  aria-haspopup="dialog"
+                  onClick={() => {
+                    setDialog("sync");
+                  }}
+                >
+                  {syncSummary(sync.link, sync.status, sync.signedOut)}
+                </button>
+              </p>
+            )}
           </>
         )}
       </aside>
@@ -822,6 +848,20 @@ export function VaultView(props: {
           <AppearanceDialog
             vault={state.vault}
             state={appearance}
+            onClose={() => {
+              setDialog(undefined);
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {dialog === "sync" && state.status === "open" ? (
+        <Suspense fallback={null}>
+          <SyncDialog
+            vault={state.vault}
+            sync={sync}
+            onServers={() => {
+              setDialog("servers");
+            }}
             onClose={() => {
               setDialog(undefined);
             }}

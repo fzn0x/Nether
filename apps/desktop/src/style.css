@@ -394,6 +394,19 @@ button {
   font-size: 0.75rem;
 }
 
+/* How the vault's sync is going, at the foot of the sidebar; it opens the sync dialog. */
+.sync-line {
+  margin: 0;
+  padding: 0.25rem 0.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.75rem;
+}
+
+.sync-line .quiet {
+  width: 100%;
+  text-align: start;
+}
+
 .pane {
   min-width: 0;
   overflow-y: auto;

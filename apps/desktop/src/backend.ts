@@ -138,6 +138,12 @@ export interface Backend {
   forgetServer(url: string): Promise<void>;
   /** Waits on a loopback address for the browser to come back from a provider. */
   loopback(): Promise<LoopbackWait>;
+  /**
+   * The WebSocket class sync opens its connection with: Go's in the desktop
+   * app, outside the page's mixed-content rules, and the browser's in the
+   * preview. It loads when a vault first syncs.
+   */
+  syncSocket(): Promise<unknown>;
   /** Whether the app updates itself, and checks on its own. */
   updateSettings(): Promise<UpdateSettings>;
   /** Turns the automatic update checks on or off. */
@@ -218,6 +224,9 @@ const desktop: Backend = {
   fetchPreview: (url) => Previews.fetch(url),
   openUrl: (url) => Previews.open(url),
   serverFetch: goFetch,
+  async syncSocket() {
+    return (await import("@mygo-plugins/websocket")).WebSocket;
+  },
   servers: () => Servers.list(),
   saveServer: (account, token) => Servers.save(account, token),
   async serverToken(url) {
@@ -430,6 +439,7 @@ const preview: Backend = {
     return Promise.resolve();
   },
   serverFetch: (input, init) => fetch(input, init),
+  syncSocket: () => Promise.resolve(globalThis.WebSocket),
   servers: () =>
     Promise.resolve([...previewServers.values()].map((item) => item.account).reverse()),
   saveServer(account, token) {

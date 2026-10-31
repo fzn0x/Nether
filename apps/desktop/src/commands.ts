@@ -24,6 +24,7 @@ export const commandIds = [
   "templateSettings",
   "appearance",
   "servers",
+  "sync",
   "shortcuts",
   "checkUpdates",
   "updateChecks",
