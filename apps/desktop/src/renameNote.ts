@@ -28,7 +28,8 @@ function baseName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
-function decode(text: string): string {
+/** An address as a Markdown link writes it, its `%20`s and the like read. */
+export function decode(text: string): string {
   try {
     return decodeURIComponent(text);
   } catch {
@@ -37,7 +38,7 @@ function decode(text: string): string {
 }
 
 /** A path relative to a folder, `..` and `.` taken out; undefined when it leaves the vault. */
-function joinPath(folder: string, relative: string): string | undefined {
+export function joinPath(folder: string, relative: string): string | undefined {
   const parts = folder === "" ? [] : folder.split("/");
   for (const part of relative.split("/")) {
     if (part === "" || part === ".") continue;
@@ -52,7 +53,7 @@ function joinPath(folder: string, relative: string): string | undefined {
 }
 
 /** The path from a note's folder to a file, as a Markdown link writes it. */
-function relativeAddress(from: string, to: string, spaces: "raw" | "escaped"): string {
+export function relativeAddress(from: string, to: string, spaces: "raw" | "escaped"): string {
   const fromFolders = from === "" ? [] : from.split("/");
   const toParts = to.split("/");
   let common = 0;
@@ -110,6 +111,32 @@ export function pageMoves(vault: Vault, from: string, to: string): Move[] {
       ? []
       : [{ from: basePath(from), to: basePath(to) }];
   return [{ from, to }, ...base, ...folderMoves(vault, pagesFolder(from), pagesFolder(to))];
+}
+
+/**
+ * What a wiki link to a note or file is written as, as the vault is now:
+ * its name, unless another note or file has it, or the link was written
+ * with its folders, and `.md` when the link had it.
+ */
+export function linkNamer(vault: Vault): (written: string, path: string) => string {
+  const notes = vault.notes();
+  const allFiles = vault.files();
+  return (written, path) => {
+    if (isNotePath(path)) {
+      const name = baseName(path).replace(/\.md$/i, "");
+      const id = vault.noteAt(path)?.id;
+      const shared = notes.some(
+        (other) => other.id !== id && other.title.toLowerCase() === name.toLowerCase(),
+      );
+      const target = written.includes("/") || shared ? path.replace(/\.md$/i, "") : name;
+      return /\.md$/i.test(written) ? `${target}.md` : target;
+    }
+    const name = baseName(path);
+    const shared = allFiles.some(
+      (other) => other !== path && baseName(other).toLowerCase() === name.toLowerCase(),
+    );
+    return written.includes("/") || shared ? path : name;
+  };
 }
 
 /** What a note's links say before the move: for each link that must change, by its start, the file it names. */
@@ -193,24 +220,7 @@ export async function moveFiles(
   for (const move of real) await vault.moveFile(move.from, move.to);
 
   // The shortest name that finds a note or file: its name, unless another has it.
-  const notes = vault.notes();
-  const allFiles = vault.files();
-  const wikiTarget = (written: string, path: string) => {
-    if (isNotePath(path)) {
-      const name = baseName(path).replace(/\.md$/i, "");
-      const id = vault.noteAt(path)?.id;
-      const shared = notes.some(
-        (other) => other.id !== id && other.title.toLowerCase() === name.toLowerCase(),
-      );
-      const target = written.includes("/") || shared ? path.replace(/\.md$/i, "") : name;
-      return /\.md$/i.test(written) ? `${target}.md` : target;
-    }
-    const name = baseName(path);
-    const shared = allFiles.some(
-      (other) => other !== path && baseName(other).toLowerCase() === name.toLowerCase(),
-    );
-    return written.includes("/") || shared ? path : name;
-  };
+  const wikiTarget = linkNamer(vault);
 
   for (const plan of plans) {
     const folder = folderOf(vault.note(plan.note)?.path ?? "");
