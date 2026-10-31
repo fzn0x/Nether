@@ -150,6 +150,40 @@ describe("Vault notes", () => {
     expect((await vault.readFile("Missing.base")).missing).toBe(true);
   });
 
+  it("reads and writes a file's bytes, keeping its hash, and sends one that is not a note to the trash", async () => {
+    const files = new MemoryFiles({ "Note.md": "x", "a.png": "old" });
+    const vault = await openVault(files);
+    expect(vault.attachments()).toEqual(["a.png"]);
+    const hash = await vault.fileHash("a.png");
+    expect(hash).toBe(await sha256("old"));
+    expect(await vault.fileHash("gone.png")).toBeUndefined();
+
+    const png = new Uint8Array([137, 80, 78, 71, 0, 255]);
+    const written = await vault.writeBytes("a.png", png, hash ?? "");
+    expect(written.hash).toBe(await sha256(png));
+    // Known from the write, not read again.
+    expect(await vault.fileHash("a.png")).toBe(written.hash);
+    expect((await vault.readBytes("a.png")).bytes).toEqual(png);
+    await expect(vault.writeBytes("a.png", png, hash ?? "")).rejects.toBeInstanceOf(ChangedOnDisk);
+    await expect(vault.writeBytes("b.md", png, "")).rejects.toThrow(/is a note/);
+    // Text written as bytes reads back as text.
+    await vault.writeBytes("c.txt", new TextEncoder().encode("plain"), "");
+    expect((await vault.readFile("c.txt")).text).toBe("plain");
+    // A change another app makes is read again.
+    files.edit("c.txt", "changed");
+    await vault.apply([{ op: "write", path: "c.txt", isDir: false }]);
+    expect(await vault.fileHash("c.txt")).toBe(await sha256("changed"));
+
+    await expect(vault.removeFile("Note.md")).rejects.toThrow(/is a note/);
+    const where = await vault.removeFile("a.png");
+    expect(vault.attachments()).toEqual(["c.txt"]);
+    expect(await vault.trash()).toEqual([
+      { path: where, from: "a.png", deleted: expect.any(Number) as number },
+    ]);
+    expect((await files.readBytes(where)).bytes).toEqual(png);
+    await expect(files.readBytes("a.png")).rejects.toThrow(/not there/);
+  });
+
   it("tells its listeners which notes each change added, changed, moved or removed", async () => {
     const vault = await openVault(new MemoryFiles({ "a.md": "A", "b.md": "B" }));
     const [a, b] = vault.notes().map((note) => note.id);

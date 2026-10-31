@@ -1,6 +1,8 @@
 export {
   ChangedOnDisk,
+  type FileBytes,
   type FileEvent,
+  type FileHash,
   type FileInfo,
   type FileOp,
   type FileText,

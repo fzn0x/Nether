@@ -12,10 +12,19 @@ export interface FileInfo {
   readonly modified: number;
 }
 
-/** A file's text, and the SHA-256 hash of its bytes in hexadecimal. */
-export interface FileText extends FileInfo {
-  readonly text: string;
+/** A file, and the SHA-256 hash of its bytes in hexadecimal. */
+export interface FileHash extends FileInfo {
   readonly hash: string;
+}
+
+/** A file's bytes, as sync sends attachments, and their hash. */
+export interface FileBytes extends FileHash {
+  readonly bytes: Uint8Array;
+}
+
+/** A file's text, and the SHA-256 hash of its bytes in hexadecimal. */
+export interface FileText extends FileHash {
+  readonly text: string;
   /** The file was not there. */
   readonly missing?: boolean;
   /** The file is not UTF-8 text: its text is empty, and writing it would change its bytes. */
@@ -53,6 +62,10 @@ export interface VaultFiles {
    * that, it throws a `ChangedOnDisk` and writes nothing.
    */
   write(path: string, text: string, base: string): Promise<FileText>;
+  /** Reads a file's bytes, text or not; it throws if the file is not there. */
+  readBytes(path: string): Promise<FileBytes>;
+  /** Replaces a file's bytes in one step, checked against `base` as `write` is. */
+  writeBytes(path: string, data: Uint8Array, base: string): Promise<FileHash>;
   /** Moves a file, making the folders it needs; it throws if a file is there. */
   rename(from: string, to: string): Promise<FileInfo>;
   /**

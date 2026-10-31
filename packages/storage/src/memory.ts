@@ -4,7 +4,9 @@
 // left out of lists, and batches of change events.
 import {
   ChangedOnDisk,
+  type FileBytes,
   type FileEvent,
+  type FileHash,
   type FileInfo,
   type FileText,
   type VaultFiles,
@@ -19,10 +21,14 @@ interface Entry {
 }
 
 const encoder = new TextEncoder();
+// Fails on bytes that are not UTF-8, and keeps a byte order mark, so text
+// read back is the same bytes.
+const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
-/** The SHA-256 hash of a text's UTF-8 bytes, in hexadecimal. */
-export async function sha256(text: string): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest("SHA-256", encoder.encode(text));
+/** The SHA-256 hash of bytes, or of a text's UTF-8 bytes, in hexadecimal. */
+export async function sha256(data: string | Uint8Array): Promise<string> {
+  const bytes = typeof data === "string" ? encoder.encode(data) : data.slice();
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -99,7 +105,12 @@ export class MemoryFiles implements VaultFiles {
     if (entry === undefined)
       return { path, size: 0, modified: 0, text: "", hash: "", missing: true };
     if (entry.bytes !== undefined) {
-      return { ...this.#info(path, entry), text: "", hash: "", binary: true };
+      return {
+        ...this.#info(path, entry),
+        text: "",
+        hash: await sha256(entry.bytes),
+        binary: true,
+      };
     }
     return { ...this.#info(path, entry), text: entry.text, hash: await sha256(entry.text) };
   }
@@ -119,6 +130,34 @@ export class MemoryFiles implements VaultFiles {
     this.#entries.set(path, { text, modified: this.#tick() });
     this.#emit([{ op: current.missing === true ? "create" : "write", path, isDir: false }]);
     return this.read(path);
+  }
+
+  async readBytes(path: string): Promise<FileBytes> {
+    checkPath(path);
+    const entry = this.#entries.get(path);
+    if (entry === undefined) throw new Error(`${path} is not there.`);
+    const bytes = entry.bytes?.slice() ?? encoder.encode(entry.text);
+    return { ...this.#info(path, entry), bytes, hash: await sha256(bytes) };
+  }
+
+  async writeBytes(path: string, data: Uint8Array, base: string): Promise<FileHash> {
+    checkPath(path);
+    const current = await this.read(path);
+    if (base === "" && current.missing !== true)
+      throw new Error(`${path}: a file is already there.`);
+    if (base !== "" && (current.missing === true || current.hash !== base)) {
+      throw new ChangedOnDisk(path);
+    }
+    // Text stays text, as on disk, where a file is only its bytes.
+    let entry: Entry;
+    try {
+      entry = { text: decoder.decode(data), modified: this.#tick() };
+    } catch {
+      entry = { text: "", bytes: data.slice(), modified: this.#tick() };
+    }
+    this.#entries.set(path, entry);
+    this.#emit([{ op: current.missing === true ? "create" : "write", path, isDir: false }]);
+    return { ...this.#info(path, entry), hash: await sha256(data) };
   }
 
   rename(from: string, to: string): Promise<FileInfo> {

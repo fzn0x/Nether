@@ -168,6 +168,18 @@ export interface Backend {
   settle(): void;
 }
 
+/** A write's result, with the Go service's ErrChanged as a `ChangedOnDisk`. */
+async function changedOnDisk<T>(path: string, write: Promise<T>): Promise<T> {
+  try {
+    return await write;
+  } catch (error) {
+    if (isCallError(error) && error.message.includes("changed on disk")) {
+      throw new ChangedOnDisk(path);
+    }
+    throw error;
+  }
+}
+
 /** A vault's files through the Go service. */
 class DesktopFiles implements VaultFiles {
   readonly #id: string;
@@ -193,16 +205,17 @@ class DesktopFiles implements VaultFiles {
     await Vaults.read(this.#id, [...paths], new Channel<FileText>(each));
   }
 
-  async write(path: string, text: string, base: string) {
-    try {
-      return await Vaults.write(this.#id, path, text, base);
-    } catch (error) {
-      // The Go service's ErrChanged.
-      if (isCallError(error) && error.message.includes("changed on disk")) {
-        throw new ChangedOnDisk(path);
-      }
-      throw error;
-    }
+  write(path: string, text: string, base: string) {
+    return changedOnDisk(path, Vaults.write(this.#id, path, text, base));
+  }
+
+  async readBytes(path: string) {
+    const { data, ...file } = await Vaults.readBytes(this.#id, path);
+    return { ...file, bytes: fromBase64(data) };
+  }
+
+  writeBytes(path: string, data: Uint8Array, base: string) {
+    return changedOnDisk(path, Vaults.writeBytes(this.#id, path, base64(data), base));
   }
 
   rename(from: string, to: string) {

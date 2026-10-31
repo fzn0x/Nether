@@ -4,7 +4,9 @@
 // time, reading no file (ADR 0003). The watch keeps it so while it is open.
 import { type NoteId, newNoteId } from "@nether/core";
 import {
+  type FileBytes,
   type FileEvent,
+  type FileHash,
   type FileInfo,
   type FileText,
   type VaultFiles,
@@ -234,6 +236,15 @@ export class Vault {
     return [...this.#records.keys()].sort((a, b) => collator.compare(a, b));
   }
 
+  /** The paths of the files that are not notes, such as images and PDFs, in no order. */
+  attachments(): string[] {
+    const paths: string[] = [];
+    for (const record of this.#records.values()) {
+      if (record.note === undefined) paths.push(record.path);
+    }
+    return paths;
+  }
+
   /** The file at a path, note or not, with its size and time, if the vault holds one. */
   fileInfo(path: string): FileInfo | undefined {
     const record = this.#records.get(path);
@@ -376,15 +387,59 @@ export class Vault {
     return this.#serial(async () => {
       if (isNotePath(path)) throw new Error(`${path} is a note: write it by its ID.`);
       const written = await this.#files.write(path, text, base);
-      const record = this.#records.get(path);
-      await this.#commit({
-        upsert: [
-          record === undefined
-            ? { path, size: written.size, modified: written.modified, hash: written.hash }
-            : { ...moved(record, path, written), hash: written.hash },
-        ],
-      });
+      await this.#learn(path, written);
       return written;
+    });
+  }
+
+  /**
+   * The SHA-256 hash of a file's bytes: the one the index keeps, or the
+   * file's, read and remembered. None when the file is not there.
+   */
+  fileHash(path: string): Promise<string | undefined> {
+    const known = this.#records.get(path)?.hash;
+    if (known !== undefined) return Promise.resolve(known);
+    return this.#serial(async () => {
+      const file = await this.#files.read(path);
+      if (file.missing === true) return undefined;
+      await this.#learn(path, file);
+      return file.hash;
+    });
+  }
+
+  /** Reads a file's bytes, text or not, as sync sends a file. */
+  readBytes(path: string): Promise<FileBytes> {
+    return this.#serial(async () => {
+      const file = await this.#files.readBytes(path);
+      await this.#learn(path, file);
+      return file;
+    });
+  }
+
+  /**
+   * Writes a file that is not a note from its bytes, as sync writes a file
+   * it fetched. `base` is as for `writeFile`.
+   */
+  writeBytes(path: string, data: Uint8Array, base: string): Promise<FileHash> {
+    return this.#serial(async () => {
+      if (isNotePath(path)) throw new Error(`${path} is a note: write it by its ID.`);
+      const written = await this.#files.writeBytes(path, data, base);
+      await this.#learn(path, written);
+      return written;
+    });
+  }
+
+  /** Records a file's size, time and hash, as just read or written. */
+  async #learn(path: string, file: FileHash): Promise<void> {
+    const record = this.#records.get(path);
+    // A note the index does not know yet gets its ID when the watch finds it.
+    if (record === undefined && isNotePath(path)) return;
+    await this.#commit({
+      upsert: [
+        record === undefined
+          ? { path, size: file.size, modified: file.modified, hash: file.hash }
+          : { ...moved(record, path, file), hash: file.hash },
+      ],
     });
   }
 
@@ -455,8 +510,21 @@ export class Vault {
     return this.#serial(() => this.#remove(id));
   }
 
-  async #remove(id: NoteId): Promise<string> {
-    const path = this.#need(id);
+  /** Moves a file that is not a note to the vault's trash, and returns where it went. */
+  removeFile(path: string): Promise<string> {
+    return this.#serial(async () => {
+      if (this.#records.get(path)?.note !== undefined) {
+        throw new Error(`${path} is a note: remove it by its ID.`);
+      }
+      return this.#trash(path);
+    });
+  }
+
+  #remove(id: NoteId): Promise<string> {
+    return this.#trash(this.#need(id), id);
+  }
+
+  async #trash(path: string, note?: NoteId): Promise<string> {
     const where = await this.#files.remove(path);
     await this.#commit({ remove: [path] });
     const record = readTrashRecord(await this.readData(trashData));
@@ -464,7 +532,7 @@ export class Vault {
       ...record,
       items: [
         ...record.items.filter((item) => item.path !== where),
-        { path: where, from: path, deleted: this.#now(), note: id },
+        { path: where, from: path, deleted: this.#now(), ...(note === undefined ? {} : { note }) },
       ],
     });
     return where;
