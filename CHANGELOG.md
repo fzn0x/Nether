@@ -142,6 +142,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Signing in by email: a server with the admin's SMTP server, set by
+  `NETHER_SMTP_URL` and `NETHER_MAIL_FROM`, emails a code of eight digits
+  to an address that has an account, which signs in once within 15
+  minutes. The link to sign in comes with the web app
+  ([ADR 0033](docs/adr/0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md)).
 - Signing in to the server: an email address and password give a session
   token, which lasts 30 days unused and 90 at most and is kept only as its
   hash. People see and end their sessions and change their passwords, and

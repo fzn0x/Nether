@@ -10,8 +10,9 @@ schema as it starts, makes the first account through first-run setup, signs
 people in, invites others into workspaces, and holds the extension point
 through which the free [enterprise features](../../enterprise/) plug in.
 Sync, sharing and the rest arrive in Phase 3. See ADRs
-[0031](../../docs/adr/0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md)
-and [0032](../../docs/adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md).
+[0031](../../docs/adr/0031-the-server-keeps-its-data-in-postgresql-and-is-set-up-with-a-code-from-its-log.md),
+[0032](../../docs/adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md)
+and [0033](../../docs/adr/0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md).
 
 ## Run it
 
@@ -58,7 +59,10 @@ token as `Authorization: Bearer <token>`. Every error is
 | --- | --- | --- |
 | `GET /health` | | The server's version, and which enterprise features are on |
 | `GET /api/setup`, `POST /api/setup` | | First-run setup, above |
+| `GET /api/sign-in-methods` | | Which ways to sign in this server offers: `password`, and `emailCode` when it can send email |
 | `POST /api/sessions` | | Signs in with `email` and `password`; gives `token` and `expiresAt` |
+| `POST /api/sign-in-codes` | | Emails a code to sign in to `email`, if it has an account; answers 202 either way |
+| `POST /api/sign-in-codes/redeem` | | Signs in with `email` and its `code`, as signing in with a password does |
 | `GET /api/sessions` | yes | The account's sessions, the current one marked |
 | `DELETE /api/sessions/current` | yes | Signs out |
 | `POST /api/sessions/revoke` | yes | Ends the session `session`, or every other one, with `password` |
@@ -72,12 +76,30 @@ token as `Authorization: Bearer <token>`. Every error is
 
 A session ends when its client signs out, after 30 days unused, or 90
 days after it began. Invitations last seven days and are accepted once.
-Only the SHA-256 of a session's or an invitation's token is kept.
+A code emailed to sign in works once, within 15 minutes, and five wrong
+tries spend it. Only the SHA-256 of a session's or an invitation's token,
+or of a code, is kept.
 
 Signing in is limited to 30 tries in five minutes from one address, and 10
-in 15 minutes for one account from anywhere. Setup, invitations, ending
-sessions and changing passwords have limits of their own. Each answers
-`429` with `Retry-After`.
+in 15 minutes for one account from anywhere. One email address gets at
+most three codes in 15 minutes. Setup, invitations, ending sessions and
+changing passwords have limits of their own. Each answers `429` with
+`Retry-After`.
+
+## Email
+
+Set `NETHER_SMTP_URL` and `NETHER_MAIL_FROM` for the server to send email:
+so far, the codes that sign in by email. Without them it sends none, and
+the app offers only passwords.
+
+```sh
+NETHER_SMTP_URL=smtp://nether:secret@mail.example.org:587
+NETHER_MAIL_FROM='Nether <nether@example.org>'
+```
+
+`smtp://` uses STARTTLS when the mail server offers it; `smtps://` (port
+465) uses TLS from the start. A message that cannot be sent is written to
+the server's log.
 
 ## Database
 
@@ -95,6 +117,8 @@ refuses to start on a database a newer server has migrated.
 | `NETHER_PORT` | `3000` | The port; `0` picks a free one |
 | `NETHER_LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent` |
 | `NETHER_DATABASE_URL` | none, required | The PostgreSQL database, as `postgres://user:password@host:5432/nether` |
+| `NETHER_SMTP_URL` | none | The SMTP server email goes through, as `smtp://user:password@host:587` or `smtps://user:password@host:465` |
+| `NETHER_MAIL_FROM` | none, required with `NETHER_SMTP_URL` | The sender, as `Nether <nether@example.org>` |
 | `NETHER_TRUST_PROXY` | `off` | Behind a reverse proxy, whose `X-Forwarded-For` to believe: `on` for any, or addresses and ranges such as `10.0.0.2, 172.16.0.0/12` or `uniquelocal` |
 | `NETHER_ENTERPRISE_SSO` | `off` | Single sign-on |
 | `NETHER_ENTERPRISE_SCIM` | `off` | Provisioning through SCIM and LDAP |
