@@ -187,6 +187,24 @@ describe("Vault data", () => {
     expect(vault.notes().map((note) => note.path)).toEqual(["a.md"]);
   });
 
+  it("lists the files of a folder of its own, which the vault's notes leave out", async () => {
+    const memory = new MemoryFiles({
+      "a.md": "A",
+      ".nether/themes/Night.css": ":root {}",
+      ".nether/themes/Day.css": ":root {}",
+      ".nether/themes/.hidden/x.css": "",
+      ".nether/snippets/wide.css": "",
+    });
+    const vault = new Vault(memory, new MemoryStore());
+    await vault.open();
+    expect(await vault.filesIn(".nether/themes")).toEqual([
+      ".nether/themes/Day.css",
+      ".nether/themes/Night.css",
+    ]);
+    expect(await vault.filesIn(".nether/missing")).toEqual([]);
+    expect(vault.notes().map((note) => note.path)).toEqual(["a.md"]);
+  });
+
   it("reads Obsidian's settings for the vault, and only reads them", async () => {
     const memory = new MemoryFiles({
       "a.md": "A",

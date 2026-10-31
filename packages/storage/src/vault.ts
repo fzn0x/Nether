@@ -337,6 +337,19 @@ export class Vault {
     return this.#serial(() => this.#create(path, text));
   }
 
+  /**
+   * The paths of the files in a folder of the vault's own, as
+   * `.nether/themes`, in order, and those in the folders below it that are
+   * not hidden; none when there is no such folder.
+   */
+  async filesIn(folder: string): Promise<readonly string[]> {
+    const paths: string[] = [];
+    await this.#files.list(folder, (batch) => {
+      for (const file of batch) paths.push(file.path);
+    });
+    return paths.sort((a, b) => a.localeCompare(b));
+  }
+
   /** Reads a file of the vault that is not a note, as the Obsidian base beside a database. */
   readFile(path: string): Promise<FileText> {
     return this.#serial(() => this.#files.read(path));
