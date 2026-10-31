@@ -103,7 +103,8 @@ test("today's note opens from its template, and is the same note the next time",
 test("the settings turn on weekly notes, and the vault keeps them", async ({ page }) => {
   await openSample(page);
   await expect(page.getByRole("button", { name: "This week" })).toBeHidden();
-  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+  await page.getByRole("menuitem", { name: /^Templates and periodic notes/ }).click();
   const dialog = page.getByRole("dialog", { name: "Templates and periodic notes" });
   // Obsidian's settings for daily notes show, until Nether's own are saved.
   const daily = dialog.getByRole("group", { name: "Daily notes" });

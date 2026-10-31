@@ -120,7 +120,10 @@ for (const colorScheme of ["light", "dark"] as const) {
         ["New note", () => page.getByRole("button", { name: "New note" }).click()],
         [
           "Templates and periodic notes",
-          () => page.getByRole("button", { name: "Settings" }).click(),
+          async () => {
+            await page.getByRole("menuitem", { name: "Settings" }).click();
+            await page.getByRole("menuitem", { name: /^Templates and periodic notes/ }).click();
+          },
         ],
         ["Export", () => page.getByRole("button", { name: "Export", exact: true }).click()],
       ];
