@@ -142,6 +142,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Sync units in `@nether/sync-client`: the engine syncs the vault document
+  of each unit the account opens, puts each note and file in the unit
+  whose area holds its path, asks the server before moving a note from one
+  unit to another, and takes the notes of a unit let go out of the vault.
 - Sync units on the server: teamspaces and private spaces, each with its
   own vault document and people, at full access, edit, comment or view;
   the record of the unit each note is in, changed only by those who edit
