@@ -5,7 +5,7 @@
 // between units only by a request the server checks.
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { type Database, type Queryable, readText, readTextOrNull } from "./db.ts";
+import { type Database, type Queryable, readText, readTextOrNull, readTime } from "./db.ts";
 import { fail, uuidField } from "./http.ts";
 import { accountOf, signedIn } from "./sessions.ts";
 import { membership } from "./workspaces.ts";
@@ -204,6 +204,20 @@ const placeBody = {
   },
 } as const;
 
+const pageBody = {
+  type: "object",
+  required: ["note"],
+  additionalProperties: false,
+  properties: { note: uuidField, restricted: { type: "boolean" } },
+} as const;
+
+const restrictedBody = {
+  type: "object",
+  required: ["restricted"],
+  additionalProperties: false,
+  properties: { restricted: { type: "boolean" } },
+} as const;
+
 const noWorkspace = "This account is in no such workspace.";
 const noUnit = "This account has no such space or page here.";
 const badName =
@@ -283,6 +297,14 @@ export function registerUnits(
         .send({ id: made, kind: "team", name, level: "full", document: vaultDocument(made) });
     },
   );
+
+  /** Tells every member of a workspace their access may have changed, as a page's restriction does. */
+  async function everyone(workspace: string): Promise<void> {
+    const { rows } = await db.query("SELECT user_id FROM memberships WHERE workspace_id = $1", [
+      workspace,
+    ]);
+    for (const row of rows) changed(readText(row, "user_id"));
+  }
 
   /** A unit the account has full access to, or the reply's refusal. */
   async function managed(userId: string, workspace: string, unit: string) {
@@ -401,9 +423,9 @@ export function registerUnits(
         if (theirs === undefined)
           return [404, "This person has no access of their own here."] as const;
         const full = rows.filter((row) => row.level === "full").length;
-        // A teamspace keeps someone who can manage it.
-        if (unit.kind === "team" && theirs.level === "full" && full === 1) {
-          return [409, "A teamspace keeps someone with full access."] as const;
+        // A teamspace, or a restricted page, keeps someone who can manage it.
+        if ((unit.kind === "team" || unit.restricted) && theirs.level === "full" && full === 1) {
+          return [409, "It keeps someone with full access."] as const;
         }
         await tx.query("DELETE FROM unit_grants WHERE unit_id = $1 AND user_id = $2", [
           unit.id,
@@ -413,6 +435,166 @@ export function registerUnits(
       });
       if (outcome !== undefined) return fail(reply, outcome[0], outcome[1]);
       changed(user);
+      return reply.code(204).send();
+    },
+  );
+
+  // Who opens a unit by a grant of their own, for anyone who opens it; and
+  // for those with full access, the invitations to it still waiting.
+  app.get<{ Params: UnitParams }>(
+    "/api/workspaces/:workspace/units/:unit/grants",
+    { schema: { params: unitParams }, preHandler: account },
+    async (request, reply) => {
+      const workspace = request.params.workspace.toLowerCase();
+      const id = request.params.unit.toLowerCase();
+      const { levels: found, units } = await accessible(db, accountOf(request).id, workspace);
+      const unit = units.get(id);
+      const level = found.get(id);
+      if (unit === undefined || level === undefined) return fail(reply, 404, noUnit);
+      const { rows } = await db.query(
+        `SELECT u.id, u.name, u.email, g.level
+           FROM unit_grants g JOIN users u ON u.id = g.user_id
+          WHERE g.unit_id = $1
+          ORDER BY lower(u.name), lower(u.email)`,
+        [id],
+      );
+      const waiting =
+        level === "full"
+          ? (
+              await db.query(
+                `SELECT id, email, level, expires_at FROM invitations
+                  WHERE unit_id = $1 AND accepted_at IS NULL AND expires_at > now()
+                  ORDER BY created_at`,
+                [id],
+              )
+            ).rows
+          : [];
+      return {
+        kind: unit.kind,
+        restricted: unit.restricted,
+        grants: rows.map((row) => ({
+          user: readText(row, "id"),
+          name: readText(row, "name"),
+          email: readText(row, "email"),
+          level: readText(row, "level"),
+        })),
+        invitations: waiting.map((row) => ({
+          id: readText(row, "id"),
+          email: readTextOrNull(row, "email"),
+          level: readText(row, "level"),
+          expiresAt: readTime(row, "expires_at").toISOString(),
+        })),
+      };
+    },
+  );
+
+  // Shares a page on its own: it and its subtree become a unit, which keeps
+  // the people of the unit it sits in unless restricted.
+  app.post<{
+    Params: WorkspaceParams;
+    Body: { readonly note: string; readonly restricted?: boolean };
+  }>(
+    "/api/workspaces/:workspace/pages",
+    { schema: { params: workspaceParams, body: pageBody }, preHandler: account },
+    async (request, reply) => {
+      const workspace = request.params.workspace.toLowerCase();
+      const me = accountOf(request).id;
+      const place = await membership(db, me, workspace);
+      if (place === undefined) return fail(reply, 404, noWorkspace);
+      if (place.encryption !== "none") {
+        return fail(reply, 409, "An encrypted workspace shares no pages on their own yet.");
+      }
+      const note = request.body.note.toLowerCase();
+      const restricted = request.body.restricted ?? false;
+      const parent = await unitOfDocument(db, workspace, note);
+      const { levels: found } = await accessible(db, me, workspace);
+      if (found.get(parent) !== "full") {
+        return fail(reply, 403, "Sharing a page takes full access to where it is.");
+      }
+      const id = randomUUID();
+      const made = await db.transaction(async (tx) => {
+        const { rows } = await tx.query(
+          `INSERT INTO units (id, workspace_id, kind, root_note, parent_id, restricted)
+           VALUES ($1, $2, 'page', $3, $4, $5) ON CONFLICT DO NOTHING RETURNING id`,
+          [id, workspace, note, parent === general ? null : parent, restricted],
+        );
+        if (rows.length === 0) return false;
+        await tx.query(
+          "INSERT INTO unit_grants (unit_id, user_id, level) VALUES ($1, $2, 'full')",
+          [id, me],
+        );
+        await tx.query(
+          `INSERT INTO note_units (workspace_id, note, unit_id) VALUES ($1, $2, $3)
+           ON CONFLICT (workspace_id, note) DO UPDATE SET unit_id = excluded.unit_id`,
+          [workspace, note, id],
+        );
+        return true;
+      });
+      if (!made) return fail(reply, 409, "This page is shared on its own already.");
+      await everyone(workspace);
+      return reply.code(201).send({
+        id,
+        kind: "page",
+        rootNote: note,
+        restricted,
+        level: "full",
+        document: vaultDocument(id),
+      });
+    },
+  );
+
+  app.patch<{ Params: UnitParams; Body: { readonly restricted: boolean } }>(
+    "/api/workspaces/:workspace/pages/:unit",
+    { schema: { params: unitParams, body: restrictedBody }, preHandler: account },
+    async (request, reply) => {
+      const workspace = request.params.workspace.toLowerCase();
+      const unit = await managed(
+        accountOf(request).id,
+        workspace,
+        request.params.unit.toLowerCase(),
+      );
+      if (!("id" in unit)) return fail(reply, unit[0], unit[1]);
+      if (unit.kind !== "page") return fail(reply, 404, noUnit);
+      await db.query("UPDATE units SET restricted = $2 WHERE id = $1", [
+        unit.id,
+        request.body.restricted,
+      ]);
+      await everyone(workspace);
+      return { id: unit.id, restricted: request.body.restricted };
+    },
+  );
+
+  // Stops sharing a page on its own: its notes, and the pages shared inside
+  // it, go back to the unit it sits in.
+  app.delete<{ Params: UnitParams }>(
+    "/api/workspaces/:workspace/pages/:unit",
+    { schema: { params: unitParams }, preHandler: account },
+    async (request, reply) => {
+      const workspace = request.params.workspace.toLowerCase();
+      const me = accountOf(request).id;
+      const unit = await managed(me, workspace, request.params.unit.toLowerCase());
+      if (!("id" in unit)) return fail(reply, unit[0], unit[1]);
+      if (unit.kind !== "page") return fail(reply, 404, noUnit);
+      const { levels: found } = await accessible(db, me, workspace);
+      if (!writesAt(found.get(unit.parentId ?? general))) {
+        return fail(reply, 403, "Its notes go back where it sits, which takes edit access there.");
+      }
+      await db.transaction(async (tx) => {
+        if (unit.parentId === null) {
+          await tx.query("DELETE FROM note_units WHERE unit_id = $1", [unit.id]);
+        } else {
+          await tx.query("UPDATE note_units SET unit_id = $2 WHERE unit_id = $1", [
+            unit.id,
+            unit.parentId,
+          ]);
+        }
+        await tx.query("UPDATE units SET parent_id = $2 WHERE parent_id = $1", [
+          unit.id,
+          unit.parentId,
+        ]);
+        await tx.query("DELETE FROM units WHERE id = $1", [unit.id]);
+      });
+      await everyone(workspace);
       return reply.code(204).send();
     },
   );

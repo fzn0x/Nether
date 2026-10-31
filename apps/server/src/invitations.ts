@@ -17,6 +17,7 @@ import {
   uuidField,
 } from "./http.ts";
 import { hashPassword } from "./passwords.ts";
+import { type Level, accessible } from "./units.ts";
 import {
   accountOf,
   bearerToken,
@@ -30,19 +31,27 @@ import {
 /** Days an invitation can be accepted in. */
 export const invitationDays = 7;
 
-/** The roles an invitation may give; guests, invited to pages, come with page permissions. */
-const invitedRoles = ["admin", "member"] as const;
+/** The roles an invitation may give: guests only with a page shared with them (ADR 0042). */
+const invitedRoles = ["admin", "member", "guest"] as const;
 
 interface Invite {
   readonly role: (typeof invitedRoles)[number];
   readonly email?: string;
+  /** A shared page, to invite a guest to it alone, at `level`. */
+  readonly unit?: string;
+  readonly level?: Level;
 }
 
 const inviteBody = {
   type: "object",
   required: ["role"],
   additionalProperties: false,
-  properties: { role: { type: "string", enum: invitedRoles }, email: emailField },
+  properties: {
+    role: { type: "string", enum: invitedRoles },
+    email: emailField,
+    unit: uuidField,
+    level: { type: "string", enum: ["full", "edit", "comment", "view"] },
+  },
 } as const;
 
 interface WorkspaceParams {
@@ -106,6 +115,9 @@ export interface OpenInvitation {
   readonly role: string;
   /** The only address that may accept it, if it names one. */
   readonly email: string | null;
+  /** The shared page it is to, and the level there, for a guest. */
+  readonly unitId: string | null;
+  readonly level: string | null;
 }
 
 /** The invitation a token's hash names, if it can still be accepted, locked until the transaction ends. */
@@ -114,7 +126,7 @@ export async function openInvitation(
   hash: string,
 ): Promise<OpenInvitation | undefined> {
   const { rows } = await tx.query(
-    `SELECT i.id, i.workspace_id, i.role, i.email, w.name AS workspace_name
+    `SELECT i.id, i.workspace_id, i.role, i.email, i.unit_id, i.level, w.name AS workspace_name
        FROM invitations i JOIN workspaces w ON w.id = i.workspace_id
       WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.expires_at > now()
       FOR UPDATE OF i`,
@@ -128,6 +140,8 @@ export async function openInvitation(
     workspaceName: readText(row, "workspace_name"),
     role: readText(row, "role"),
     email: readTextOrNull(row, "email"),
+    unitId: readTextOrNull(row, "unit_id"),
+    level: readTextOrNull(row, "level"),
   };
 }
 
@@ -150,6 +164,13 @@ export async function acceptInvitation(
      ON CONFLICT (workspace_id, user_id) DO NOTHING`,
     [invitation.workspaceId, userId, invitation.role],
   );
+  if (invitation.unitId !== null && invitation.level !== null) {
+    await tx.query(
+      `INSERT INTO unit_grants (unit_id, user_id, level) VALUES ($1, $2, $3)
+       ON CONFLICT (unit_id, user_id) DO UPDATE SET level = excluded.level`,
+      [invitation.unitId, userId, invitation.level],
+    );
+  }
   await tx.query("UPDATE invitations SET accepted_by = $1, accepted_at = now() WHERE id = $2", [
     userId,
     invitation.id,
@@ -191,22 +212,54 @@ export function registerInvitations(app: FastifyInstance, db: Database): void {
     async (request, reply) => {
       const me = accountOf(request);
       const workspace = request.params.workspace.toLowerCase();
-      const refused = await refusal(me.id, workspace);
-      if (refused !== undefined) return fail(reply, ...refused);
+      const { role, level } = request.body;
+      const unit = request.body.unit?.toLowerCase();
+      if (unit === undefined) {
+        if (role === "guest") {
+          return fail(reply, 400, "A guest is invited to a page: name it, and their level there.");
+        }
+        const refused = await refusal(me.id, workspace);
+        if (refused !== undefined) return fail(reply, ...refused);
+      } else {
+        if (role !== "guest" || level === undefined) {
+          return fail(reply, 400, "An invitation to a page makes a guest, at a level there.");
+        }
+        // Anyone with full access to a shared page may invite someone to it.
+        const { levels: found, units } = await accessible(db, me.id, workspace);
+        if (found.size === 0) return fail(reply, 404, "This account is in no such workspace.");
+        if (units.get(unit)?.kind !== "page" || !found.has(unit)) {
+          return fail(reply, 404, "This account has no such shared page here.");
+        }
+        if (found.get(unit) !== "full") {
+          return fail(reply, 403, "Inviting someone to a page takes full access to it.");
+        }
+      }
       const token = newToken();
       const id = randomUUID();
       const email = request.body.email?.trim() ?? null;
       const { rows } = await db.query(
-        `INSERT INTO invitations (id, token_hash, workspace_id, role, email, invited_by, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, now() + $7 * interval '1 day')
+        `INSERT INTO invitations
+           (id, token_hash, workspace_id, role, email, invited_by, expires_at, unit_id, level)
+         VALUES ($1, $2, $3, $4, $5, $6, now() + $7 * interval '1 day', $8, $9)
          RETURNING expires_at`,
-        [id, tokenHash(token), workspace, request.body.role, email, me.id, invitationDays],
+        [
+          id,
+          tokenHash(token),
+          workspace,
+          role,
+          email,
+          me.id,
+          invitationDays,
+          unit ?? null,
+          level ?? null,
+        ],
       );
       return reply.code(201).send({
         id,
         token,
-        role: request.body.role,
+        role,
         email,
+        ...(unit === undefined ? {} : { unit, level }),
         expiresAt: readTime(rows[0], "expires_at").toISOString(),
       });
     },
@@ -267,7 +320,7 @@ export function registerInvitations(app: FastifyInstance, db: Database): void {
     async (request, reply) => {
       const { rows } = await db.query(
         `SELECT w.id AS workspace_id, w.name AS workspace_name, i.role, i.email, i.expires_at,
-                u.name AS invited_by
+                i.unit_id, i.level, u.name AS invited_by
            FROM invitations i
            JOIN workspaces w ON w.id = i.workspace_id
            LEFT JOIN users u ON u.id = i.invited_by
@@ -281,6 +334,10 @@ export function registerInvitations(app: FastifyInstance, db: Database): void {
         role: readText(row, "role"),
         email: readTextOrNull(row, "email"),
         invitedBy: readTextOrNull(row, "invited_by"),
+        // A page's title stays with those who open it: the app says "a page".
+        ...(row.unit_id === null
+          ? {}
+          : { page: { unit: readText(row, "unit_id"), level: readText(row, "level") } }),
         expiresAt: readTime(row, "expires_at").toISOString(),
       };
     },

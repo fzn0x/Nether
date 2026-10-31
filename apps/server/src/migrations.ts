@@ -274,6 +274,17 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX note_units_by_unit ON note_units (unit_id);
     `,
   },
+  {
+    version: 10,
+    name: "page invitations",
+    sql: `
+      -- An invitation to one shared page, at a level: accepted, it makes a guest
+      -- who opens that page alone (ADR 0042).
+      ALTER TABLE invitations
+        ADD COLUMN unit_id uuid REFERENCES units (id) ON DELETE CASCADE,
+        ADD COLUMN level text CHECK (level IN ('full', 'edit', 'comment', 'view'));
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

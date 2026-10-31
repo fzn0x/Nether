@@ -75,7 +75,7 @@ token as `Authorization: Bearer <token>`. Every error is
 | `POST /api/sessions/revoke` | yes | Ends the session `session`, or every other one, with `password` |
 | `GET /api/me` | yes | The account, and the workspaces it is in with its role in each |
 | `PUT /api/me/password` | yes | Changes the password from `current`; ends every other session |
-| `POST /api/workspaces/:id/invitations` | owner, admin | Invites someone as `admin` or `member`, for one `email` or anyone; gives `token` |
+| `POST /api/workspaces/:id/invitations` | owner, admin; full on the page | Invites someone as `admin` or `member`, for one `email` or anyone; or as a `guest` to one shared page (`unit`) at a `level`; gives `token` |
 | `GET /api/workspaces/:id/invitations` | owner, admin | The invitations not yet accepted |
 | `DELETE /api/workspaces/:id/invitations/:invitation` | owner, admin | Withdraws one |
 | `GET /api/workspaces/:id/members` | member | The members, with their `role`; guests are refused |
@@ -88,6 +88,10 @@ token as `Authorization: Bearer <token>`. Every error is
 | `PUT /api/workspaces/:id/units/:unit/grants/:user` | full | Gives a member a `level`: `full`, `edit`, `comment` or `view` |
 | `DELETE /api/workspaces/:id/units/:unit/grants/:user` | full | Takes it back; a teamspace keeps someone at full access |
 | `PUT /api/workspaces/:id/private` | member | The account's private space, made the first time |
+| `GET /api/workspaces/:id/units/:unit/grants` | in the unit | Who opens it by a grant of their own, at which `level`; for full access, its invitations waiting |
+| `POST /api/workspaces/:id/pages` | full where it is | Shares a page on its own: the `note` and its subtree become a unit, `restricted` to its grants or keeping its parent's people |
+| `PATCH /api/workspaces/:id/pages/:unit` | full | Restricts it, or not |
+| `DELETE /api/workspaces/:id/pages/:unit` | full, and edit where it sits | Shares it no longer on its own: its notes and inner pages go back where it sits |
 | `PUT /api/workspaces/:id/notes/:note/unit` | edit in both | Moves a note into `unit`, or `general` |
 | `POST /api/workspaces` | yes | Makes a workspace the account owns, with `name`; `encryption: "end-to-end"` and the maker's `sealedKey` make it encrypted |
 | `PUT /api/me/keys`, `GET /api/me/keys` | yes | The account's `publicKey`, and its private key in a `recoveryBox` only its recovery phrase opens; kept once |
@@ -134,13 +138,18 @@ links and joins with them; the web app will open them.
 
 A workspace's notes are divided into sync units
 ([ADR 0042](../../docs/adr/0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md)): General, which every member but guests
-opens, teamspaces, which their members open, and each member's private
-space. Each has a vault document of its own, `<workspace>/vault` for
-General and `<workspace>/vault.<unit>` for the others, and a note's
-document opens at its unit's level, read-only below edit. Which unit a
-note is in is the server's record: one it does not name is in General.
-Guests open only the pages shared with them, which come next. An encrypted
-workspace has General alone, for now.
+opens, teamspaces, which their members open, each member's private space,
+and pages shared on their own. Each has a vault document of its own,
+`<workspace>/vault` for General and `<workspace>/vault.<unit>` for the
+others, and a note's document opens at its unit's level, read-only below
+edit. Which unit a note is in is the server's record: one it does not name
+is in General.
+
+A shared page keeps the levels of the unit it sits in, raised by its own
+grants, unless it is restricted, when only its grants count; a page inside
+it sits in its unit, so levels follow the page tree. Guests open only the
+pages shared with them, invited to each at a level. An encrypted workspace
+has General alone, for now.
 
 ## Sync
 
