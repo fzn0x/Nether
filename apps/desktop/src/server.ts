@@ -427,3 +427,206 @@ export async function sealForMember(
     body: sealed,
   });
 }
+
+/** A workspace's member, as its owners and admins manage them. */
+export interface Member {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+  readonly role: string;
+}
+
+/** A workspace's members, by name; a guest is refused the list. */
+export async function members(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+): Promise<Member[]> {
+  const answer = record(
+    await request(fetcher, base, `/api/workspaces/${workspaceId}/members`, { token }),
+  );
+  const list = Array.isArray(answer.members) ? (answer.members as unknown[]) : [];
+  return list.map((item) => {
+    const member = record(item);
+    return {
+      id: text(member.id, base),
+      name: text(member.name, base),
+      email: text(member.email, base),
+      role: text(member.role, base),
+    };
+  });
+}
+
+/** Changes a member's role, as an owner or admin may. */
+export async function setMemberRole(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  userId: string,
+  role: string,
+): Promise<void> {
+  await request(fetcher, base, `/api/workspaces/${workspaceId}/members/${userId}`, {
+    method: "PATCH",
+    token,
+    body: { role },
+  });
+}
+
+/** Removes a member, or, given the account's own ID, leaves the workspace. */
+export async function removeMember(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  userId: string,
+): Promise<void> {
+  await request(fetcher, base, `/api/workspaces/${workspaceId}/members/${userId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+/** An invitation waiting to be accepted. */
+export interface Invitation {
+  readonly id: string;
+  readonly role: string;
+  /** The address it is for; none when anyone with its link may accept it. */
+  readonly email: string | null;
+  readonly expiresAt: string;
+}
+
+/** Invites someone to a workspace; gives the invitation and the token its link carries. */
+export async function invite(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  role: string,
+  email: string,
+): Promise<Invitation & { readonly token: string }> {
+  const answer = record(
+    await request(fetcher, base, `/api/workspaces/${workspaceId}/invitations`, {
+      token,
+      body: email.trim() === "" ? { role } : { role, email: email.trim() },
+    }),
+  );
+  return { ...invitationOf(answer, base), token: text(answer.token, base) };
+}
+
+function invitationOf(value: unknown, base: string): Invitation {
+  const invitation = record(value);
+  return {
+    id: text(invitation.id, base),
+    role: text(invitation.role, base),
+    email: typeof invitation.email === "string" ? invitation.email : null,
+    expiresAt: text(invitation.expiresAt, base),
+  };
+}
+
+/** A workspace's invitations still waiting. */
+export async function invitations(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+): Promise<Invitation[]> {
+  const answer = record(
+    await request(fetcher, base, `/api/workspaces/${workspaceId}/invitations`, { token }),
+  );
+  const list = Array.isArray(answer.invitations) ? (answer.invitations as unknown[]) : [];
+  return list.map((item) => invitationOf(item, base));
+}
+
+/** Withdraws an invitation, so its link no longer works. */
+export async function withdrawInvitation(
+  fetcher: Fetch,
+  base: string,
+  token: string,
+  workspaceId: string,
+  invitationId: string,
+): Promise<void> {
+  await request(fetcher, base, `/api/workspaces/${workspaceId}/invitations/${invitationId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+/**
+ * An invitation's link: the server's address and `/invite`, its token after
+ * the `#`, which browsers never send to a server, so no log keeps it.
+ */
+export function invitationLink(server: string, token: string): string {
+  return `${server}/invite#${token}`;
+}
+
+/** The server and token of an invitation's link; undefined when the text is not one. */
+export function readInvitationLink(
+  link: string,
+): { readonly server: string; readonly token: string } | undefined {
+  let url: URL;
+  try {
+    url = new URL(link.trim());
+  } catch {
+    return undefined;
+  }
+  const token = url.hash.slice(1);
+  const server = serverAddress(url.origin);
+  if (
+    server === undefined ||
+    url.username !== "" ||
+    url.password !== "" ||
+    url.pathname.replace(/\/+$/, "") !== "/invite" ||
+    token === ""
+  ) {
+    return undefined;
+  }
+  return { server, token };
+}
+
+/** What an invitation is to, before it is accepted. */
+export interface InvitationOffer {
+  readonly workspace: { readonly id: string; readonly name: string };
+  readonly role: string;
+  readonly email: string | null;
+  readonly invitedBy: string | null;
+}
+
+export async function lookUpInvitation(
+  fetcher: Fetch,
+  base: string,
+  invitationToken: string,
+): Promise<InvitationOffer> {
+  const answer = record(
+    await request(fetcher, base, "/api/invitations/lookup", { body: { token: invitationToken } }),
+  );
+  const workspace = record(answer.workspace);
+  return {
+    workspace: { id: text(workspace.id, base), name: text(workspace.name, base) },
+    role: text(answer.role, base),
+    email: typeof answer.email === "string" ? answer.email : null,
+    invitedBy: typeof answer.invitedBy === "string" ? answer.invitedBy : null,
+  };
+}
+
+/**
+ * Accepts an invitation: into the account a session signs in, or into a new
+ * account, which it then signs in to.
+ */
+export async function acceptInvitation(
+  fetcher: Fetch,
+  base: string,
+  invitationToken: string,
+  as:
+    | { readonly session: string }
+    | { readonly name: string; readonly email: string; readonly password: string },
+): Promise<SignedIn | undefined> {
+  const answer = record(
+    await request(fetcher, base, "/api/invitations/accept", {
+      ...("session" in as ? { token: as.session } : {}),
+      body: "session" in as ? { token: invitationToken } : { token: invitationToken, ...as },
+    }),
+  );
+  return "session" in as ? undefined : signedIn(answer, base);
+}

@@ -75,7 +75,7 @@ export async function fakeServer(page: Page, routes: Readonly<Record<string, Han
     const headers = {
       "access-control-allow-origin": "*",
       "access-control-allow-headers": "accept, authorization, content-type",
-      "access-control-allow-methods": "GET, POST, PUT, DELETE",
+      "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE",
     };
     if (request.method() === "OPTIONS") {
       await route.fulfill({ status: 204, headers });

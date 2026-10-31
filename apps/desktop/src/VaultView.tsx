@@ -87,6 +87,9 @@ const ServersDialog = lazy(() =>
 const SyncDialog = lazy(() =>
   import("./SyncDialog.tsx").then(({ SyncDialog: dialog }) => ({ default: dialog })),
 );
+const MembersDialog = lazy(() =>
+  import("./MembersDialog.tsx").then(({ MembersDialog: dialog }) => ({ default: dialog })),
+);
 const HistoryDialog = lazy(() =>
   import("./HistoryDialog.tsx").then(({ HistoryDialog: dialog }) => ({ default: dialog })),
 );
@@ -221,6 +224,7 @@ export function VaultView(props: {
     | "appearance"
     | "servers"
     | "sync"
+    | "members"
     | "history"
     | "export"
     | "import"
@@ -527,6 +531,12 @@ export function VaultView(props: {
             setDialog("sync");
           }
         : undefined,
+      members:
+        open && sync.link !== undefined
+          ? () => {
+              setDialog("members");
+            }
+          : undefined,
       shortcuts: open
         ? () => {
             setDialog("shortcuts");
@@ -544,7 +554,7 @@ export function VaultView(props: {
         : undefined,
       closeVault: onClose,
     };
-  }, [state.status, selected, openPeriodic, trashNote, onClose, updates, readUpdates]);
+  }, [state.status, selected, openPeriodic, trashNote, onClose, updates, readUpdates, sync.link]);
 
   // Shortcuts run their commands, before the editors, which have their own uses for keys.
   const latest = useRef({ run, hotkeys });
@@ -871,6 +881,20 @@ export function VaultView(props: {
             sync={sync}
             onServers={() => {
               setDialog("servers");
+            }}
+            onClose={() => {
+              setDialog(undefined);
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {dialog === "members" && sync.link !== undefined ? (
+        <Suspense fallback={null}>
+          <MembersDialog
+            link={sync.link}
+            onLeft={() => {
+              setDialog(undefined);
+              void sync.unlink();
             }}
             onClose={() => {
               setDialog(undefined);

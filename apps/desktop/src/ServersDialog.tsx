@@ -4,18 +4,24 @@
 // session's token goes to the system's keychain; signing out ends the
 // session on the server, and forgets it here either way. Each account's
 // end-to-end encryption (ADR 0038) is turned on here, showing its recovery
-// phrase once, or unlocked on a new device with the phrase.
+// phrase once, or unlocked on a new device with the phrase. Someone invited
+// to a workspace joins here with the invitation's link, into the account
+// they are signed in to on its server, or a new one.
 import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { backend } from "./backend.ts";
 import type { PreparedKeys } from "./encryption.ts";
 import { t } from "./messages.ts";
 import type { ServerAccount } from "./mygo.ts";
 import {
+  type InvitationOffer,
   type LoopbackWait,
   type SignInMethods,
   type SignedIn,
+  acceptInvitation,
   accountKeys,
   askForCode,
+  lookUpInvitation,
+  readInvitationLink,
   redeemCode,
   serverAddress,
   signInMethods,
@@ -36,7 +42,16 @@ type Step =
       readonly email: string;
     }
   | { readonly kind: "keys"; readonly account: ServerAccount; readonly keys: PreparedKeys }
-  | { readonly kind: "unlock"; readonly account: ServerAccount };
+  | { readonly kind: "unlock"; readonly account: ServerAccount }
+  | { readonly kind: "join" }
+  | {
+      readonly kind: "joining";
+      readonly url: string;
+      readonly token: string;
+      readonly offer: InvitationOffer;
+      /** The account this app is signed in to on that server, which joins; none makes one. */
+      readonly account: ServerAccount | undefined;
+    };
 
 /** An account's end-to-end encryption: not turned on, on but not on this device, or on here. */
 type Encryption = "off" | "locked" | "on";
@@ -81,6 +96,8 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [phrase, setPhrase] = useState("");
+  const [invitation, setInvitation] = useState("");
+  const [name, setName] = useState("");
   const [written, setWritten] = useState(false);
   const [encryption, setEncryption] = useState<ReadonlyMap<string, Encryption>>(new Map());
   const [busy, setBusy] = useState(false);
@@ -171,6 +188,43 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
     } else if (step.kind === "code") {
       void act(async () => {
         await finish(step.url, await redeemCode(backend.serverFetch, step.url, step.email, code));
+      });
+    } else if (step.kind === "join") {
+      const found = readInvitationLink(invitation);
+      if (found === undefined) {
+        setError(t("invitationLinkInvalid"));
+        return;
+      }
+      void act(async () => {
+        const offer = await lookUpInvitation(backend.serverFetch, found.server, found.token);
+        if (offer.email !== null) setEmail(offer.email);
+        setStep({
+          kind: "joining",
+          url: found.server,
+          token: found.token,
+          offer,
+          account: accounts?.find((account) => account.url === found.server),
+        });
+      });
+    } else if (step.kind === "joining") {
+      void act(async () => {
+        const { url, offer, account } = step;
+        if (account === undefined) {
+          const signedIn = await acceptInvitation(backend.serverFetch, url, step.token, {
+            name,
+            email,
+            password,
+          });
+          if (signedIn !== undefined) await finish(url, signedIn);
+        } else {
+          const session = await backend.serverToken(url);
+          if (session === undefined) throw new Error(t("syncSignedOut", { server: hostOf(url) }));
+          await acceptInvitation(backend.serverFetch, url, step.token, { session });
+          await refresh();
+          setStep({ kind: "list" });
+        }
+        setInvitation("");
+        setStatus(t("invitationJoined", { workspace: offer.workspace.name }));
       });
     } else if (step.kind === "keys") {
       if (!written) return;
@@ -345,6 +399,110 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
         >
           {t("connectServer")}
         </button>
+        <button
+          type="button"
+          className="quiet"
+          disabled={busy}
+          onClick={() => {
+            setError(undefined);
+            setStatus(undefined);
+            setStep({ kind: "join" });
+          }}
+        >
+          {t("invitationJoin")}
+        </button>
+      </>
+    );
+  } else if (step.kind === "join") {
+    primary = t("continueStep");
+    back = accounts === undefined || accounts.length === 0 ? { kind: "address" } : { kind: "list" };
+    body = (
+      <label className="field">
+        {t("invitationLink")}
+        <input
+          type="text"
+          inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
+          required
+          data-autofocus
+          value={invitation}
+          aria-describedby="invitation-link-hint"
+          onChange={(event) => {
+            setInvitation(event.target.value);
+          }}
+        />
+        <span id="invitation-link-hint" className="hint">
+          {t("invitationLinkHint")}
+        </span>
+      </label>
+    );
+  } else if (step.kind === "joining") {
+    const { url, offer, account } = step;
+    primary =
+      account === undefined
+        ? t("invitationMakeAccount")
+        : t("invitationJoinAs", { name: account.user.name });
+    back = { kind: "join" };
+    body = (
+      <>
+        <p>
+          {t("invitationTo", {
+            workspace: offer.workspace.name,
+            server: hostOf(url),
+            role: t(`role_${offer.role}`),
+          })}
+          {offer.invitedBy === null ? null : ` ${t("invitationFrom", { name: offer.invitedBy })}`}
+        </p>
+        {account === undefined ? (
+          <fieldset>
+            <legend>{t("invitationNewAccount", { server: hostOf(url) })}</legend>
+            <label className="field">
+              {t("yourName")}
+              <input
+                type="text"
+                autoComplete="name"
+                required
+                data-autofocus
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                }}
+              />
+            </label>
+            <label className="field">
+              {t("emailAddress")}
+              <input
+                type="email"
+                autoComplete="username"
+                required
+                readOnly={offer.email !== null}
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                }}
+              />
+            </label>
+            <label className="field">
+              {t("password")}
+              <input
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={12}
+                value={password}
+                aria-describedby="new-password-hint"
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                }}
+              />
+              <span id="new-password-hint" className="hint">
+                {t("newPasswordHint")}
+              </span>
+            </label>
+            <p className="hint">{t("invitationHaveAccount", { server: hostOf(url) })}</p>
+          </fieldset>
+        ) : null}
       </>
     );
   } else if (step.kind === "keys") {
@@ -419,6 +577,23 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
           {t("serverAddressHint")}
         </span>
       </label>
+    );
+    body = (
+      <>
+        {body}
+        <button
+          type="button"
+          className="quiet"
+          disabled={busy}
+          onClick={() => {
+            setError(undefined);
+            setStatus(undefined);
+            setStep({ kind: "join" });
+          }}
+        >
+          {t("invitationJoin")}
+        </button>
+      </>
     );
   } else if (step.kind === "signIn") {
     const { url, methods } = step;

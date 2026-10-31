@@ -5,7 +5,9 @@ import {
   type LoopbackWait,
   ServerError,
   account,
+  invitationLink,
   pkce,
+  readInvitationLink,
   request,
   serverAddress,
   signInMethods,
@@ -69,6 +71,31 @@ describe("serverAddress", () => {
     "not an address at all",
   ])("refuses %j", (typed) => {
     expect(serverAddress(typed)).toBeUndefined();
+  });
+});
+
+describe("invitation links", () => {
+  it("carry the server's address and the token after a #, and are read back", () => {
+    const link = invitationLink("https://nether.example.org", "a-token");
+    expect(link).toBe("https://nether.example.org/invite#a-token");
+    expect(readInvitationLink(` ${link} `)).toEqual({
+      server: "https://nether.example.org",
+      token: "a-token",
+    });
+    expect(readInvitationLink("http://localhost:3000/invite/#t")).toEqual({
+      server: "http://localhost:3000",
+      token: "t",
+    });
+    for (const text of [
+      "a-token",
+      "https://nether.example.org/invite",
+      "https://nether.example.org/invite#",
+      "https://nether.example.org/join#a-token",
+      "https://user:pass@nether.example.org/invite#a-token",
+      "ftp://nether.example.org/invite#a-token",
+    ]) {
+      expect(readInvitationLink(text), text).toBeUndefined();
+    }
   });
 });
 
