@@ -19,6 +19,11 @@ export function vaultPaths(document: Y.Doc): Map<string, string> {
   return new Map(notesOf(document).entries());
 }
 
+/** Where the vault document lists a note; undefined when it does not. */
+export function vaultPath(document: Y.Doc, id: string): string | undefined {
+  return notesOf(document).get(id);
+}
+
 /** Lists a note at a path, or moves it there. */
 export function setVaultPath(document: Y.Doc, id: string, path: string): void {
   const notes = notesOf(document);

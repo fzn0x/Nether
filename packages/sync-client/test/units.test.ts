@@ -145,6 +145,9 @@ describe("syncing units", () => {
       text.insert(text.length, ", still");
     });
     await until(() => cals.vault.text(ideas) === "for everyone, still");
+    // Every member has General's notes in full, and nothing of Design's yet.
+    expect(cals.engine.level(ideas)).toBe("full");
+    expect(cals.engine.level(plan)).toBeUndefined();
 
     await grant(served, design, cal.id, "comment");
     // The next round, as one an edit brings, finds the teamspace opened.
@@ -153,6 +156,7 @@ describe("syncing units", () => {
     });
     await until(() => cals.vault.text(plan) === "for Design");
     await until(() => cals.vault.threads(plan).t1 === "a comment");
+    expect(cals.engine.level(plan)).toBe("comment");
   });
 
   it("takes a note moved into a teamspace's folder out of the vaults of those outside it", async () => {

@@ -39,9 +39,24 @@ import {
   sha256,
   vaultFiles,
 } from "./files.ts";
-import { type Paths, reconcilePaths, removeVaultPath, setVaultPath, vaultPaths } from "./paths.ts";
+import {
+  type Paths,
+  reconcilePaths,
+  removeVaultPath,
+  setVaultPath,
+  vaultPath,
+  vaultPaths,
+} from "./paths.ts";
 import { RelayChannel } from "./relayChannel.ts";
-import { type SyncUnit, general, generalOnly, readUnits, unitForPath, writes } from "./units.ts";
+import {
+  type Level,
+  type SyncUnit,
+  general,
+  generalOnly,
+  readUnits,
+  unitForPath,
+  writes,
+} from "./units.ts";
 
 /** A note's document, held while it syncs; let go when done. */
 export interface HeldDocument {
@@ -226,6 +241,19 @@ export class VaultSync {
   stop(): Promise<void> {
     this.#stopping ??= this.#halt();
     return this.#stopping;
+  }
+
+  /**
+   * The access this account has to a note: that of the unit listing it, or
+   * of the unit its path would place it in; undefined where it is in none,
+   * as a guest's note outside their pages.
+   */
+  level(id: string): Level | undefined {
+    for (const unit of this.#units) {
+      if (vaultPath(this.#documentOf(unit.id), id) !== undefined) return unit.level;
+    }
+    const path = this.#options.vault.paths().get(id);
+    return path === undefined ? undefined : this.#placer(new Map())(path)?.level;
   }
 
   /**
