@@ -9,6 +9,7 @@ import type { Database } from "./db.ts";
 import { type EnterpriseModule, enterpriseFeatures, registerEnterprise } from "./enterprise.ts";
 import { tooManyTries } from "./http.ts";
 import { registerInvitations } from "./invitations.ts";
+import { registerMembers } from "./members.ts";
 import type { Mailer } from "./mail.ts";
 import { registerOidc } from "./oidc.ts";
 import { registerSessions } from "./sessions.ts";
@@ -105,8 +106,12 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
     registerAttachments(app, services.db, services.blobs, config.attachmentLimit);
   }
   // The relay's sockets come through the WebSocket plugin sync registers.
-  await registerSync(app, services.db);
-  registerRelay(app, services.db);
+  const sync = await registerSync(app, services.db);
+  const relay = registerRelay(app, services.db);
+  registerMembers(app, services.db, (userId) => {
+    sync.disconnect(userId);
+    relay.disconnect(userId);
+  });
   if (services.mailer !== undefined) registerCodes(app, services.db, services.mailer);
   const { oidc, publicUrl } = config;
   if (oidc !== null && publicUrl !== null) registerOidc(app, services.db, oidc, publicUrl);

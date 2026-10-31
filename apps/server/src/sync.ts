@@ -100,7 +100,13 @@ function headersOf(raw: Record<string, string | string[] | undefined>): Headers 
   return headers;
 }
 
-export async function registerSync(app: FastifyInstance, db: Database): Promise<void> {
+/** What the rest of the server asks of sync. */
+export interface SyncControl {
+  /** Closes an account's connections, so its apps connect again and are checked anew. */
+  disconnect(userId: string): void;
+}
+
+export async function registerSync(app: FastifyInstance, db: Database): Promise<SyncControl> {
   // A note's update may be large, as a pasted image's data is; 16 MiB at most.
   await app.register(websocket, { options: { maxPayload: 16 * 1024 * 1024 } });
 
@@ -249,4 +255,16 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
       );
     }
   });
+
+  return {
+    disconnect(userId) {
+      for (const document of hocuspocus.documents.values()) {
+        for (const connection of document.getConnections()) {
+          const context = connection.context as Partial<SyncContext> | undefined;
+          // The socket, with every document on it: the app connects again.
+          if (context?.userId === userId) connection.webSocket.close(4403, "Access changed");
+        }
+      }
+    },
+  };
 }

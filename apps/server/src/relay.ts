@@ -40,9 +40,16 @@ interface Client {
 
 type Message = Readonly<Record<string, unknown>>;
 
-export function registerRelay(app: FastifyInstance, db: Database): void {
+/** What the rest of the server asks of the relay. */
+export interface RelayControl {
+  /** Closes an account's sockets, so its apps connect again and are checked anew. */
+  disconnect(userId: string): void;
+}
+
+export function registerRelay(app: FastifyInstance, db: Database): RelayControl {
   /** Each document's subscribers. */
   const subscribers = new Map<string, Set<Client>>();
+  const clients = new Set<Client>();
 
   function send(client: Client, message: object): void {
     if (client.socket.readyState === client.socket.OPEN)
@@ -196,6 +203,7 @@ export function registerRelay(app: FastifyInstance, db: Database): void {
 
   app.get("/api/relay", { websocket: true }, (socket) => {
     const client: Client = { socket, userId: undefined, subscriptions: new Map() };
+    clients.add(client);
     // Messages are handled in order, one at a time.
     let queue = Promise.resolve();
     socket.on("message", (raw: Buffer) => {
@@ -241,6 +249,7 @@ export function registerRelay(app: FastifyInstance, db: Database): void {
         });
     });
     socket.on("close", () => {
+      clients.delete(client);
       for (const name of client.subscriptions.keys()) {
         const listeners = subscribers.get(name);
         listeners?.delete(client);
@@ -248,4 +257,12 @@ export function registerRelay(app: FastifyInstance, db: Database): void {
       }
     });
   });
+
+  return {
+    disconnect(userId) {
+      for (const client of clients) {
+        if (client.userId === userId) client.socket.close(4403, "Access changed");
+      }
+    },
+  };
 }
