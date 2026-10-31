@@ -10,14 +10,28 @@
 // - syncs a note's document when it changes here or there, through the
 //   document the vault holds for it, which the editor shares;
 // - makes a note this vault lacks from the server's document before its
-//   file, so no second history of its text is made from the file.
+//   file, so no second history of its text is made from the file;
+// - brings attachments together by path and hash in the same way (ADR 0040),
+//   sending a file's bytes the server lacks, encrypted for an encrypted
+//   workspace, and fetching those this vault lacks.
 //
 // What a device knows between runs, the base, the last number seen, the
 // notes changed here and not sent, and the vault document, is kept by the
 // store it is given, so edits made offline are sent when it reconnects.
 import * as Y from "yjs";
 import { type Channel, HocuspocusChannel } from "./channel.ts";
-import type { WorkspaceKey } from "./crypto.ts";
+import { type WorkspaceKey, decryptFile, encryptFile } from "./crypto.ts";
+import {
+  type FileHashes,
+  type VaultFile,
+  besidePath,
+  isSyncedFile,
+  reconcileFiles,
+  removeVaultFile,
+  setVaultFile,
+  sha256,
+  vaultFiles,
+} from "./files.ts";
 import { type Paths, reconcilePaths, removeVaultPath, setVaultPath, vaultPaths } from "./paths.ts";
 import { RelayChannel } from "./relayChannel.ts";
 
@@ -33,7 +47,8 @@ export interface SyncVault {
   paths(): Paths;
   /**
    * Calls `listener` with a note's ID when its text changes here, and with
-   * no ID when notes are made, moved or removed; gives the way to stop.
+   * no ID when notes are made, moved or removed, or other files are made,
+   * changed, moved or removed; gives the way to stop.
    */
   watch(listener: (id?: string) => void): () => void;
   /** Holds a note's document: the one the editor shares while it is open. */
@@ -44,6 +59,20 @@ export interface SyncVault {
   move(id: string, path: string): Promise<void>;
   /** Sends a note removed elsewhere to the trash. */
   remove(id: string): Promise<void>;
+  /** The vault's files that are not notes, such as images: each one's path, and the SHA-256 hash of its bytes. */
+  files(): Promise<FileHashes>;
+  /** Reads a file's bytes, and their hash. */
+  readFile(path: string): Promise<{ readonly bytes: Uint8Array; readonly hash: string }>;
+  /**
+   * Writes a file fetched from the server. `base` is the hash of the file
+   * there, or "" for none; if the file is no longer that, it throws and
+   * writes nothing.
+   */
+  writeFile(path: string, data: Uint8Array, base: string): Promise<void>;
+  /** Moves a file, as a file changed here and elsewhere moves aside. */
+  moveFile(from: string, to: string): Promise<void>;
+  /** Sends a file removed elsewhere to the trash. */
+  removeFile(path: string): Promise<void>;
 }
 
 /** What a device keeps between runs. */
@@ -54,6 +83,8 @@ export interface SyncRecord {
   readonly base: Readonly<Record<string, string>>;
   /** Notes changed here and not yet sent. */
   readonly pending: readonly string[];
+  /** The other files this vault and the server last agreed on: each one's path, and its hash. */
+  readonly files?: Readonly<Record<string, string>>;
   /** The vault document as last seen. */
   readonly vault: Uint8Array | null;
   /** What the channel keeps, as the relay its documents' numbers and what it sent. */
@@ -72,6 +103,8 @@ export interface SyncStatus {
   readonly pending: number;
   /** The last failure, until the next success. */
   readonly error?: string;
+  /** Files the server would not take, larger than it allows or sent by a guest; sent again once changed. */
+  readonly refused?: readonly string[];
 }
 
 export interface SyncOptions {
@@ -104,6 +137,9 @@ export class VaultSync {
   #channel: Channel | undefined;
   #cursor = 0;
   #base = new Map<string, string>();
+  #fileBase = new Map<string, string>();
+  /** Files the server refused: each one's path, and the hash it refused. */
+  readonly #refused = new Map<string, string>();
   readonly #pending = new Set<string>();
   /** Notes syncing now, which do not start again until done. */
   readonly #syncing = new Set<string>();
@@ -159,6 +195,7 @@ export class VaultSync {
     if (record !== undefined) {
       this.#cursor = record.cursor;
       this.#base = new Map(Object.entries(record.base));
+      this.#fileBase = new Map(Object.entries(record.files ?? {}));
       for (const id of record.pending) this.#pending.add(id);
       if (record.vault !== null) Y.applyUpdate(this.#vaultDocument, record.vault);
     }
@@ -209,6 +246,7 @@ export class VaultSync {
       state: next.state ?? this.#status.state,
       pending: this.#pending.size,
       ...(next.error === undefined ? {} : { error: next.error }),
+      ...(this.#refused.size === 0 ? {} : { refused: [...this.#refused.keys()] }),
     };
     this.#options.onStatus?.(this.#status);
   }
@@ -230,6 +268,7 @@ export class VaultSync {
         await this.#reconcile();
         await this.#catchUp();
         await this.#flush();
+        await this.#reconcileFiles();
         if (this.#live()) this.#report({ state: "synced" });
       } catch (error) {
         this.#report({
@@ -274,13 +313,11 @@ export class VaultSync {
 
   /** Lists the notes stored on the server since the last number seen, to sync them. */
   async #catchUp(): Promise<void> {
-    const fetcher = this.#options.fetch ?? fetch;
     const local = this.#options.vault.paths();
     for (;;) {
-      const response = await fetcher(
-        `${this.#options.server}/api/workspaces/${this.#options.workspaceId}/documents?since=${String(this.#cursor)}`,
-        { headers: { authorization: `Bearer ${this.#options.token}`, accept: "application/json" } },
-      );
+      const response = await this.#request(`/documents?since=${String(this.#cursor)}`, {
+        headers: { accept: "application/json" },
+      });
       if (!response.ok) throw new Error(`The server answered ${String(response.status)}.`);
       const answer = (await response.json()) as {
         documents?: { name?: unknown; seq?: unknown }[];
@@ -325,6 +362,143 @@ export class VaultSync {
     this.#saveSoon();
   }
 
+  /**
+   * Brings this vault's other files and the server's list together: files
+   * changed on both sides first move aside here, then files are removed,
+   * sent and fetched.
+   */
+  async #reconcileFiles(): Promise<void> {
+    const vault = this.#options.vault;
+    let local = await this.#localFiles();
+    for (const [path, hash] of this.#refused) {
+      if (local.get(path) !== hash) this.#refused.delete(path);
+    }
+    let plan = reconcileFiles(this.#fileBase, local, hashes(vaultFiles(this.#vaultDocument)));
+    if (plan.conflict.length > 0) {
+      const taken = new Set([...local.keys(), ...vaultFiles(this.#vaultDocument).keys()]);
+      for (const path of plan.conflict) {
+        const aside = besidePath(path, (candidate) => taken.has(candidate));
+        taken.add(aside);
+        await vault.moveFile(path, aside);
+      }
+      local = await this.#localFiles();
+      plan = reconcileFiles(this.#fileBase, local, hashes(vaultFiles(this.#vaultDocument)));
+    }
+    const remote = vaultFiles(this.#vaultDocument);
+    try {
+      this.#vaultDocument.transact(() => {
+        for (const path of plan.removeRemote) removeVaultFile(this.#vaultDocument, path);
+      });
+      for (const path of plan.removeLocal) await vault.removeFile(path);
+      // Blobs by the hash of their bytes: a file listed once is not sent again.
+      const blobs = new Map([...remote.values()].map((file) => [file.hash, file.blob]));
+      await this.#each(plan.upload, async (path) => {
+        if (this.#refused.get(path) === local.get(path)) return;
+        const file = await vault.readFile(path);
+        const blob = blobs.get(file.hash) ?? (await this.#send(path, file.bytes));
+        if (blob === undefined) {
+          this.#refused.set(path, file.hash);
+          return;
+        }
+        blobs.set(file.hash, blob);
+        setVaultFile(this.#vaultDocument, path, { hash: file.hash, blob });
+      });
+      // Files here by their hash, to copy rather than fetch.
+      const copies = new Map([...local].map(([path, hash]) => [hash, path]));
+      await this.#each(plan.download, async (path) => {
+        const file = remote.get(path);
+        if (file === undefined) return;
+        const bytes = await this.#fetchFile(path, file, copies.get(file.hash));
+        await vault.writeFile(path, bytes, local.get(path) ?? "");
+      });
+    } finally {
+      await this.#agreeFiles();
+    }
+  }
+
+  /**
+   * Records the files this vault and the server agree on now. A file they
+   * do not agree on, as one whose sending failed, keeps what they last
+   * agreed on, so it is not taken for a file made or removed since.
+   */
+  async #agreeFiles(): Promise<void> {
+    const local = await this.#localFiles();
+    const remote = hashes(vaultFiles(this.#vaultDocument));
+    const base = new Map<string, string>();
+    for (const path of new Set([...this.#fileBase.keys(), ...local.keys(), ...remote.keys()])) {
+      const here = local.get(path);
+      const agreed = here === remote.get(path) ? here : this.#fileBase.get(path);
+      if (agreed !== undefined) base.set(path, agreed);
+    }
+    this.#fileBase = base;
+    this.#saveSoon();
+  }
+
+  /** This vault's files that sync, by path, with their hashes. */
+  async #localFiles(): Promise<Map<string, string>> {
+    const files = await this.#options.vault.files();
+    return new Map([...files].filter(([path]) => isSyncedFile(path)));
+  }
+
+  /**
+   * Sends a file's bytes, encrypted for an encrypted workspace, unless the
+   * server has them; gives their blob, or none when the server refuses them.
+   */
+  async #send(path: string, bytes: Uint8Array): Promise<string | undefined> {
+    const encryption = this.#options.encryption;
+    const data = encryption === undefined ? bytes : await encryptFile(bytes, encryption.key);
+    const blob = await sha256(data);
+    const asked = await this.#request(`/attachments/${blob}`, { method: "HEAD" });
+    if (asked.ok) return blob;
+    if (asked.status !== 404) {
+      throw new Error(`The server answered ${String(asked.status)} for ${path}.`);
+    }
+    const sent = await this.#request(`/attachments/${blob}`, {
+      method: "PUT",
+      headers: { "content-type": "application/octet-stream" },
+      body: data.slice(),
+    });
+    // Larger than the server takes, or from a guest, who only reads.
+    if (sent.status === 413 || sent.status === 403) return undefined;
+    if (!sent.ok) throw new Error(`The server answered ${String(sent.status)} for ${path}.`);
+    return blob;
+  }
+
+  /** A listed file's bytes: copied from the file here that has them, or fetched, and checked. */
+  async #fetchFile(path: string, file: VaultFile, copy: string | undefined): Promise<Uint8Array> {
+    if (copy !== undefined) {
+      const found = await this.#options.vault.readFile(copy);
+      if (found.hash === file.hash) return found.bytes;
+    }
+    const response = await this.#request(`/attachments/${file.blob}`);
+    if (!response.ok) {
+      throw new Error(`The server answered ${String(response.status)} for ${path}.`);
+    }
+    let bytes: Uint8Array = new Uint8Array(await response.arrayBuffer());
+    const encryption = this.#options.encryption;
+    if (encryption !== undefined) bytes = await decryptFile(bytes, encryption.keys);
+    if ((await sha256(bytes)) !== file.hash) {
+      throw new Error(`${path} came from the server other than it was sent.`);
+    }
+    return bytes;
+  }
+
+  /** A request to the workspace's API, with the session's token. */
+  #request(
+    path: string,
+    init: {
+      readonly method?: string;
+      readonly headers?: Readonly<Record<string, string>>;
+      readonly body?: Uint8Array<ArrayBuffer>;
+    } = {},
+  ): Promise<Response> {
+    const fetcher = this.#options.fetch ?? fetch;
+    return fetcher(`${this.#options.server}/api/workspaces/${this.#options.workspaceId}${path}`, {
+      ...init,
+      headers: { authorization: `Bearer ${this.#options.token}`, ...init.headers },
+    });
+  }
+
   /** Runs work on items, a few at a time. */
   async #each<T>(items: readonly T[], work: (item: T) => Promise<void>): Promise<void> {
     const queue = [...items];
@@ -354,8 +528,14 @@ export class VaultSync {
       cursor: this.#cursor,
       base: Object.fromEntries(this.#base),
       pending: [...this.#pending],
+      files: Object.fromEntries(this.#fileBase),
       vault: Y.encodeStateAsUpdate(this.#vaultDocument),
       channel: this.#channel?.state(),
     });
   }
+}
+
+/** Files by path: each one's hash. */
+function hashes(files: ReadonlyMap<string, VaultFile>): Map<string, string> {
+  return new Map([...files].map(([path, file]) => [path, file.hash]));
 }

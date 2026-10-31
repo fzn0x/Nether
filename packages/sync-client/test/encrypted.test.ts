@@ -1,6 +1,7 @@
 // An encrypted workspace synced by two devices through the real server's
 // relay: notes sent and made elsewhere, edits merged both ways, nothing the
-// server keeps readable, and a long log replaced by a snapshot.
+// server keeps readable, files kept as ciphertext, and a long log replaced
+// by a snapshot.
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
@@ -15,6 +16,7 @@ import {
   sealKey,
   unlockPrivateKey,
 } from "../src/crypto.ts";
+import { sha256 } from "../src/files.ts";
 import { RelayChannel } from "../src/relayChannel.ts";
 import {
   MemoryStore,
@@ -24,6 +26,7 @@ import {
   signIn,
   startServer,
   stopAll,
+  storedBlobs,
   until,
 } from "./harness.ts";
 
@@ -265,6 +268,35 @@ describe("an encrypted workspace", () => {
     await reader.sync(id, copy);
     reader.close();
     expect(copy.getText("content").toJSON()).toBe("before during");
+  });
+
+  it("sends files encrypted, kept once, and the other device reads them", async () => {
+    const served = await encryptedServer();
+    const laptop = new MemoryVault();
+    laptop.attach("Scans/secret scan.pdf", "the secret scan");
+    laptop.attach("Scans/copy.pdf", "the secret scan");
+    const encryption = { key: { version: 1, key: served.key }, keys: new Map([[1, served.key]]) };
+    const first = await device(served, served.token, laptop, new MemoryStore(), encryption);
+    await until(() => first.engine.status.state === "synced" && storedBlobs().blobs.size === 1);
+
+    const token = await signIn(served.url);
+    const unlocked = await unlock(
+      served.url,
+      token,
+      served.workspaceId,
+      served.userId,
+      served.phrase,
+    );
+    const phone = await device(served, token, new MemoryVault(), new MemoryStore(), unlocked);
+    await until(() => phone.vault.attachments.size === 2);
+    expect(phone.vault.file("Scans/secret scan.pdf")).toBe("the secret scan");
+    expect(phone.vault.file("Scans/copy.pdf")).toBe("the secret scan");
+
+    // The server has ciphertext, named by its own hash, not the file's.
+    const [[key, blob] = ["", new Uint8Array()]] = [...storedBlobs().blobs];
+    expect(Buffer.from(blob).toString("latin1")).not.toContain("secret");
+    expect(key).toBe(`${served.workspaceId}/${await sha256(blob)}`);
+    expect(key).not.toContain(await sha256(new TextEncoder().encode("the secret scan")));
   });
 
   it("replaces a document's long log with a snapshot", async () => {

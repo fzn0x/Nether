@@ -5,7 +5,9 @@
 // - a workspace's key, sealed to each member's public key;
 // - each Yjs update, encrypted with XChaCha20-Poly1305 under the workspace's
 //   key, its document's name as additional data:
-//   [format 1 byte][key version 4 bytes][nonce 24 bytes][ciphertext].
+//   [format 1 byte][key version 4 bytes][nonce 24 bytes][ciphertext];
+// - each attachment, in the same format, its nonce a keyed hash of its
+//   bytes, so a file encrypts the same way each time and is kept once.
 import {
   entropyToMnemonic,
   generateMnemonic,
@@ -19,6 +21,10 @@ import sodium from "libsodium-wrappers";
 const format = 1;
 /** What the recovery key is derived under, so it serves nothing else. */
 const recoveryContext = "nether recovery key 1";
+/** What the key of attachments' nonces is derived under. */
+const fileNonceContext = "nether attachment nonce 1";
+/** The additional data of an attachment, which no update has. */
+const fileData = "nether attachment";
 
 async function ready(): Promise<typeof sodium> {
   await sodium.ready;
@@ -158,17 +164,7 @@ export async function encryptUpdate(
 ): Promise<Uint8Array> {
   const lib = await ready();
   const nonce = lib.randombytes_buf(lib.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
-  const header = new Uint8Array(5);
-  header[0] = format;
-  new DataView(header.buffer).setUint32(1, key.version);
-  const sealed = lib.crypto_aead_xchacha20poly1305_ietf_encrypt(
-    update,
-    lib.from_string(name),
-    null,
-    nonce,
-    key.key,
-  );
-  return concat(header, nonce, sealed);
+  return seal(lib, update, key, name, nonce);
 }
 
 /**
@@ -180,11 +176,71 @@ export async function decryptUpdate(
   keys: ReadonlyMap<number, Uint8Array>,
   name: string,
 ): Promise<Uint8Array> {
+  return open(await ready(), data, keys, name, {
+    format: "That is not an encrypted update.",
+    key: `An update of ${name} does not open with this workspace's key.`,
+  });
+}
+
+/**
+ * An attachment's bytes, encrypted. Its nonce is a hash of the bytes,
+ * keyed by a key derived from the workspace's: the same file encrypts the
+ * same way, so the server keeps it once, and only members can tell which
+ * file it is.
+ */
+export async function encryptFile(data: Uint8Array, key: WorkspaceKey): Promise<Uint8Array> {
   const lib = await ready();
+  const nonceKey = lib.crypto_generichash(32, key.key, lib.from_string(fileNonceContext));
+  const nonce = lib.crypto_generichash(
+    lib.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
+    data,
+    nonceKey,
+  );
+  return seal(lib, data, key, fileData, nonce);
+}
+
+/** An attachment decrypted with the workspace's key of its version; it throws as `decryptUpdate` does. */
+export async function decryptFile(
+  data: Uint8Array,
+  keys: ReadonlyMap<number, Uint8Array>,
+): Promise<Uint8Array> {
+  return open(await ready(), data, keys, fileData, {
+    format: "That is not an encrypted file.",
+    key: "A file does not open with this workspace's key.",
+  });
+}
+
+/** Bytes encrypted under a workspace's key, in the format above. */
+function seal(
+  lib: typeof sodium,
+  data: Uint8Array,
+  key: WorkspaceKey,
+  additional: string,
+  nonce: Uint8Array,
+): Uint8Array {
+  const header = new Uint8Array(5);
+  header[0] = format;
+  new DataView(header.buffer).setUint32(1, key.version);
+  const sealed = lib.crypto_aead_xchacha20poly1305_ietf_encrypt(
+    data,
+    lib.from_string(additional),
+    null,
+    nonce,
+    key.key,
+  );
+  return concat(header, nonce, sealed);
+}
+
+/** What `seal` made, opened with the key of its version; it throws with `fails`' messages. */
+function open(
+  lib: typeof sodium,
+  data: Uint8Array,
+  keys: ReadonlyMap<number, Uint8Array>,
+  additional: string,
+  fails: { readonly format: string; readonly key: string },
+): Uint8Array {
   const nonceLength = lib.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES;
-  if (data[0] !== format || data.length < 5 + nonceLength) {
-    throw new Error("That is not an encrypted update.");
-  }
+  if (data[0] !== format || data.length < 5 + nonceLength) throw new Error(fails.format);
   const version = new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(1);
   const key = keys.get(version);
   if (key === undefined) throw new Error(`This device has no key of version ${String(version)}.`);
@@ -192,12 +248,12 @@ export async function decryptUpdate(
     return lib.crypto_aead_xchacha20poly1305_ietf_decrypt(
       null,
       data.subarray(5 + nonceLength),
-      lib.from_string(name),
+      lib.from_string(additional),
       data.subarray(5, 5 + nonceLength),
       key,
     );
   } catch {
-    throw new Error(`An update of ${name} does not open with this workspace's key.`);
+    throw new Error(fails.key);
   }
 }
 

@@ -1,9 +1,11 @@
 // What the tests that sync devices through a real Nether server share: the
-// server on PGlite, set up with an account and a workspace; a vault and a
-// store in memory; devices; and waiting for sync.
+// server on PGlite, keeping attachments in memory, set up with an account
+// and a workspace; a vault and a store in memory; devices; and waiting for
+// sync.
 import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { buildApp } from "@nether/server/src/app.ts";
+import type { BlobStore } from "@nether/server/src/blobs.ts";
 import { readConfig } from "@nether/server/src/config.ts";
 import type { Database } from "@nether/server/src/db.ts";
 import { migrate } from "@nether/server/src/migrations.ts";
@@ -18,12 +20,14 @@ import {
   type SyncVault,
   VaultSync,
 } from "../src/engine.ts";
+import { sha256 } from "../src/files.ts";
 
 export const password = "a long password";
 
-/** A vault in memory: notes by ID, each with its path and its live document. */
+/** A vault in memory: notes by ID, each with its path and its live document, and other files' bytes. */
 export class MemoryVault implements SyncVault {
   readonly notes = new Map<string, { path: string; document: Y.Doc }>();
+  readonly attachments = new Map<string, Uint8Array>();
   readonly #listeners = new Set<(id?: string) => void>();
 
   paths(): Map<string, string> {
@@ -59,7 +63,60 @@ export class MemoryVault implements SyncVault {
     return Promise.resolve();
   }
 
+  async files(): Promise<Map<string, string>> {
+    const hashed = [...this.attachments].map(
+      async ([path, bytes]) => [path, await sha256(bytes)] as const,
+    );
+    return new Map(await Promise.all(hashed));
+  }
+
+  async readFile(path: string): Promise<{ bytes: Uint8Array; hash: string }> {
+    const bytes = this.attachments.get(path);
+    if (bytes === undefined) throw new Error(`No file ${path}`);
+    return { bytes: bytes.slice(), hash: await sha256(bytes) };
+  }
+
+  async writeFile(path: string, data: Uint8Array, base: string): Promise<void> {
+    const current = this.attachments.get(path);
+    if ((current === undefined ? "" : await sha256(current)) !== base) {
+      throw new Error(`${path} changed since it was read.`);
+    }
+    this.attachments.set(path, data.slice());
+  }
+
+  moveFile(from: string, to: string): Promise<void> {
+    const bytes = this.attachments.get(from);
+    if (bytes === undefined || this.attachments.has(to)) {
+      return Promise.reject(new Error(`Cannot move ${from} to ${to}`));
+    }
+    this.attachments.delete(from);
+    this.attachments.set(to, bytes);
+    return Promise.resolve();
+  }
+
+  removeFile(path: string): Promise<void> {
+    this.attachments.delete(path);
+    return Promise.resolve();
+  }
+
   // What the person does on this device.
+
+  /** Adds a file, or changes one; as text, its UTF-8 bytes. */
+  attach(path: string, data: Uint8Array | string): void {
+    this.attachments.set(path, typeof data === "string" ? new TextEncoder().encode(data) : data);
+    this.#tell();
+  }
+
+  detach(path: string): void {
+    this.attachments.delete(path);
+    this.#tell();
+  }
+
+  /** A file's bytes as text. */
+  file(path: string): string | undefined {
+    const bytes = this.attachments.get(path);
+    return bytes === undefined ? undefined : new TextDecoder().decode(bytes);
+  }
 
   write(path: string, text: string): string {
     const id = randomUUID();
@@ -111,13 +168,32 @@ export class MemoryStore implements SyncStore {
   }
 }
 
-const config = readConfig({
-  NETHER_DATABASE_URL: "postgres://nether@localhost:5432/nether",
-  NETHER_LOG_LEVEL: "silent",
-});
+/** The server's attachments, in memory. */
+export class MemoryBlobs implements BlobStore {
+  readonly blobs = new Map<string, Uint8Array>();
+
+  has(key: string): Promise<boolean> {
+    return Promise.resolve(this.blobs.has(key));
+  }
+
+  get(key: string): Promise<Uint8Array | undefined> {
+    return Promise.resolve(this.blobs.get(key));
+  }
+
+  put(key: string, data: Uint8Array): Promise<void> {
+    if (!this.blobs.has(key)) this.blobs.set(key, data.slice());
+    return Promise.resolve();
+  }
+
+  delete(key: string): Promise<void> {
+    this.blobs.delete(key);
+    return Promise.resolve();
+  }
+}
 
 let server: Awaited<ReturnType<typeof buildApp>> | undefined;
 let db: Database | undefined;
+let blobs: MemoryBlobs | undefined;
 const engines: VaultSync[] = [];
 
 /** Stops every device and the server, after each test. */
@@ -127,6 +203,7 @@ export async function stopAll(): Promise<void> {
   await db?.close();
   server = undefined;
   db = undefined;
+  blobs = undefined;
 }
 
 /** The server's database, for a test to look into. */
@@ -135,12 +212,24 @@ export function database(): Database {
   return db;
 }
 
-/** A set-up server, listening, with the admin's address and first workspace. */
-export async function startServer() {
+/** The attachments the server keeps, for a test to look into. */
+export function storedBlobs(): MemoryBlobs {
+  if (blobs === undefined) throw new Error("No server is running.");
+  return blobs;
+}
+
+/** A set-up server, listening, with the admin's address and first workspace; `env` adds to its settings. */
+export async function startServer(env: Record<string, string> = {}) {
   db = await testDatabase();
   await migrate(db);
   const setupCode = newSetupCode();
-  server = await buildApp(config, { db, setupCode });
+  blobs = new MemoryBlobs();
+  const config = readConfig({
+    NETHER_DATABASE_URL: "postgres://nether@localhost:5432/nether",
+    NETHER_LOG_LEVEL: "silent",
+    ...env,
+  });
+  server = await buildApp(config, { db, setupCode, blobs });
   await server.listen({ host: "127.0.0.1", port: 0 });
   const url = `http://127.0.0.1:${String((server.server.address() as AddressInfo).port)}`;
   const setUp = await fetch(`${url}/api/setup`, {
