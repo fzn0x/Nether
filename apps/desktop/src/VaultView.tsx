@@ -31,6 +31,7 @@ import { ShortcutsDialog } from "./ShortcutsDialog.tsx";
 import { ariaKeys, commandFor, eventKeys } from "./shortcuts.ts";
 import { TemplateSettingsDialog } from "./TemplateSettingsDialog.tsx";
 import { AppearanceDialog } from "./AppearanceDialog.tsx";
+import { ImportDialog } from "./ImportDialog.tsx";
 import { useAppearance } from "./useAppearance.ts";
 import { TrashPanel } from "./TrashPanel.tsx";
 import type { NotePart } from "./noteLinks.ts";
@@ -197,7 +198,14 @@ export function VaultView(props: {
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
   const [dialog, setDialog] = useState<
-    "newNote" | "settings" | "appearance" | "export" | "palette" | "shortcuts" | undefined
+    | "newNote"
+    | "settings"
+    | "appearance"
+    | "export"
+    | "import"
+    | "palette"
+    | "shortcuts"
+    | undefined
   >();
   // Asks the open note to switch modes, or to take a new name.
   const [sourceRequest, setSourceRequest] = useState(0);
@@ -455,6 +463,11 @@ export function VaultView(props: {
           : () => {
               setDialog("export");
             },
+      import: open
+        ? () => {
+            setDialog("import");
+          }
+        : undefined,
       trashNote:
         note === undefined
           ? undefined
@@ -770,6 +783,20 @@ export function VaultView(props: {
           folder={newIn}
           settings={settings}
           onCreate={(path, template) => makeNote(path, template, new Date())}
+          onClose={() => {
+            setDialog(undefined);
+          }}
+        />
+      ) : null}
+      {dialog === "import" && state.status === "open" ? (
+        <ImportDialog
+          vault={state.vault}
+          importer={state.importer}
+          onOpen={(path) => {
+            const note = state.vault.noteAt(path);
+            setDialog(undefined);
+            if (note !== undefined) openNote(note.id);
+          }}
           onClose={() => {
             setDialog(undefined);
           }}

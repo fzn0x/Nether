@@ -84,6 +84,7 @@ func main() {
 	vaults := NewVaults(data, mygo.Dialog, os.Args[1:])
 	mygo.Bind(vaults)
 	mygo.Bind(NewExports(vaults))
+	mygo.Bind(NewImports(vaults))
 	mygo.Bind(NewPreviews())
 	mygo.Bind(Updates{})
 	// Checks for updates in the background, when the build has an update key.

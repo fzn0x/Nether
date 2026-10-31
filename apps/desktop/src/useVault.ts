@@ -3,7 +3,7 @@
 // its notes change.
 import { type NoteEntry, Vault } from "@nether/storage";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { type Exporter, type VaultMedia, backend } from "./backend.ts";
+import { type Exporter, type Importer, type VaultMedia, backend } from "./backend.ts";
 import { Indexer } from "./indexer.ts";
 import type { VaultInfo } from "./mygo.ts";
 
@@ -15,6 +15,8 @@ export type VaultState =
       readonly media: VaultMedia;
       /** Where the vault's exports go. */
       readonly exporter: Exporter;
+      /** Where what is imported into the vault comes from. */
+      readonly importer: Importer;
       /** The vault's link index, which reads notes in the background. */
       readonly indexer: Indexer;
     }
@@ -31,7 +33,7 @@ export function useVault(info: VaultInfo): VaultState {
     let indexer: Indexer | undefined;
     void (async () => {
       try {
-        const { files, store, media, exporter } = await backend.connect(info);
+        const { files, store, media, exporter, importer } = await backend.connect(info);
         backend.mark("store-open");
         closeStore = () => store.close();
         if (aborted()) {
@@ -47,7 +49,7 @@ export function useVault(info: VaultInfo): VaultState {
           new Worker(new URL("./indexer.worker.ts", import.meta.url), { type: "module" }),
         );
         // The vault shows at once; the view starts its links loading.
-        setState({ status: "open", vault, media, exporter, indexer });
+        setState({ status: "open", vault, media, exporter, importer, indexer });
         backend.mark("vault-open");
         // The page's heap as the vault settles, for the memory target.
         for (const seconds of [10, 30, 60]) {

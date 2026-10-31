@@ -18,6 +18,7 @@ import {
   Desktop,
   type ExportEntry,
   Exports,
+  Imports,
   type LinkPreview,
   type PDFPage,
   Previews,
@@ -27,6 +28,7 @@ import {
   type VaultInfo,
   Vaults,
 } from "./mygo.ts";
+import type { ImportSource } from "@nether/markdown";
 import { sampleVault } from "./sample.ts";
 
 /** Where the page loads a vault's files from, and how it hands them to the system's apps. */
@@ -59,11 +61,31 @@ export interface Exporter {
   readonly reveal?: (path: string) => Promise<void>;
 }
 
+/** What can be imported: a folder, a ZIP file, or Markdown, web page or CSV files. */
+export type ImportKind = "folder" | "zip" | "markdown" | "html" | "csv";
+
+/** What the user chose to import, open for reading, and for copying its files into the vault. */
+export interface OpenedImport extends ImportSource {
+  /** Copies a file of it into the vault at `dest`, or the first free name beside it; gives the path written. */
+  copyInto(path: string, dest: string): Promise<string>;
+  close(): Promise<void>;
+}
+
+/**
+ * Where imports come from: what the user chooses, in the desktop app, or
+ * what the end-to-end tests give, in the preview.
+ */
+export interface Importer {
+  /** Asks what to import, of a kind; undefined when the user cancels. */
+  choose(kind: ImportKind): Promise<OpenedImport | undefined>;
+}
+
 export interface Connection {
   readonly files: VaultFiles;
   readonly store: IndexStore;
   readonly media: VaultMedia;
   readonly exporter: Exporter;
+  readonly importer: Importer;
 }
 
 /** A path's segments escaped for a URL, its slashes kept. */
@@ -211,7 +233,22 @@ const desktop: Backend = {
       cancel: (token) => Exports.cancel(token),
       reveal: (path) => Exports.reveal(path),
     };
-    return { files: new DesktopFiles(vault.id), store, media, exporter };
+    const importer: Importer = {
+      async choose(kind) {
+        const opened = await Imports.choose(kind);
+        const { token } = opened;
+        if (token === "") return undefined;
+        return {
+          name: opened.name,
+          files: opened.files,
+          readText: (path) => Imports.readText(token, path),
+          copyInto: async (path, dest) =>
+            (await Imports.copyInto(token, path, vault.id, dest)).path,
+          close: () => Imports.close(token),
+        };
+      },
+    };
+    return { files: new DesktopFiles(vault.id), store, media, exporter, importer };
   },
 };
 
@@ -302,6 +339,35 @@ function memoryExporter(exports: PreviewExport[]): Exporter {
   };
 }
 
+/** What the end-to-end tests give the preview to import, in the order it is asked for. */
+export interface PreviewImport {
+  readonly name: string;
+  readonly files: Readonly<Record<string, string>>;
+}
+
+/** Imports from what the end-to-end tests give, copied into the vault's files in memory. */
+function memoryImporter(files: MemoryFiles, imports: PreviewImport[]): Importer {
+  const encoder = new TextEncoder();
+  return {
+    choose() {
+      const next = imports.shift();
+      if (next === undefined) return Promise.resolve(undefined);
+      const read = (path: string) => {
+        const text = next.files[path];
+        if (text === undefined) throw new Error(`${path} is not in the import.`);
+        return text;
+      };
+      return Promise.resolve({
+        name: next.name,
+        files: Object.entries(next.files).map(([path, text]) => ({ path, size: text.length })),
+        readText: (path) => Promise.resolve(read(path)),
+        copyInto: async (path, dest) => (await files.attach(dest, encoder.encode(read(path)))).path,
+        close: () => Promise.resolve(),
+      });
+    },
+  };
+}
+
 const sample: VaultInfo = {
   id: "01929f4c-7b00-7a00-8000-0000000000aa",
   name: "Sample vault",
@@ -361,15 +427,20 @@ const preview: Backend = {
     }
     const files = new MemoryFiles(vault);
     const exports: PreviewExport[] = [];
-    // The end-to-end tests change the sample's files as another app would, and read its exports.
+    const imports: PreviewImport[] = [];
+    // The end-to-end tests change the sample's files as another app would,
+    // read its exports, and give it what to import.
     (
-      globalThis as { netherPreview?: { files: MemoryFiles; exports: PreviewExport[] } }
-    ).netherPreview = { files, exports };
+      globalThis as {
+        netherPreview?: { files: MemoryFiles; exports: PreviewExport[]; imports: PreviewImport[] };
+      }
+    ).netherPreview = { files, exports, imports };
     return {
       files,
       store: new MemoryStore(),
       media: memoryMedia(files),
       exporter: memoryExporter(exports),
+      importer: memoryImporter(files, imports),
     };
   },
 };

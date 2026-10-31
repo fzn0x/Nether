@@ -66,6 +66,22 @@ export interface FileText {
   binary?: boolean;
 }
 
+/** ImportFile is a file of a source, by its path in it, slashes between folders. */
+export interface ImportFile {
+  path: string;
+  size: number;
+}
+
+/**
+ * ImportSource is what Choose opened: the token the other calls take, the
+ * name of what was chosen, and its files.
+ */
+export interface ImportSource {
+  token: string;
+  name: string;
+  files: ImportFile[];
+}
+
 /** LinkPreview is what a page says of itself. */
 export interface LinkPreview {
   title?: string;
@@ -317,6 +333,41 @@ export const Exports = {
    */
   saveText(token: string, text: string): Promise<string> {
     return call("Exports.SaveText", token, text);
+  },
+} as const;
+
+/**
+ * Imports reads what the user imports into a vault from outside it: a
+ * folder, such as an Obsidian vault or a Logseq graph, a ZIP file, such as
+ * Notion's export, or files they choose. It only ever reads them. The page
+ * makes the notes in the vault from their text; a file such as an image is
+ * copied in here, beside the notes that show it, without the page holding
+ * its bytes.
+ */
+export const Imports = {
+  /**
+   * Choose asks for what to import: a "folder", a "zip" file, or "markdown",
+   * "html" or "csv" files. It returns the source with its files, or one
+   * without a token when the user cancels.
+   */
+  choose(kind: string): Promise<ImportSource> {
+    return call("Imports.Choose", kind);
+  },
+  /** Close lets a source go. */
+  close(token: string): Promise<void> {
+    return call("Imports.Close", token);
+  },
+  /**
+   * CopyInto copies a file of a source into the vault id at dest, as Attach
+   * adds a file: never over another, at the first free name. It returns the
+   * path it wrote.
+   */
+  copyInto(token: string, file: string, id: string, dest: string): Promise<FileInfo> {
+    return call("Imports.CopyInto", token, file, id, dest);
+  },
+  /** ReadText reads a file of a source as UTF-8 text. */
+  readText(token: string, file: string): Promise<string> {
+    return call("Imports.ReadText", token, file);
   },
 } as const;
 

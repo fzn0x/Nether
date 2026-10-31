@@ -15,6 +15,7 @@ export const commandIds = [
   "toggleSource",
   "rename",
   "export",
+  "import",
   "trashNote",
   "showNotes",
   "showTags",
