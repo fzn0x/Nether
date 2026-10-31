@@ -13,6 +13,7 @@ import {
   invite,
   members,
   removeMember,
+  roleName,
   setMemberRole,
   withdrawInvitation,
 } from "./server.ts";
@@ -134,7 +135,7 @@ export function MembersDialog(props: {
                   </span>
                   <span className="hint">{member.email}</span>
                   {choices.length === 0 ? (
-                    <span className="member-role">{t(`role_${member.role}`)}</span>
+                    <span className="member-role">{roleName(member.role)}</span>
                   ) : (
                     <select
                       aria-label={t("membersRoleOf", { name: member.name })}
@@ -153,14 +154,14 @@ export function MembersDialog(props: {
                           );
                           await load();
                           setStatus(
-                            t("membersRoleChanged", { name: member.name, role: t(`role_${role}`) }),
+                            t("membersRoleChanged", { name: member.name, role: roleName(role) }),
                           );
                         });
                       }}
                     >
                       {choices.map((role) => (
                         <option key={role} value={role}>
-                          {t(`role_${role}`)}
+                          {roleName(role)}
                         </option>
                       ))}
                     </select>
@@ -286,7 +287,7 @@ export function MembersDialog(props: {
               {waiting.map((item) => (
                 <li key={item.id}>
                   <span className="member-name">{item.email ?? t("membersAnyone")}</span>
-                  <span className="member-role">{t(`role_${item.role}`)}</span>
+                  <span className="member-role">{roleName(item.role)}</span>
                   <span className="hint">
                     {t("membersExpires", { date: expiry.format(Date.parse(item.expiresAt)) })}
                   </span>

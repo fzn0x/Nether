@@ -23,6 +23,7 @@ import {
   lookUpInvitation,
   readInvitationLink,
   redeemCode,
+  roleName,
   serverAddress,
   signInMethods,
   signInWithPassword,
@@ -450,7 +451,7 @@ export function ServersDialog(props: { readonly onClose: () => void }) {
           {t("invitationTo", {
             workspace: offer.workspace.name,
             server: hostOf(url),
-            role: t(`role_${offer.role}`),
+            role: roleName(offer.role),
           })}
           {offer.invitedBy === null ? null : ` ${t("invitationFrom", { name: offer.invitedBy })}`}
         </p>

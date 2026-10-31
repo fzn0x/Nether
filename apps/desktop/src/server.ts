@@ -630,3 +630,19 @@ export async function acceptInvitation(
   );
   return "session" in as ? undefined : signedIn(answer, base);
 }
+
+/** A role's name as people read it; one this app does not know, as the server gave it. */
+export function roleName(role: string): string {
+  switch (role) {
+    case "owner":
+      return t("role_owner");
+    case "admin":
+      return t("role_admin");
+    case "member":
+      return t("role_member");
+    case "guest":
+      return t("role_guest");
+    default:
+      return role;
+  }
+}
