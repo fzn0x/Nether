@@ -5,12 +5,17 @@
 // what opened it; a click outside, or the window losing the focus or
 // changing size, closes it too.
 import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ariaKeys, formatKeys } from "./shortcuts.ts";
 
 export interface MenuItem {
   readonly label: string;
   readonly run: () => void;
   /** Whether the item deletes or removes something, and shows so. */
   readonly danger?: boolean;
+  /** Whether it cannot run now, as an item about a note while none is open: shown, but not chosen. */
+  readonly disabled?: boolean;
+  /** Its shortcut, as the vault's hotkeys write it, shown beside it. */
+  readonly keys?: string;
 }
 
 /** An item, or a line between groups of items. */
@@ -38,8 +43,12 @@ export function ContextMenu(props: {
   readonly at: MenuPoint;
   readonly entries: readonly MenuEntry[];
   readonly onClose: () => void;
+  /** In a menu bar's menu, Left and Right open the menu before or after it, by the page's direction. */
+  readonly onSide?: (step: 1 | -1) => void;
+  /** What opened it, whose own presses open and close it, not a press outside. */
+  readonly anchor?: Element | null;
 }) {
-  const { label, at, entries, onClose } = props;
+  const { label, at, entries, onClose, onSide, anchor } = props;
   const menu = useRef<HTMLDivElement>(null);
   // What had the focus when the menu opened, which has it again when Escape closes it.
   const [opener] = useState(() => document.activeElement);
@@ -63,7 +72,9 @@ export function ContextMenu(props: {
       onClose();
     };
     const outside = (event: PointerEvent) => {
-      if (!(event.target instanceof Node) || menu.current?.contains(event.target) !== true) close();
+      const target = event.target instanceof Node ? event.target : null;
+      if (menu.current?.contains(target) === true || anchor?.contains(target) === true) return;
+      close();
     };
     document.addEventListener("pointerdown", outside, true);
     addEventListener("blur", close);
@@ -73,7 +84,7 @@ export function ContextMenu(props: {
       removeEventListener("blur", close);
       removeEventListener("resize", close);
     };
-  }, [onClose]);
+  }, [onClose, anchor]);
 
   const closeAndReturn = () => {
     onClose();
@@ -91,7 +102,10 @@ export function ContextMenu(props: {
     else if (event.key === "Home") go(0);
     else if (event.key === "End") go(list.length - 1);
     else if (event.key === "Escape" || event.key === "Tab" || isMenuKey(event)) closeAndReturn();
-    else if (event.key.length === 1 && /\S/.test(event.key)) {
+    else if (onSide !== undefined && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
+      onSide((event.key === "ArrowRight") !== rtl ? 1 : -1);
+    } else if (event.key.length === 1 && /\S/.test(event.key)) {
       const letter = event.key.toLocaleLowerCase();
       const after = [...list.slice(index + 1), ...list.slice(0, index + 1)];
       after.find((item) => item.textContent.trim().toLocaleLowerCase().startsWith(letter))?.focus();
@@ -122,16 +136,24 @@ export function ContextMenu(props: {
             role="menuitem"
             tabIndex={-1}
             className={entry.danger === true ? "danger" : undefined}
+            aria-disabled={entry.disabled === true ? true : undefined}
+            aria-keyshortcuts={entry.keys === undefined ? undefined : ariaKeys(entry.keys)}
             // The item under the pointer has the focus, so one item at a time shows as chosen.
             onMouseMove={(event) => {
               if (document.activeElement !== event.currentTarget) event.currentTarget.focus();
             }}
             onClick={() => {
+              if (entry.disabled === true) return;
               onClose();
               entry.run();
             }}
           >
             {entry.label}
+            {entry.keys === undefined ? null : (
+              <span className="menu-keys" aria-hidden="true">
+                {formatKeys(entry.keys)}
+              </span>
+            )}
           </button>
         ),
       )}
