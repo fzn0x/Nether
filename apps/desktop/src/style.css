@@ -67,6 +67,16 @@
   color-scheme: light;
 }
 
+/*
+ * Made from a theme's own colors, after it: the sidebar a shade off the
+ * page, lighter in the dark, and what a control under the pointer shows.
+ */
+:root {
+  --sidebar-bg: color-mix(in srgb, var(--text) 5%, var(--bg));
+  --hover: color-mix(in srgb, var(--text) 8%, transparent);
+  --pressed: color-mix(in srgb, var(--text) 13%, transparent);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -157,7 +167,12 @@ button {
 }
 
 .quiet:hover {
+  background: var(--hover);
   color: var(--text);
+}
+
+.quiet:active {
+  background: var(--pressed);
 }
 
 .recent h2 {
@@ -205,15 +220,50 @@ button {
 /* An open vault: the notes on the left, the note on the right. */
 .vault {
   display: grid;
-  grid-template-columns: minmax(14rem, 18rem) 1fr;
+  grid-template-columns: var(--sidebar-width, 18rem) minmax(0, 1fr);
   height: 100vh;
 }
 
 .sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   border-inline-end: 1px solid var(--rule);
+  background: var(--sidebar-bg);
+}
+
+/* The sidebar's edge, which a drag or the arrow keys resize: a line shows on hover. */
+.sidebar-resizer {
+  position: absolute;
+  z-index: 5;
+  inset-block: 0;
+  inset-inline-end: -4px;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer::after {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: transparent;
+  content: "";
+  transition: background-color 0.15s;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer.dragging::after,
+.sidebar-resizer:focus-visible::after {
+  background: var(--accent);
+}
+
+.sidebar-resizer:focus-visible {
+  outline: none;
 }
 
 .sidebar-header {
@@ -265,7 +315,7 @@ button {
 }
 
 .note-list button:hover {
-  background: color-mix(in srgb, var(--rule) 50%, transparent);
+  background: var(--hover);
 }
 
 .note-list button[aria-current="page"] {
@@ -406,6 +456,13 @@ button {
   font: inherit;
   font-size: 0.875rem;
   cursor: pointer;
+}
+
+.sidebar-tabs button:hover,
+.view-switch button:hover,
+.note-tools button:hover {
+  background: var(--hover);
+  color: var(--text);
 }
 
 .sidebar-tabs button[aria-pressed="true"] {
@@ -866,6 +923,10 @@ button {
   .sidebar {
     border-inline-end: 0;
     border-bottom: 1px solid var(--rule);
+  }
+
+  .sidebar-resizer {
+    display: none;
   }
 }
 
@@ -1488,6 +1549,10 @@ button {
 .slash-item[aria-selected="true"],
 .block-menu button:hover,
 .block-menu button:focus-visible,
+.context-menu button:active:not([aria-disabled="true"]) {
+  background: var(--pressed);
+}
+
 .context-menu button:focus {
   outline: none;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
@@ -2337,7 +2402,7 @@ button {
 }
 
 .tree-row:hover {
-  background: color-mix(in srgb, var(--rule) 50%, transparent);
+  background: var(--hover);
 }
 
 .tree-row[aria-selected="true"] {
