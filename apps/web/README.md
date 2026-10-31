@@ -18,8 +18,9 @@ browser, which the Nether server serves
   (`/sign-in#email=…&code=…`) and single sign-on (back at
   `/sign-in/provider`) come back to it.
 - Exports download: Markdown and web pages in a ZIP the page makes, a
-  database's CSV, and PDFs through the browser's print dialog. Imports are
-  not in the browser yet.
+  database's CSV, and PDFs through the browser's print dialog. Imports
+  come from the browser's file and folder pickers, read as the desktop
+  app reads them (`apps/desktop/src/webImports.ts`), ZIP files in the page.
 
 ## Develop
 

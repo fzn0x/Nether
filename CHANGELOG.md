@@ -13,8 +13,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   account's workspaces, each a vault kept in the browser's private file
   system with its index in SQLite's WebAssembly build, synced with the
   server and open offline once opened. Invitation links, sign-in email
-  links and single sign-on come back to it; exports download. Imports,
-  and the server serving it, come next
+  links and single sign-on come back to it; exports download, and
+  imports come from the browser's file and folder pickers, ZIP files
+  read in the page. The server serving it comes next
   ([ADR 0053](docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)).
 - A signed-in browser accepts an invitation into its account with its
   cookie, as the desktop app does with its token.
