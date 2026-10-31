@@ -125,6 +125,31 @@ export function setNoteProperty(
 }
 
 /**
+ * A list's value with an edit made to it from `base`, as a cell showed it,
+ * made to the list as it is now instead: the items the edit added, after
+ * those the list keeps, and without those it removed. A list cell shows a
+ * row as the link index last read it, so two adds made one after another,
+ * before the index reads the first, both land.
+ */
+export function mergeList(
+  current: JsonValue | undefined,
+  base: readonly JsonValue[],
+  next: readonly JsonValue[],
+): JsonValue[] {
+  const key = (item: JsonValue) => JSON.stringify(item);
+  const before = new Set(base.map(key));
+  const after = new Set(next.map(key));
+  const now: readonly JsonValue[] = Array.isArray(current)
+    ? current
+    : current === undefined || current === null
+      ? []
+      : [current];
+  const kept = now.filter((item) => !before.has(key(item)) || after.has(key(item)));
+  const have = new Set(kept.map(key));
+  return [...kept, ...next.filter((item) => !before.has(key(item)) && !have.has(key(item)))];
+}
+
+/**
  * Changes a property of a note that is not open, from its value in the
  * file as it is now, so that two changes made one after another both land;
  * `next` returning undefined leaves the file as it is.

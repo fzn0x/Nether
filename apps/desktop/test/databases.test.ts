@@ -12,6 +12,7 @@ import {
   databaseRows,
   freePath,
   linkToNote,
+  mergeList,
   resolveLink,
   setNoteProperty,
   databaseNotes,
@@ -249,5 +250,41 @@ describe("relations both ways", () => {
     expect(databaseNotes(graph).map((note) => note.path)).toEqual(["Clients.md", "Projects.md"]);
     expect(shortLink(vault, "Clients/Acme.md", "Projects/Launch.md")).toBe("[[Acme]]");
     expect(shortLink(vault, "Projects/Launch.md", "Clients/Acme.md")).toBe("[[Projects/Launch]]");
+  });
+});
+
+describe("mergeList", () => {
+  it("makes an edit to the list as it is now, not as the cell showed it", () => {
+    // Two adds, the second made before the cell saw the first.
+    expect(mergeList(["one"], [], ["two"])).toEqual(["one", "two"]);
+    // A remove, and an add the file already has.
+    expect(mergeList(["one", "two", "three"], ["one", "two"], ["two", "three"])).toEqual([
+      "two",
+      "three",
+    ]);
+    // Another app's item stays where it was; links compare as written.
+    expect(mergeList(["[[A]]", "[[B]]"], ["[[A]]"], ["[[A]]", "[[C]]"])).toEqual([
+      "[[A]]",
+      "[[B]]",
+      "[[C]]",
+    ]);
+    // A value that was not a list, and none at all.
+    expect(mergeList("solo", [], ["new"])).toEqual(["solo", "new"]);
+    expect(mergeList(undefined, [], ["new"])).toEqual(["new"]);
+    expect(mergeList(null, ["gone"], [])).toEqual([]);
+  });
+
+  it("writes two quick adds to a row's file, both", async () => {
+    const files = new MemoryFiles({ "Tasks/Write.md": "---\ntags: []\n---\n" });
+    const vault = new Vault(files, new MemoryStore());
+    await vault.open();
+    const id = vault.noteAt("Tasks/Write.md")?.id;
+    if (id === undefined) throw new Error("The note is not in the vault.");
+    // Both from the cell's empty list, as before the link index read the first.
+    await Promise.all([
+      updateNoteProperty(vault, id, "tags", (current) => mergeList(current, [], ["one"])),
+      updateNoteProperty(vault, id, "tags", (current) => mergeList(current, [], ["two"])),
+    ]);
+    expect((await files.read("Tasks/Write.md")).text).toBe("---\ntags: [one, two]\n---\n");
   });
 });

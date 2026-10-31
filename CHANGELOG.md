@@ -222,5 +222,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - An embed within a line of text, as `Today: ![[Roadmap]]`, counts as a
   link: the note it names lists it among its backlinks, and renaming that
   note rewrites it.
+- Two values added one after another to a database's relation or
+  multi-select cell are both kept: the second no longer writes the list
+  as the cell showed it before the first was read back.
 
 [Unreleased]: https://github.com/fzn0x/Nether/commits/main

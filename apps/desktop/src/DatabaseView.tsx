@@ -57,10 +57,12 @@ import {
   imageUrl,
   linkToNote,
   resolveLink,
+  mergeList,
   setNoteProperty,
   shortLink,
   syncBacklinks,
   syncBase,
+  updateNoteProperty,
 } from "./databases.ts";
 import { type MessageKey, language, t } from "./messages.ts";
 import { editableTypes, isListType, newPropertyKey } from "./properties.ts";
@@ -199,7 +201,8 @@ function Cell(props: {
   readonly label: string;
   readonly property: PropertyDefinition;
   readonly value: JsonValue | undefined;
-  readonly onCommit: (value: JsonValue) => void;
+  /** Writes a value; for a list, with the list the cell showed, which the edit was made to. */
+  readonly onCommit: (value: JsonValue, base?: readonly JsonValue[]) => void;
   /** A relation's rows, by name, and the link a name is written as. */
   readonly related?: {
     readonly names: readonly string[];
@@ -233,7 +236,9 @@ function Cell(props: {
       <ListEditor
         label={label}
         values={values}
-        onChange={onCommit}
+        onChange={(next) => {
+          onCommit(next, values);
+        }}
         {...(related === undefined
           ? {}
           : { suggestions: related.names, toValue: related.toValue, show: linkName })}
@@ -788,7 +793,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
       writeDatabase({ ...theirs, properties: [...theirs.properties, back] }, linkToNote(graph)),
     ).catch(fail);
   };
-  const write = (row: NoteId, key: string, value: JsonValue) => {
+  const write = (row: NoteId, key: string, value: JsonValue, base?: readonly JsonValue[]) => {
     setError(undefined);
     // A select's new value becomes one of its options.
     const property = schema.properties.find((item) => item.key === key);
@@ -811,7 +816,11 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
     }
     const before = rows.find((item) => item.id === row);
     const backlink = property?.relation?.backlink;
-    setNoteProperty(vault, row, key, value)
+    // A list's edit goes to the list as the file has it now, which may be newer than the cell.
+    (base !== undefined && Array.isArray(value)
+      ? updateNoteProperty(vault, row, key, (current) => mergeList(current, base, value))
+      : setNoteProperty(vault, row, key, value)
+    )
       .then(() =>
         // The other end of a two-way relation, in the rows it now names or no longer does.
         backlink === undefined || before === undefined
@@ -1019,8 +1028,8 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                   label={t("cellLabel", { name: property.key, row: title })}
                   property={property}
                   value={row.properties.find((entry) => entry.key === property.key)?.value}
-                  onCommit={(value) => {
-                    write(row.id, property.key, value);
+                  onCommit={(value, base) => {
+                    write(row.id, property.key, value, base);
                   }}
                   {...(property.type === "relation"
                     ? {
