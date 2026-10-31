@@ -135,6 +135,27 @@ export const migrations: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 5,
+    name: "documents",
+    sql: `
+      -- Numbers each store of a document, so a client asks what changed since one.
+      CREATE SEQUENCE document_seq;
+
+      -- A workspace's Yjs documents, merged: its vault document, named vault,
+      -- and each note's, named by the note's ID.
+      CREATE TABLE documents (
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        name text NOT NULL,
+        state bytea NOT NULL,
+        seq bigint NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (workspace_id, name)
+      );
+
+      CREATE INDEX documents_by_seq ON documents (workspace_id, seq);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

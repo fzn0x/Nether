@@ -37,6 +37,27 @@ export function readBoolean(row: Row | undefined, column: string): boolean {
   return value;
 }
 
+/**
+ * A `bigint` column that counts, such as a sequence's number: node-postgres
+ * returns it as text, PGlite as a number or a bigint. Counts stay far below
+ * 2^53, where a number would lose precision.
+ */
+export function readCount(row: Row | undefined, column: string): number {
+  const value = row?.[column];
+  const count = typeof value === "string" || typeof value === "bigint" ? Number(value) : value;
+  if (typeof count !== "number" || !Number.isSafeInteger(count)) {
+    throw unexpected(column, value, "a count");
+  }
+  return count;
+}
+
+/** A `bytea` column: a Buffer from node-postgres, a Uint8Array from PGlite. */
+export function readBytes(row: Row | undefined, column: string): Uint8Array {
+  const value = row?.[column];
+  if (!(value instanceof Uint8Array)) throw unexpected(column, value, "bytes");
+  return value;
+}
+
 /** A `timestamptz` column, which both drivers return as a Date. */
 export function readTime(row: Row | undefined, column: string): Date {
   const value = row?.[column];
