@@ -2,7 +2,14 @@
 // how they come back or are deleted for good.
 import type { NoteId } from "@nether/core";
 import { describe, expect, it } from "vitest";
-import { MemoryFiles, MemoryStore, Vault, numberedPath, readTrashRecord } from "../src/index.ts";
+import {
+  MemoryFiles,
+  MemoryStore,
+  Vault,
+  commentsDocument,
+  numberedPath,
+  readTrashRecord,
+} from "../src/index.ts";
 
 const day = 86_400_000;
 
@@ -85,14 +92,16 @@ describe("Vault trash", () => {
     await expect(vault.restore(where)).rejects.toThrow(/not in the trash/);
   });
 
-  it("deletes a note for good, with its document", async () => {
+  it("deletes a note for good, with its document and its comments", async () => {
     const { memory, store, vault, id } = await setup({ "a.md": "A", "b.md": "B" });
     const a = id("a.md");
     await store.appendUpdates(a, [new Uint8Array([1])]);
+    await store.appendUpdates(commentsDocument(a), [new Uint8Array([2])]);
     const where = await vault.remove(a);
     await vault.erase(where);
     expect(await memory.read(where)).toMatchObject({ missing: true });
     expect(await store.document(a)).toEqual({ updates: [] });
+    expect(await store.document(commentsDocument(a))).toEqual({ updates: [] });
     expect(await vault.trash()).toEqual([]);
     await expect(vault.erase(where)).rejects.toThrow(/not in the trash/);
     expect(vault.notes().map((note) => note.path)).toEqual(["b.md"]);

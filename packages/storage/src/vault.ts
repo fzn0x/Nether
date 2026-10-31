@@ -15,7 +15,13 @@ import {
   noteTitle,
 } from "./files.ts";
 import { LinkIndex } from "./links.ts";
-import type { FileRecord, IndexChange, IndexStore, NoteVersion } from "./store.ts";
+import {
+  type FileRecord,
+  type IndexChange,
+  type IndexStore,
+  type NoteVersion,
+  commentsDocument,
+} from "./store.ts";
 import {
   type TrashItem,
   type TrashRecord,
@@ -737,9 +743,10 @@ export class Vault {
       for (const item of items) {
         await this.#files.erase(item.path);
         gone.add(item);
-        // A note restored from another copy keeps its document.
+        // A note restored from another copy keeps its document, and its comments.
         if (item.note !== undefined && !this.#paths.has(item.note)) {
           await this.#store.deleteDocument(item.note);
+          await this.#store.deleteDocument(commentsDocument(item.note));
         }
       }
     } finally {

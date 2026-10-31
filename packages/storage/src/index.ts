@@ -34,6 +34,7 @@ export {
   type StoredDocument,
   type StoredUpdate,
   type TextHit,
+  commentsDocument,
   matchEnd,
   matchStart,
 } from "./store.ts";

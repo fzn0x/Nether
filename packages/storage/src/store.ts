@@ -95,6 +95,14 @@ export interface TextHit {
 export const matchStart = "\u0002";
 export const matchEnd = "\u0003";
 
+/**
+ * The key a note's comments' document is kept under in the index, beside
+ * the note's own (ADR 0044): comments are not Markdown, so they have no file.
+ */
+export function commentsDocument(note: NoteId): NoteId {
+  return `${note}.comments` as NoteId;
+}
+
 /** Where a client keeps a vault's index. */
 export interface IndexStore {
   /** Every file the index knows. */
