@@ -25,6 +25,9 @@ renaming it, show once a note is open.
 | Show the note as Markdown or as blocks | Ctrl+/ |
 | Rename the note | F2 |
 | Export… | Ctrl+Shift+E |
+| Show the next tab | Ctrl+Tab |
+| Show the previous tab | Ctrl+Shift+Tab |
+| Close the tab | Ctrl+W |
 | Open the graph | Ctrl+G |
 | Templates and periodic notes settings | Ctrl+, |
 

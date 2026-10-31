@@ -368,6 +368,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Merging a note into another from its menu: its text goes after the
   other's, its properties join the other's, every link to it leads to the
   other, keeping the heading or block it named, and it moves to the trash.
+- Tabs, in one pane or two side by side: a note opens in a new tab from
+  its menu, with Ctrl or Cmd and a click, or a middle click, and to the
+  right in a second pane; Ctrl+Tab, Ctrl+Shift+Tab and Ctrl+W move between
+  and close tabs, and the tabs are remembered for the vault
+  ([ADR 0046](docs/adr/0046-notes-open-in-tabs-in-at-most-two-panes-each-with-its-own.md)).
 
 ### Changed
 
@@ -392,6 +397,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A property in a narrow pane or window keeps its value in the wide
+  column and its type in the narrow one, and a note's buttons wrap rather
+  than run past its pane.
 - Opening a folder as a vault for the first time no longer fails with
   "table settings already exists" (or another table) when the app opens
   it twice at once: a second migration of the new index finds the first

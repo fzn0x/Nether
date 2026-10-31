@@ -59,7 +59,8 @@ of the vault.
 Right-click a note in any view, or press Shift+F10 or the menu key on it,
 for what you can do with it without opening it first:
 
-- **Open** it.
+- **Open** it, **Open in new tab**, or **Open to the right**; see
+  [Tabs and panes](#tabs-and-panes).
 - **Rename…** it in its folder; links to it follow.
 - **Make a copy** beside it, named as the next free `Name 2`, `Name 3`.
 - **Move to…** a folder, found by typing its name; its pages go with it and
@@ -95,3 +96,27 @@ trash keeps its bookmark, shown in grey, until it comes back.
 Bookmarks are kept in `.nether/bookmarks.json`, in the vault's folder, in
 the shape Obsidian uses; a vault from Obsidian starts with the bookmarks
 it had there. Sync does not carry them to your other devices yet.
+
+## Tabs and panes
+
+Notes open in tabs above the note. Clicking a note in the sidebar shows it
+in place of the note you were reading; Ctrl+click (Cmd+click on a Mac) or a
+middle click opens it in a new tab. A note already open in a tab is shown
+there, not opened twice.
+
+**Open to the right**, in a note's menu or the command palette, shows a
+note beside the one you are reading, in a second pane with its own tabs.
+Click in a pane, or move into it with Tab, to work there: commands, links
+and the sidebar open notes in that pane. Closing a pane's last tab closes
+the pane.
+
+| Key | Does |
+| --- | --- |
+| Ctrl+Tab and Ctrl+Shift+Tab | Show the next or previous tab (Control+Tab on a Mac) |
+| Ctrl+W | Close the tab |
+| ← and → on a tab | Show the tab before or after |
+| Delete on a tab | Close it |
+
+A middle click or a tab's × closes it too, and a right click opens the
+note's menu. Your tabs are remembered for the vault on this device, and
+come back when you open it again.
