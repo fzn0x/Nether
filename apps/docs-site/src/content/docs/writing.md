@@ -32,7 +32,7 @@ moves it back out.
 
 Type `/` at the start of a line, or after a space, to open the list of
 blocks: text, headings, lists, tasks, quotes, callouts, toggles, code, math,
-diagrams, dividers, tables and columns. Keep typing to narrow it, as in
+diagrams, [queries](../queries/), dividers, tables and columns. Keep typing to narrow it, as in
 `/head` or `/todo`, then press Enter, or click a block. Escape closes the
 menu and keeps the slash as text.
 
@@ -68,7 +68,9 @@ can change there. A code block in the `mermaid` language draws its
 [Mermaid](https://mermaid.js.org) diagram below the code, and says what is
 wrong when it cannot. Nether draws diagrams with Mermaid's dagre layout:
 it does not include the ELK layout, whose license is not compatible with
-Nether's, so a diagram that asks for ELK shows an error instead.
+Nether's, so a diagram that asks for ELK shows an error instead. A code
+block in the `base` language shows the notes its [query](../queries/)
+finds.
 
 ## Images, PDFs, audio and video
 

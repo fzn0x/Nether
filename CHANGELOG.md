@@ -142,6 +142,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Query blocks: a `base` code block in a note, written as Obsidian writes a
+  base, shows the notes its filters find anywhere in the vault, by folder,
+  tag or property, as a table, a list or cards, with its own formulas,
+  sorts, groups and limits, and finds them again as notes change; the
+  formula language gains Obsidian's `file.hasTag()`, `file.inFolder()` and
+  `file.hasProperty()`, and `file.folder`, `file.ext` and `file.tags`
+  ([ADR 0021](docs/adr/0021-query-blocks-are-obsidian-bases-in-a-code-block.md)).
 - Formulas: a property that works out each row's value from its others,
   in a small language Nether reads and runs itself, so a formula can do
   nothing but work out a value: arithmetic, text, dates and durations,

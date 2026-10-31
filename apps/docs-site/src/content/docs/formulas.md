@@ -11,7 +11,8 @@ each time the database shows, and never written to a row's file.
 
 Formulas are their own small language, read and worked out by Nether, so a
 formula from a vault someone shares with you can do nothing but work out a
-value. Its syntax follows Obsidian's formulas.
+value. Its syntax follows Obsidian's formulas. A
+[query block](../queries/) writes its filters in it too.
 
 ## Values
 
@@ -29,9 +30,13 @@ value. Its syntax follows Obsidian's formulas.
 | `Price` | The row's property of that name: a date property as a date, a rollup's or another formula's value as it works out |
 | `note["Big points"]` | A property whose name has spaces or other signs |
 | `note.Price`, `formula.Total` | The same, named in full |
-| `file.name` | The row's name |
-| `file.path` | The row's path in the vault |
-| `file.mtime` | When the row's file was last changed |
+| `file.name` | The row's file's name, with its extension: `Launch.md` |
+| `file.basename` | Its name without the extension: `Launch` |
+| `file.path` | Its path in the vault: `Projects/Launch.md` |
+| `file.folder` | Its folder: `Projects`, or `/` at the vault's top |
+| `file.ext` | Its extension: `md` |
+| `file.tags` | Its tags, without `#`, as a list |
+| `file.mtime` | When it was last changed |
 
 A property the row does not have is `null`. A link, as a relation's value
 `[[Acme]]`, reads as the name of the note it names when it is compared or
@@ -66,6 +71,9 @@ to `null` is the text alone. In a condition, `null`, `false`, `0`, `""` and
 | `text(value)` | Any value as text |
 | `date(text)` | A date from `YYYY-MM-DD`, or with a time: `"2026-11-15 09:30"` |
 | `today()`, `now()` | Today, from midnight, and this moment |
+| `file.hasTag(tag, …)` | Whether the row has any of the tags, or a tag below one: `file.hasTag("area")` holds for `#area/web` |
+| `file.inFolder(folder)` | Whether the row is in the folder, or a folder in it |
+| `file.hasProperty(name)` | Whether the row has the property, even an empty one |
 
 ## Methods
 

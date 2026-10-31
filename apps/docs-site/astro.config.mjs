@@ -26,6 +26,7 @@ export default defineConfig({
             "properties",
             "databases",
             "formulas",
+            "queries",
             "templates",
             "links",
             "search",
