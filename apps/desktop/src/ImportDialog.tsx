@@ -31,6 +31,7 @@ const choices: readonly {
   { value: "notion", label: "importNotion", hint: "importNotionHint" },
   { value: "logseq", label: "importLogseq", hint: "importLogseqHint" },
   { value: "markdown", label: "importMarkdown", hint: "importMarkdownHint" },
+  { value: "html", label: "importHtml", hint: "importHtmlHint" },
   { value: "csv", label: "importCsv", hint: "importCsvHint" },
 ];
 

@@ -295,6 +295,9 @@ export const messages = {
     "Its folder: its pages and journals, their properties, block references and tasks written as Obsidian writes them.",
   importMarkdown: "Markdown files",
   importMarkdownHint: "Each one a note, in a folder named Imported.",
+  importHtml: "Web pages",
+  importHtmlHint:
+    "Each .html file a note named by its title, its text as Markdown, in a folder named Imported.",
   importCsv: "CSV tables",
   importCsvHint: "Each a database, with a note for each of its lines.",
   importStart: "Choose and import…",

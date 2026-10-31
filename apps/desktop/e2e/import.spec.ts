@@ -150,6 +150,28 @@ test("a Logseq graph imports with its properties, tasks and block references as 
   expect(errors).toEqual([]);
 });
 
+test("web pages import as notes named by their titles, their text as Markdown", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  await willImport(page, "saved", {
+    "saved.html":
+      "<title>Saved article</title><script>var x;</script><h2>Part</h2><p>Some <b>bold</b> text.</p>",
+  });
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("import");
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Import" });
+  await dialog.getByRole("radio", { name: /Web pages/ }).check();
+  await dialog.getByRole("button", { name: "Choose and import…" }).click();
+  await expect(dialog.getByRole("status")).toHaveText("Imported 1 note into Imported.");
+  expect(await fileText(page, "Imported/Saved article.md")).toBe(
+    "## Part\n\nSome **bold** text.\n",
+  );
+  expect(errors).toEqual([]);
+});
+
 test("a CSV table imports as a database, a note for each line", async ({ page }) => {
   const errors = errorsOf(page);
   await openSample(page);

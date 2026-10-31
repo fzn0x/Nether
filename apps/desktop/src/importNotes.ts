@@ -20,6 +20,7 @@ export const importChoices = {
   notion: "zip",
   logseq: "folder",
   markdown: "markdown",
+  html: "html",
   csv: "csv",
 } as const satisfies Readonly<Record<string, ImportKind>>;
 
@@ -77,6 +78,12 @@ export async function planImport(
       },
       folder: "",
     };
+  }
+  if (choice === "html") {
+    // The HTML parser loads only for this.
+    const { planHtml } = await import("@nether/markdown/html-import");
+    const folder = freeTop(vault, "Imported");
+    return { plan: await planHtml(opened, folder), folder };
   }
   if (choice === "logseq") {
     const folder = freeTop(vault, safeName(opened.name, "Logseq"));
