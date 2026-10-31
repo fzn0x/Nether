@@ -378,6 +378,102 @@ button {
   color: var(--muted);
 }
 
+/* The graph in the pane: its tools above, the picture filling the rest. */
+.graph-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-block-size: 100%;
+}
+
+.graph-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.graph-header h1 {
+  margin: 0;
+}
+
+.graph-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.graph-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.graph-scope legend {
+  float: inline-start;
+  margin-inline-end: 0.25rem;
+  padding: 0;
+  color: var(--muted);
+}
+
+.graph-tools label,
+.graph-find {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.graph-filter,
+.graph-find label {
+  color: var(--muted);
+}
+
+.graph-tools input[type="search"],
+.graph-tools select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.graph-tools input[type="search"] {
+  inline-size: 16rem;
+  max-inline-size: 100%;
+}
+
+.graph-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.graph-status p {
+  margin: 0 auto 0 0;
+}
+
+.graph-canvas {
+  position: relative;
+  flex: 1;
+  min-block-size: 24rem;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
 .sidebar .placeholder,
 .sidebar [role="alert"] {
   padding: 0 1rem;

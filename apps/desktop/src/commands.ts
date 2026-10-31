@@ -19,6 +19,7 @@ export const commandIds = [
   "showNotes",
   "showTags",
   "showTrash",
+  "openGraph",
   "templateSettings",
   "shortcuts",
   "checkUpdates",
@@ -38,5 +39,6 @@ export const defaultHotkeys: Hotkeys = {
   toggleSource: ["Mod+/"],
   rename: ["F2"],
   export: ["Mod+Shift+E"],
+  openGraph: ["Mod+G"],
   templateSettings: ["Mod+,"],
 };

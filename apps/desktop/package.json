@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:go": "go test ./...",
     "test:e2e": "playwright test",
-    "perf:ui": "playwright test -c playwright.perf.config.ts"
+    "perf:ui": "playwright test -c playwright.perf.config.ts ui.spec.ts",
+    "perf:graph": "playwright test -c playwright.perf.config.ts graph.spec.ts"
   },
   "dependencies": {
     "@mygo-plugins/sqlite": "0.6.2",
@@ -28,9 +29,12 @@
     "@nether/search": "workspace:*",
     "@nether/storage": "workspace:*",
     "@nether/vault-generator": "workspace:*",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "mygo-runtime": "0.6.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "sigma": "^3.0.3",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
@@ -40,6 +44,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "graphology-types": "^0.24.8",
     "vite": "^8.3.5",
     "vitest": "^5.0.5"
   }

@@ -5,7 +5,16 @@
 import type { NoteId, Period } from "@nether/core";
 import type { LinkGraph } from "@nether/graph";
 import type { NoteEntry } from "@nether/storage";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { Indexer } from "./indexer.ts";
 import { t } from "./messages.ts";
 import type { VaultInfo } from "./mygo.ts";
@@ -59,6 +68,8 @@ const loadCreateNote = () => import("./createNote.ts");
 const loadRenameNote = () => import("./renameNote.ts");
 // So does making a database, which writes its note's frontmatter.
 const loadDatabases = () => import("./databases.ts");
+// The graph, with Sigma and its layout, loads the first time it opens.
+const GraphView = lazy(() => import("./GraphView.tsx"));
 
 const numbers = new Intl.NumberFormat();
 
@@ -144,6 +155,8 @@ export function VaultView(props: {
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
   const [selected, setSelected] = useState<NoteId | undefined>();
+  // Whether the graph shows in place of the note.
+  const [graphShown, setGraphShown] = useState(false);
   const lastNoteKey = `nether.lastNote.${info.id}`;
 
   // The vault's links load once the note it opens to shows, or at once when
@@ -210,6 +223,7 @@ export function VaultView(props: {
   const noteView = useNoteViewModule();
 
   const openNote = useCallback((id: NoteId, part?: NotePart) => {
+    setGraphShown(false);
     setSelected(id);
     setFocus(
       part !== undefined && (part.heading !== undefined || part.block !== undefined)
@@ -446,6 +460,11 @@ export function VaultView(props: {
       showNotes: open ? show("notes") : undefined,
       showTags: open ? show("tags") : undefined,
       showTrash: open ? show("trash") : undefined,
+      openGraph: open
+        ? () => {
+            setGraphShown(true);
+          }
+        : undefined,
       templateSettings: open
         ? () => {
             setDialog("settings");
@@ -815,7 +834,19 @@ export function VaultView(props: {
         />
       ) : null}
       <main className="pane">
-        {state.status === "open" && selected !== undefined ? (
+        {state.status === "open" && graphShown ? (
+          <Suspense fallback={<p className="placeholder">{t("loadingGraph")}</p>}>
+            <GraphView
+              vault={state.vault}
+              graph={state.indexer.graph}
+              note={selected}
+              onOpenNote={openNote}
+              onClose={() => {
+                setGraphShown(false);
+              }}
+            />
+          </Suspense>
+        ) : state.status === "open" && selected !== undefined ? (
           noteView === undefined ? null : (
             <noteView.default
               vault={state.vault}

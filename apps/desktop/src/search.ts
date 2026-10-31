@@ -24,7 +24,11 @@ function propertyMatches(value: unknown, wanted: string): boolean {
 }
 
 /** Whether a note passes a filter, as the link index knows it. */
-function passes(graph: LinkGraph, note: NoteEntry, filter: Filter): boolean {
+export function passes(
+  graph: LinkGraph,
+  note: Pick<NoteEntry, "id" | "path">,
+  filter: Filter,
+): boolean {
   const index = graph.note(note.id)?.index;
   switch (filter.kind) {
     case "tag": {
