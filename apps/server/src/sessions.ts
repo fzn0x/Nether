@@ -280,7 +280,8 @@ export function registerSessions(app: FastifyInstance, db: Database): void {
   app.get("/api/me", { preHandler: account }, async (request) => {
     const me = accountOf(request);
     const { rows } = await db.query(
-      `SELECT w.id, w.name, m.role FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
+      `SELECT w.id, w.name, w.encryption, m.role
+         FROM memberships m JOIN workspaces w ON w.id = m.workspace_id
         WHERE m.user_id = $1 ORDER BY w.created_at, w.name`,
       [me.id],
     );
@@ -290,6 +291,7 @@ export function registerSessions(app: FastifyInstance, db: Database): void {
         id: readText(row, "id"),
         name: readText(row, "name"),
         role: readText(row, "role"),
+        encryption: readText(row, "encryption"),
       })),
     };
   });

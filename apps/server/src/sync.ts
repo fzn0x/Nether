@@ -14,6 +14,7 @@ import * as Y from "yjs";
 import { type Database, readBytes, readCount, readText } from "./db.ts";
 import { fail, uuidField } from "./http.ts";
 import { sessionAccount, signedIn, accountOf } from "./sessions.ts";
+import { membership } from "./workspaces.ts";
 
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const namePattern = new RegExp(`^(${uuid})/(vault|${uuid})$`);
@@ -84,12 +85,14 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
       const member =
         name === undefined || account === undefined
           ? undefined
-          : await role(account.id, name.workspaceId);
-      // One answer for all three, so a refusal tells nothing of the workspace.
-      if (account === undefined || member === undefined) {
+          : await membership(db, account.id, name.workspaceId);
+      // One answer for each, so a refusal tells nothing of the workspace. An
+      // encrypted workspace syncs through the relay, never here, so its
+      // notes are never stored in plain text.
+      if (account === undefined || member?.encryption !== "none") {
         throw new Error("Sign in, as a member of this document's workspace.");
       }
-      if (member === "guest") connectionConfig.readOnly = true;
+      if (member.role === "guest") connectionConfig.readOnly = true;
       return { userId: account.id };
     },
 
@@ -165,7 +168,10 @@ export async function registerSync(app: FastifyInstance, db: Database): Promise<
       }
       const { rows } = await db.query(
         `SELECT name, seq FROM documents WHERE workspace_id = $1 AND seq > $2
-          ORDER BY seq LIMIT $3`,
+         UNION ALL
+         SELECT name, max(seq) AS seq FROM encrypted_updates
+          WHERE workspace_id = $1 AND seq > $2 GROUP BY name
+         ORDER BY seq LIMIT $3`,
         [workspace, request.query.since ?? 0, pageSize + 1],
       );
       const page = rows.slice(0, pageSize);

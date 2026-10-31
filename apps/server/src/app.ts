@@ -11,7 +11,9 @@ import type { Mailer } from "./mail.ts";
 import { registerOidc } from "./oidc.ts";
 import { registerSessions } from "./sessions.ts";
 import { registerSetup } from "./setup.ts";
+import { registerRelay } from "./relay.ts";
 import { registerSync } from "./sync.ts";
+import { registerWorkspaces } from "./workspaces.ts";
 
 /** The server's version, from its package.json (one folder up from src/ and dist/ alike). */
 export function serverVersion(): string {
@@ -78,7 +80,10 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   registerSetup(app, services.db, services.setupCode);
   registerSessions(app, services.db);
   registerInvitations(app, services.db);
+  registerWorkspaces(app, services.db);
+  // The relay's sockets come through the WebSocket plugin sync registers.
   await registerSync(app, services.db);
+  registerRelay(app, services.db);
   if (services.mailer !== undefined) registerCodes(app, services.db, services.mailer);
   const { oidc, publicUrl } = config;
   if (oidc !== null && publicUrl !== null) registerOidc(app, services.db, oidc, publicUrl);

@@ -156,6 +156,43 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX documents_by_seq ON documents (workspace_id, seq);
     `,
   },
+  {
+    version: 6,
+    name: "end-to-end encryption",
+    sql: `
+      -- An account's key pair for encrypted workspaces: its public key, and its
+      -- private key in a box only its recovery phrase opens, which the server cannot.
+      CREATE TABLE user_keys (
+        user_id uuid PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+        public_key bytea NOT NULL,
+        recovery_box bytea NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+
+      -- An encrypted workspace's key, as a client sealed it to each member's public key.
+      CREATE TABLE workspace_keys (
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        version integer NOT NULL,
+        sealed_key bytea NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (workspace_id, user_id, version)
+      );
+
+      -- An encrypted workspace's documents: each update as its client encrypted
+      -- it, numbered from the documents' sequence; a snapshot replaces those before it.
+      CREATE TABLE encrypted_updates (
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        name text NOT NULL,
+        seq bigint NOT NULL,
+        data bytea NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (workspace_id, name, seq)
+      );
+
+      CREATE INDEX encrypted_updates_by_seq ON encrypted_updates (workspace_id, seq);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

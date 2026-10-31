@@ -42,6 +42,7 @@ describe("migrate", () => {
     );
     expect(tables.rows.map((row) => row.table_name)).toEqual([
       "documents",
+      "encrypted_updates",
       "identities",
       "invitations",
       "memberships",
@@ -49,7 +50,9 @@ describe("migrate", () => {
       "schema_migrations",
       "sessions",
       "sign_in_codes",
+      "user_keys",
       "users",
+      "workspace_keys",
       "workspaces",
     ]);
   });

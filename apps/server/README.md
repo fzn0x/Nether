@@ -15,7 +15,8 @@ Sync, sharing and the rest arrive in Phase 3. See ADRs
 [0032](../../docs/adr/0032-sessions-are-bearer-tokens-and-accounts-come-by-invitation.md),
 [0033](../../docs/adr/0033-sign-in-by-email-with-a-code-and-the-link-with-the-web-app.md)
 [0034](../../docs/adr/0034-sign-in-with-openid-connect-through-the-server-and-back-to-the-app.md)
-and [0035](../../docs/adr/0035-the-server-syncs-through-hocuspocus-beside-its-api-and-numbers-each-store.md).
+[0035](../../docs/adr/0035-the-server-syncs-through-hocuspocus-beside-its-api-and-numbers-each-store.md)
+and [0038](../../docs/adr/0038-encrypted-workspaces-seal-a-key-to-each-member-and-relay-updates-the-server-cannot-read.md).
 
 ## Run it
 
@@ -77,6 +78,12 @@ token as `Authorization: Bearer <token>`. Every error is
 | `POST /api/workspaces/:id/invitations` | owner, admin | Invites someone as `admin` or `member`, for one `email` or anyone; gives `token` |
 | `GET /api/workspaces/:id/invitations` | owner, admin | The invitations not yet accepted |
 | `DELETE /api/workspaces/:id/invitations/:invitation` | owner, admin | Withdraws one |
+| `POST /api/workspaces` | yes | Makes a workspace the account owns, with `name`; `encryption: "end-to-end"` and the maker's `sealedKey` make it encrypted |
+| `PUT /api/me/keys`, `GET /api/me/keys` | yes | The account's `publicKey`, and its private key in a `recoveryBox` only its recovery phrase opens; kept once |
+| `GET /api/workspaces/:id/key` | member | The account's own sealed copy of an encrypted workspace's key, at its latest `version` |
+| `GET /api/workspaces/:id/keyless` | member | The members with keys and no copy of the latest version, for one who has it to seal |
+| `PUT /api/workspaces/:id/keys/:user` | keyholder | Seals the key for a member waiting; a copy kept is never replaced |
+| `GET /api/relay` | per message | The WebSocket encrypted workspaces sync over, below |
 | `GET /api/workspaces/:id/documents` | member | The documents stored since `since`, a number, in order, a thousand at a time with `more` |
 | `GET /api/sync` | per document | The WebSocket that Hocuspocus providers sync documents over, below |
 | `POST /api/invitations/lookup` | | The workspace and role a `token` invites to |
@@ -118,6 +125,28 @@ client back from being away asks
 syncs only those. A client syncing the vault document hears of every note
 as it is stored, as the stateless message
 `{ "type": "stored", "document": "<note id>", "seq": 42 }`.
+
+## Encrypted workspaces
+
+A workspace made with `encryption: "end-to-end"` is encrypted by its
+members' apps, and the server never sees its keys or its notes (ADR 0038).
+Each account has a key pair whose private key the server keeps only in a
+box its recovery phrase opens; each member has the workspace's key, sealed
+to their public key by a member who had it.
+
+Hocuspocus refuses these workspaces' documents. They sync through
+`/api/relay`, which keeps each encrypted update in order, numbered from the
+same sequence, and sends it on. A socket sends `{"type":"auth","token"}`,
+then:
+
+| Message | Answer |
+| --- | --- |
+| `{"type":"subscribe","name","after"}` | `updates` of `{seq, data}` stored since `after`, then `subscribed` with the last number, then each update pushed |
+| `{"type":"push","id","name","data"}` | `pushed` with the update's `seq`; the vault document's subscribers hear `stored` |
+| `{"type":"compact","id","name","through","data"}` | `compacted`: the snapshot replaces the updates up to `through` |
+| `{"type":"unsubscribe","name"}` | none |
+
+Data is base64. Guests may subscribe, not push or compact.
 
 ## Email
 
