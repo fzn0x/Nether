@@ -172,6 +172,40 @@ describe("an encrypted workspace", () => {
     expect(rows[0]?.n).toBe(55);
   });
 
+  it("sends an edit made while the document was syncing, the next time", async () => {
+    const served = await encryptedServer();
+    const keys = { key: { version: 1, key: served.key }, keys: new Map([[1, served.key]]) };
+    const where = {
+      server: served.url,
+      token: served.token,
+      workspaceId: served.workspaceId,
+      ...keys,
+    };
+    const events = {
+      onSynced: () => undefined,
+      onStored: () => undefined,
+      onOffline: () => undefined,
+    };
+    const writer = new RelayChannel(where, new Y.Doc(), events, undefined);
+    await until(() => writer.synced);
+    const id = randomUUID();
+    const note = new Y.Doc();
+    note.getText("content").insert(0, "before");
+    const syncing = writer.sync(id, note);
+    // Typed while the sync waits for the server: its changes were taken already.
+    note.getText("content").insert(6, " during");
+    await syncing;
+    await writer.sync(id, note);
+    writer.close();
+
+    const reader = new RelayChannel(where, new Y.Doc(), events, undefined);
+    await until(() => reader.synced);
+    const copy = new Y.Doc();
+    await reader.sync(id, copy);
+    reader.close();
+    expect(copy.getText("content").toJSON()).toBe("before during");
+  });
+
   it("replaces a document's long log with a snapshot", async () => {
     const served = await encryptedServer();
     const keys = { key: { version: 1, key: served.key }, keys: new Map([[1, served.key]]) };

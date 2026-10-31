@@ -60,6 +60,12 @@ function sentVector(state: DocumentState | undefined): Uint8Array | undefined {
 
 type Message = Readonly<Record<string, unknown>>;
 
+/** A document's own changes, and the snapshot they were taken at. */
+interface Changes {
+  readonly own: Uint8Array | undefined;
+  readonly at: string;
+}
+
 interface Subscription {
   readonly document: Y.Doc;
   /** How many updates came since subscribing. */
@@ -94,6 +100,8 @@ export class RelayChannel implements Channel {
   /** Messages are handled in order: an update applies after the ones before it. */
   #incoming: Promise<void> = Promise.resolve();
   #vaultTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Whether the vault document changed here before it was synced, to send once it is. */
+  #changedWhileSyncing = false;
 
   constructor(options: RelayOptions, vaultDocument: Y.Doc, events: ChannelEvents, saved: unknown) {
     this.#options = options;
@@ -105,7 +113,11 @@ export class RelayChannel implements Channel {
       ),
     );
     vaultDocument.on("update", (_update: Uint8Array, origin: unknown) => {
-      if (origin === fromServer || !this.#synced) return;
+      if (origin === fromServer) return;
+      if (!this.#synced) {
+        this.#changedWhileSyncing = true;
+        return;
+      }
       clearTimeout(this.#vaultTimer);
       this.#vaultTimer = setTimeout(() => {
         void this.#sendVault().catch((error: unknown) => {
@@ -254,11 +266,12 @@ export class RelayChannel implements Channel {
   }
 
   /**
-   * Sends a document's own changes since it was last sent, then keeps its
-   * snapshot as sent; replaces a long log with a snapshot.
+   * Sends a document's own changes since it was last sent, then keeps as
+   * sent the snapshot they were taken at; replaces a long log with a snapshot.
    */
-  async #exchange(name: string, document: Y.Doc, own: Uint8Array | undefined, received: number) {
+  async #exchange(name: string, document: Y.Doc, changes: Changes, received: number) {
     const state = this.#documents.get(name) ?? { cursor: 0, sent: "" };
+    const { own } = changes;
     if (own !== undefined) {
       const data = await encryptUpdate(own, this.#options.key, name);
       const pushed = await this.#ask({ type: "push", name, data: toBase64(data) });
@@ -268,32 +281,44 @@ export class RelayChannel implements Channel {
       const data = await encryptUpdate(Y.encodeStateAsUpdate(document), this.#options.key, name);
       await this.#ask({ type: "compact", name, through: state.cursor, data: toBase64(data) });
     }
-    // Everything the document has is on the server now.
-    state.sent = snapshotOf(document);
+    // Sent: the document as it was when its changes were taken. An edit made
+    // since, while this went on, is not, and goes the next time; what came
+    // from the server since may go back once, which Yjs ignores.
+    state.sent = changes.at;
     this.#documents.set(name, state);
   }
 
-  /** This side's changes to a document, if it has any since it was last sent. */
-  #ownChanges(name: string, document: Y.Doc): Uint8Array | undefined {
+  /** This side's changes to a document since it was last sent, and the snapshot they are taken at. */
+  #ownChanges(name: string, document: Y.Doc): Changes {
+    const at = snapshotOf(document);
     const state = this.#documents.get(name);
-    if (state?.sent === snapshotOf(document)) return undefined;
+    if (state?.sent === at) return { own: undefined, at };
     const vector = sentVector(state);
     const own =
       vector === undefined
         ? Y.encodeStateAsUpdate(document)
         : Y.encodeStateAsUpdate(document, vector);
     // An update with nothing in it, as a new document's, is not worth sending.
-    return own.length === 2 && own[0] === 0 && own[1] === 0 ? undefined : own;
+    const empty = own.length === 2 && own[0] === 0 && own[1] === 0;
+    return { own: empty ? undefined : own, at };
   }
 
   /** Subscribes to the vault document, sends what it has of its own, and tells the engine. */
   async #syncVault(): Promise<void> {
     const name = this.#name("vault");
     const own = this.#ownChanges(name, this.#vaultDocument);
+    this.#changedWhileSyncing = false;
     const subscription = await this.#subscribe(name, this.#vaultDocument);
     await this.#exchange(name, this.#vaultDocument, own, subscription.received);
     this.#synced = true;
     this.#events.onSynced();
+    // What changed here meanwhile, which waited for the vault to be synced.
+    if (this.#hadChanges()) await this.#sendVault();
+  }
+
+  /** Whether the vault document changed here while it was syncing; read anew after each wait. */
+  #hadChanges(): boolean {
+    return this.#changedWhileSyncing;
   }
 
   /** Sends the vault document's own changes as they are made. */
