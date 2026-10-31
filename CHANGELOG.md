@@ -216,6 +216,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The database view, query blocks, and the import and appearance dialogs
+  with the importers, load when a note or the user first needs them, not
+  when the app opens: what it loads at start is 52 kB smaller, below
+  Phase 1's, and it idles in less memory.
 - On a vault of 50,000 notes the desktop app opens to the last note in
   about 1.2 s, down from 3.5 s, and settles at about 280 MB, down from
   0.5 to 1.2 GB. The vault shows as soon as its notes are listed, and its

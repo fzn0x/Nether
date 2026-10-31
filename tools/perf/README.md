@@ -66,6 +66,15 @@ about the app
 
 ## In the desktop app
 
+What the desktop app's memory is made of, split by process, on the
+reference vault at idle on 2026-10-31: the page's renderer 209 MB, the Go
+app 25 MB, and WebView2's browser, GPU and helper processes 57 MB. The
+renderer, the page's JavaScript and its DOM, is where memory can be saved;
+the rest is WebView2's and the app's own, and moves with WebView2's
+updates, as a build's idle memory can between days on the same machine.
+Compare a change's memory with a build of the commit before it measured
+the same day.
+
 ```powershell
 pnpm vault:generate
 pnpm --filter @nether/desktop build:app
