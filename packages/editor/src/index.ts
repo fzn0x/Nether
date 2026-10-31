@@ -16,6 +16,7 @@ export {
   type NoteComment,
   deleteComment,
   editComment,
+  mentionedIn,
   observeThreads,
   readThreads,
   reopenThread,

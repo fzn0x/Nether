@@ -7,6 +7,7 @@ import {
   type CommentAnchor,
   deleteComment,
   editComment,
+  mentionedIn,
   observeThreads,
   readThreads,
   reopenThread,
@@ -42,6 +43,28 @@ describe("comments", () => {
       ["Bea", "Yes."],
     ]);
     expect(reply(document, "gone", bea, "Hello?")).toBeUndefined();
+  });
+
+  it("keeps the people a comment mentions, each once, and changes them with its text", () => {
+    const document = new Y.Doc();
+    const id = startThread(document, anchor, ada, "@Bea, see this", 1000, [bea, bea]);
+    const answer = reply(document, id, bea, "Thanks", 2000);
+    const comments = () => readThreads(document)[0]?.comments ?? [];
+    expect(comments().map((comment) => comment.mentions)).toEqual([[bea], []]);
+    const first = comments()[0]?.id;
+    if (first === undefined || answer === undefined) throw new Error("No comments");
+    editComment(document, id, first, "@Ada, see this", 3000, [ada]);
+    expect(comments()[0]?.mentions).toEqual([ada]);
+    editComment(document, id, first, "See this", 4000);
+    expect(comments()[0]?.mentions).toEqual([]);
+  });
+
+  it("finds the people a comment's text still mentions", () => {
+    expect(mentionedIn("@Bea and @Ada, look", [ada, bea, { id: "c", name: "Cal" }])).toEqual([
+      ada,
+      bea,
+    ]);
+    expect(mentionedIn("no one", [ada])).toEqual([]);
   });
 
   it("lists threads the oldest first", () => {

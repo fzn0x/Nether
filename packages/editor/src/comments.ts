@@ -1,8 +1,9 @@
 // A note's comments (ADR 0044): threads in a document of their own beside
 // the note's, each on a range of the note's text, holding its comments in
-// the order they were made. Whoever may comment starts threads, replies,
-// and resolves and reopens them; each person edits and deletes their own,
-// which the app sees to, as the server cannot read inside a document.
+// the order they were made, with the people each mentions (ADR 0045).
+// Whoever may comment starts threads, replies, and resolves and reopens
+// them; each person edits and deletes their own, which the app sees to, as
+// the server cannot read inside a document.
 import { uuidV7 } from "@nether/core";
 import * as Y from "yjs";
 
@@ -26,8 +27,10 @@ export interface CommentAnchor {
 export interface NoteComment {
   readonly id: string;
   readonly author: CommentAuthor;
-  /** What was written, as plain text. */
+  /** What was written, as plain text, each person mentioned as `@` and their name. */
   readonly body: string;
+  /** The people it mentions. */
+  readonly mentions: readonly CommentAuthor[];
   readonly created: number;
   /** When it was last edited, if it was. */
   readonly edited: number | undefined;
@@ -64,9 +67,20 @@ function readComment(value: unknown): NoteComment | undefined {
   const body = map.get("body");
   const created = map.get("created");
   const edited = map.get("edited");
+  const mentioned = map.get("mentions");
   if (typeof id !== "string" || author === undefined) return undefined;
   if (typeof body !== "string" || typeof created !== "number") return undefined;
-  return { id, author, body, created, edited: typeof edited === "number" ? edited : undefined };
+  const mentions = Array.isArray(mentioned)
+    ? mentioned.map(readAuthor).filter((person) => person !== undefined)
+    : [];
+  return {
+    id,
+    author,
+    body,
+    mentions,
+    created,
+    edited: typeof edited === "number" ? edited : undefined,
+  };
 }
 
 function readThread(id: string, map: Y.Map<unknown>): CommentThread | undefined {
@@ -120,11 +134,27 @@ export function observeThreads(document: Y.Doc, listener: () => void): () => voi
   };
 }
 
-function newComment(author: CommentAuthor, body: string, now: number): Y.Map<unknown> {
+/** People as a comment keeps them: each once, by ID and name. */
+function peopleOf(mentions: readonly CommentAuthor[]): { id: string; name: string }[] {
+  const seen = new Set<string>();
+  return mentions.flatMap((person) => {
+    if (seen.has(person.id)) return [];
+    seen.add(person.id);
+    return [{ id: person.id, name: person.name }];
+  });
+}
+
+function newComment(
+  author: CommentAuthor,
+  body: string,
+  now: number,
+  mentions: readonly CommentAuthor[],
+): Y.Map<unknown> {
   const comment = new Y.Map<unknown>();
   comment.set("id", uuidV7(now));
   comment.set("author", { id: author.id, name: author.name });
   comment.set("body", body);
+  if (mentions.length > 0) comment.set("mentions", peopleOf(mentions));
   comment.set("created", now);
   return comment;
 }
@@ -136,6 +166,7 @@ export function startThread(
   author: CommentAuthor,
   body: string,
   now: number = Date.now(),
+  mentions: readonly CommentAuthor[] = [],
 ): string {
   const id = uuidV7(now);
   document.transact(() => {
@@ -146,7 +177,7 @@ export function startThread(
     thread.set("quote", anchor.quote);
     thread.set("created", now);
     const comments = new Y.Array<Y.Map<unknown>>();
-    comments.push([newComment(author, body, now)]);
+    comments.push([newComment(author, body, now, mentions)]);
     thread.set("comments", comments);
     threadsOf(document).set(id, thread);
   });
@@ -165,10 +196,11 @@ export function reply(
   author: CommentAuthor,
   body: string,
   now: number = Date.now(),
+  mentions: readonly CommentAuthor[] = [],
 ): string | undefined {
   const comments = commentsOf(document, thread);
   if (comments === undefined) return undefined;
-  const comment = newComment(author, body, now);
+  const comment = newComment(author, body, now, mentions);
   comments.push([comment]);
   return comment.get("id") as string;
 }
@@ -207,21 +239,32 @@ function findComment(
   return index < 0 || map === undefined ? undefined : { index, map };
 }
 
-/** Changes what a comment says. */
+/** Changes what a comment says, and whom it mentions. */
 export function editComment(
   document: Y.Doc,
   thread: string,
   comment: string,
   body: string,
   now: number = Date.now(),
+  mentions: readonly CommentAuthor[] = [],
 ): void {
   const comments = commentsOf(document, thread);
   const found = comments === undefined ? undefined : findComment(comments, comment);
   if (found === undefined) return;
   document.transact(() => {
     found.map.set("body", body);
+    if (mentions.length > 0) found.map.set("mentions", peopleOf(mentions));
+    else found.map.delete("mentions");
     found.map.set("edited", now);
   });
+}
+
+/**
+ * The people a comment's text still mentions, of those picked as it was
+ * written: each whose `@` and name it holds.
+ */
+export function mentionedIn(body: string, picked: readonly CommentAuthor[]): CommentAuthor[] {
+  return peopleOf(picked.filter((person) => body.includes(`@${person.name}`)));
 }
 
 /** Deletes a comment; a thread left with none goes with it. */
