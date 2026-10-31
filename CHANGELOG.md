@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Import, in the command palette: an Obsidian vault or a folder of
+  Markdown comes over byte for byte with its files, Markdown files as
+  notes, and CSV tables as databases, each line a note with its cells
+  typed as all its column's values read, into a folder the vault does not
+  have yet; the desktop app reads what is imported and never writes it
+  ([ADR 0027](docs/adr/0027-imports-are-plans-made-from-sources-read-only.md)).
 - Themes and CSS snippets: Appearance, in the command palette, shows a
   vault light, dark or as the system, with a theme from its
   `.nether/themes` folder and the snippets turned on from

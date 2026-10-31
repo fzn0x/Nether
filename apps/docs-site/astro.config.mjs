@@ -32,6 +32,7 @@ export default defineConfig({
             "graph",
             "search",
             "export",
+            "import",
             "keyboard",
             "appearance",
             "markdown",

@@ -96,4 +96,7 @@ The Notion core, one feature per pull request, in this order:
 - [x] Unlinked mentions, each made a link in one click ([ADR 0024](adr/0024-unlinked-mentions-found-by-the-index-and-linked-where-written.md))
 - [x] The graph view, global and local, filtered by tag, folder and property, smooth at 10,000 notes ([ADR 0025](adr/0025-graph-view-with-sigma-and-forceatlas2-in-a-worker.md))
 - [x] Themes and CSS snippets ([ADR 0026](adr/0026-themes-and-snippets-are-css-files-of-the-vault.md))
-- [ ] Importers: Obsidian vaults, Notion exports, Logseq, plain Markdown, HTML and CSV
+- [x] Importers: Obsidian vaults, plain Markdown and CSV ([ADR 0027](adr/0027-imports-are-plans-made-from-sources-read-only.md))
+- [ ] Importers: Notion exports
+- [ ] Importers: Logseq graphs
+- [ ] Importers: HTML
