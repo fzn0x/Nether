@@ -38,6 +38,15 @@ describe("reconcilePaths", () => {
     ]);
   });
 
+  it("keeps a note's path here when the server's is another note's here", () => {
+    // Two notes made at Ideas.md offline: this vault made the second Ideas 2.md.
+    const local = map({ a: "Ideas.md", b: "Ideas 2.md" });
+    const remote = map({ a: "Ideas.md", b: "Ideas.md" });
+    const plan = reconcilePaths(map({ a: "Ideas.md" }), local, remote);
+    expect(plan.moveLocal).toEqual([]);
+    expect(plan.moveRemote).toEqual([{ id: "b", path: "Ideas 2.md" }]);
+  });
+
   it("removes a note removed on one side, unless the other moved it since", () => {
     const base = map({ a: "A.md", b: "B.md", c: "C.md", d: "D.md" });
     // a removed elsewhere; b removed here; c removed elsewhere but moved here; d removed here but moved elsewhere.

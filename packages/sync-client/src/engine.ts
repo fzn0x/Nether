@@ -126,6 +126,7 @@ export class VaultSync {
   #saveTimer: ReturnType<typeof setTimeout> | undefined;
   #unwatch: (() => void) | undefined;
   #stopped = false;
+  #stopping: Promise<void> | undefined;
   #status: SyncStatus = { state: "offline", pending: 0 };
 
   private constructor(options: SyncOptions) {
@@ -157,8 +158,13 @@ export class VaultSync {
     } while (queue !== this.#queue);
   }
 
-  /** Stops syncing, keeping what this device knows for the next start. */
-  async stop(): Promise<void> {
+  /** Stops syncing, keeping what this device knows for the next start; once, however often called. */
+  stop(): Promise<void> {
+    this.#stopping ??= this.#halt();
+    return this.#stopping;
+  }
+
+  async #halt(): Promise<void> {
     this.#stopped = true;
     this.#unwatch?.();
     // A document syncing now gets no answer once the socket is gone.

@@ -50,7 +50,9 @@ export interface Plan {
  * agreed on: a change on one side is made on the other; a note changed on
  * both, moved to two paths, goes where the server has it, as every device
  * then agrees. A note removed on one side and changed on the other is kept,
- * at its changed path: losing a note is worse than keeping one.
+ * at its changed path: losing a note is worse than keeping one. A note the
+ * server has at a path another note has here, as two notes made at one
+ * path offline, keeps the path it has here, which the server takes.
  */
 export function reconcilePaths(base: Paths, local: Paths, remote: Paths): Plan {
   const upload: string[] = [];
@@ -60,6 +62,7 @@ export function reconcilePaths(base: Paths, local: Paths, remote: Paths): Plan {
   const removeRemote: string[] = [];
   const removeLocal: string[] = [];
 
+  const holders = new Map([...local].map(([id, path]) => [path, id]));
   for (const [id, here] of local) {
     const there = remote.get(id);
     const agreed = base.get(id);
@@ -68,8 +71,8 @@ export function reconcilePaths(base: Paths, local: Paths, remote: Paths): Plan {
       if (agreed === undefined || agreed !== here) upload.push(id);
       else removeLocal.push(id);
     } else if (here !== there) {
-      if (here === agreed) moveLocal.push({ id, path: there });
-      else if (there === agreed) moveRemote.push({ id, path: here });
+      const taken = (holders.get(there) ?? id) !== id;
+      if (there === agreed || taken) moveRemote.push({ id, path: here });
       else moveLocal.push({ id, path: there });
     }
   }
