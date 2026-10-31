@@ -36,6 +36,18 @@ export function rowsOf<T extends { readonly path: string }>(
   return notes.filter((note) => isRowOf(note.path, databasePath));
 }
 
+/**
+ * The name a link in a property shows, as a relation's value is written:
+ * `[[Clients/Acme|Acme Inc]]` is `Acme`, the note it names. Anything else
+ * is returned as it is.
+ */
+export function linkName(text: string): string {
+  const link = /^!?\[\[([^\]|#]*)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]$/.exec(text.trim());
+  if (link === null) return text;
+  const target = link[1] ?? "";
+  return target.slice(target.lastIndexOf("/") + 1).replace(/\.md$/i, "");
+}
+
 /** A row's name, as its title shows: its file's name without `.md`. */
 export function rowTitle(row: { readonly path: string }): string {
   return row.path.slice(row.path.lastIndexOf("/") + 1).replace(/\.md$/i, "");

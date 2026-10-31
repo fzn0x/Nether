@@ -1,7 +1,15 @@
 // A database's rows: the notes in the folder beside it, and their values.
 import type { NoteId } from "@nether/core";
 import { describe, expect, it } from "vitest";
-import { type Row, isRowOf, rowFolder, rowTitle, rowValue, rowsOf } from "../src/index.ts";
+import {
+  type Row,
+  isRowOf,
+  linkName,
+  rowFolder,
+  rowTitle,
+  rowValue,
+  rowsOf,
+} from "../src/index.ts";
 
 describe("rowsOf", () => {
   it("finds the notes in the folder beside the database, not in folders below it", () => {
@@ -22,6 +30,16 @@ describe("rowsOf", () => {
     expect(isRowOf("Work/Projects/A.md", "Work/Projects.md")).toBe(true);
     expect(isRowOf("Work/Projects/A.md", "Projects.md")).toBe(false);
     expect(rowFolder("Work/Projects.md")).toBe("Work/Projects");
+  });
+});
+
+describe("linkName", () => {
+  it("names the note a link names, and leaves other text as it is", () => {
+    expect(linkName("[[Acme]]")).toBe("Acme");
+    expect(linkName("[[Clients/Acme|Acme Inc]]")).toBe("Acme");
+    expect(linkName(" [[Clients/Acme.md#Contacts]] ")).toBe("Acme");
+    expect(linkName("Acme")).toBe("Acme");
+    expect(linkName("[[Acme]] and [[Globex]]")).toBe("[[Acme]] and [[Globex]]");
   });
 });
 

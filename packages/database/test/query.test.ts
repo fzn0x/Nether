@@ -97,6 +97,9 @@ describe("matches", () => {
     expect(where({ property: "$title", operator: "startsWith", value: "la" })).toEqual(["Launch"]);
     expect(where({ property: "$title", operator: "endsWith", value: "AN" })).toEqual(["Plan"]);
     expect(where({ property: "owner", operator: "equals", value: "[[Ada]]" })).toEqual(["Plan"]);
+    // A link compares as the note it names.
+    expect(where({ property: "owner", operator: "equals", value: "ada" })).toEqual(["Plan"]);
+    expect(where({ property: "owner", operator: "contains", value: "Ad" })).toEqual(["Plan"]);
   });
 
   it("compares numbers by value and dates by day, a time aside", () => {

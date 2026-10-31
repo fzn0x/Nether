@@ -8,7 +8,7 @@ export {
   runView,
   sortRows,
 } from "./query.ts";
-export { type Row, isRowOf, rowFolder, rowTitle, rowValue, rowsOf } from "./rows.ts";
+export { type Row, isRowOf, linkName, rowFolder, rowTitle, rowValue, rowsOf } from "./rows.ts";
 export {
   type LinkTo,
   type ResolveLink,

@@ -9,7 +9,7 @@ import type {
   Sort,
   View,
 } from "@nether/core";
-import { type Row, rowTitle, rowValue } from "./rows.ts";
+import { type Row, linkName, rowTitle, rowValue } from "./rows.ts";
 
 /** Sorts as a file explorer does: case aside, and numbers by their value. */
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -51,13 +51,18 @@ function dayOf(value: JsonValue | undefined): string | undefined {
     : undefined;
 }
 
+// A link, as a relation's value, compares as the name of the note it names.
 function sameText(a: JsonValue, b: JsonValue): boolean {
-  if (typeof a === "string" && typeof b === "string") return collator.compare(a, b) === 0;
+  if (typeof a === "string" && typeof b === "string") {
+    return collator.compare(linkName(a), linkName(b)) === 0;
+  }
   return a === b;
 }
 
 function textOf(value: JsonValue): string {
-  return typeof value === "string" ? value.toLowerCase() : JSON.stringify(value).toLowerCase();
+  return typeof value === "string"
+    ? linkName(value).toLowerCase()
+    : JSON.stringify(value).toLowerCase();
 }
 
 function compareOrder(
