@@ -30,6 +30,7 @@ export default defineConfig({
             "templates",
             "links",
             "graph",
+            "canvas",
             "search",
             "export",
             "import",

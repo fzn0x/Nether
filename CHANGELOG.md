@@ -8,6 +8,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Canvases in the desktop app: `.canvas` files show in the sidebar's trees
+  and open in tabs beside notes, with their cards, groups, images, links and
+  arrows, panned and zoomed, read in order by screen readers, and followed
+  as another app changes them; **File**, **New canvas** makes one, in the
+  open JSON Canvas format Obsidian keeps
+  ([ADR 0051](docs/adr/0051-canvases-are-json-canvas-files-drawn-with-the-page-s-own-elements.md)).
 - Workspace search on the server, `GET /api/search`: every note an account
   may open, across the workspaces the server can read, with the app's
   query syntax, ranked titles first, with marked snippets; indexed as
