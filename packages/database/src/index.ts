@@ -1,4 +1,5 @@
 export { basePath, readBase, writeBase } from "./base.ts";
+export { cellText, toCsv, viewCsv } from "./csv.ts";
 export {
   type FormulaContext,
   FormulaError,
