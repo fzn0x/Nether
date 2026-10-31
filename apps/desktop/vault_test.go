@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -314,6 +315,46 @@ func TestWriteReplacesOnlyWhatThePageRead(t *testing.T) {
 		if strings.HasSuffix(entry.Name(), ".tmp") {
 			t.Fatalf("left %s", entry.Name())
 		}
+	}
+}
+
+func TestBytesAreReadAndWrittenWhole(t *testing.T) {
+	vaults, info := newVault(t, map[string]string{"a.png": "old"})
+	read, err := vaults.ReadBytes(info.ID, "a.png")
+	if err != nil || string(read.Data) != "old" || read.Size != 3 {
+		t.Fatalf("read: %+v, %v", read, err)
+	}
+	text, _ := vaults.ReadFile(info.ID, "a.png")
+	if read.Hash != text.Hash {
+		t.Fatalf("hash %s, as text %s", read.Hash, text.Hash)
+	}
+	png := []byte{137, 80, 78, 71, 0, 255}
+	written, err := vaults.WriteBytes(info.ID, "a.png", png, read.Hash)
+	if err != nil || written.Size != int64(len(png)) || written.Hash == read.Hash {
+		t.Fatalf("write: %+v, %v", written, err)
+	}
+	again, _ := vaults.ReadBytes(info.ID, "a.png")
+	if string(again.Data) != string(png) || again.Hash != written.Hash {
+		t.Fatalf("read back %+v", again)
+	}
+	// As with text: a stale base changes nothing, and a new file needs none.
+	if _, err := vaults.WriteBytes(info.ID, "a.png", []byte("x"), read.Hash); !errors.Is(err, ErrChanged) {
+		t.Fatalf("stale write: %v", err)
+	}
+	if _, err := vaults.WriteBytes(info.ID, "a.png", []byte("x"), ""); !errors.Is(err, ErrExists) {
+		t.Fatalf("write over a file: %v", err)
+	}
+	if _, err := vaults.WriteBytes(info.ID, "new/b.png", []byte("b"), ""); err != nil {
+		t.Fatalf("write a new file: %v", err)
+	}
+	if _, err := vaults.ReadBytes(info.ID, "gone.png"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("read a missing file: %v", err)
+	}
+	if _, err := vaults.ReadBytes(info.ID, "../a.png"); err == nil {
+		t.Error("read out of the vault")
+	}
+	if _, err := vaults.WriteBytes(info.ID, "big.png", make([]byte, maxAttachment+1), ""); err == nil {
+		t.Error("wrote a file over the limit")
 	}
 }
 

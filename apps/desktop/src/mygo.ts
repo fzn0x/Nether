@@ -24,6 +24,21 @@ export interface ExportEntry {
   source?: string;
 }
 
+/**
+ * FileBytes is a file's bytes, which the page gets as base64, and the
+ * SHA-256 hash of them. Sync sends and fetches attachments so.
+ */
+export interface FileBytes {
+  /** Path is relative to the vault and separated by slashes. */
+  path: string;
+  /** Size is in bytes. */
+  size: number;
+  /** Modified is the modification time in milliseconds since 1970. */
+  modified: number;
+  data: string;
+  hash: string;
+}
+
 /** FileEvent is a change to a vault's files. */
 export interface FileEvent {
   op: FileOp;
@@ -32,6 +47,17 @@ export interface FileEvent {
   /** OldPath is where a rename moved the file from. */
   oldPath?: string;
   isDir: boolean;
+}
+
+/** FileHash is a file's size and time, and the SHA-256 hash of its bytes. */
+export interface FileHash {
+  /** Path is relative to the vault and separated by slashes. */
+  path: string;
+  /** Size is in bytes. */
+  size: number;
+  /** Modified is the modification time in milliseconds since 1970. */
+  modified: number;
+  hash: string;
 }
 
 /** FileInfo describes a file in a vault. */
@@ -247,6 +273,10 @@ export const Vaults = {
   read(id: string, paths: string[], out: Channel<FileText>): Promise<void> {
     return call("Vaults.Read", id, paths, out);
   },
+  /** ReadBytes returns a file's bytes, as sync sends them to the server. */
+  readBytes(id: string, rel: string): Promise<FileBytes> {
+    return call("Vaults.ReadBytes", id, rel);
+  },
   /** ReadFile returns the text of one file. */
   readFile(id: string, rel: string): Promise<FileText> {
     return call("Vaults.ReadFile", id, rel);
@@ -303,6 +333,13 @@ export const Vaults = {
    */
   write(id: string, rel: string, text: string, base: string): Promise<FileText> {
     return call("Vaults.Write", id, rel, text, base);
+  },
+  /**
+   * WriteBytes replaces a file's bytes as Write replaces its text, at the
+   * path given: sync writes there what it fetched.
+   */
+  writeBytes(id: string, rel: string, data: string, base: string): Promise<FileHash> {
+    return call("Vaults.WriteBytes", id, rel, data, base);
   },
 } as const;
 

@@ -56,6 +56,20 @@ type FileText struct {
 	Binary bool `json:"binary,omitempty"`
 }
 
+// FileBytes is a file's bytes, which the page gets as base64, and the
+// SHA-256 hash of them. Sync sends and fetches attachments so.
+type FileBytes struct {
+	FileInfo
+	Data []byte `json:"data"`
+	Hash string `json:"hash"`
+}
+
+// FileHash is a file's size and time, and the SHA-256 hash of its bytes.
+type FileHash struct {
+	FileInfo
+	Hash string `json:"hash"`
+}
+
 // FileOp is what happened to a file, as a watch reports it.
 type FileOp string
 
@@ -439,31 +453,83 @@ func (v *Vaults) Write(id string, rel string, text string, base string) (FileTex
 	if err != nil {
 		return FileText{}, err
 	}
+	if err := replace(root, rel, []byte(text), base); err != nil {
+		return FileText{}, err
+	}
+	return readText(root, rel)
+}
+
+// ReadBytes returns a file's bytes, as sync sends them to the server.
+func (v *Vaults) ReadBytes(id string, rel string) (FileBytes, error) {
+	root, err := v.root(id)
+	if err != nil {
+		return FileBytes{}, err
+	}
 	full, err := resolve(root, rel)
 	if err != nil {
-		return FileText{}, err
+		return FileBytes{}, err
+	}
+	info, err := statInfo(root, rel)
+	if err != nil {
+		return FileBytes{}, err
+	}
+	if info.Size > maxAttachment {
+		return FileBytes{}, fmt.Errorf("%s is larger than %d MB", rel, maxAttachment>>20)
+	}
+	data, err := os.ReadFile(full)
+	if err != nil {
+		return FileBytes{}, err
+	}
+	sum := sha256.Sum256(data)
+	return FileBytes{FileInfo: info, Data: data, Hash: hex.EncodeToString(sum[:])}, nil
+}
+
+// WriteBytes replaces a file's bytes as Write replaces its text, at the
+// path given: sync writes there what it fetched.
+func (v *Vaults) WriteBytes(id string, rel string, data []byte, base string) (FileHash, error) {
+	root, err := v.root(id)
+	if err != nil {
+		return FileHash{}, err
+	}
+	if len(data) > maxAttachment {
+		return FileHash{}, fmt.Errorf("%s is larger than %d MB", rel, maxAttachment>>20)
+	}
+	if err := replace(root, rel, data, base); err != nil {
+		return FileHash{}, err
+	}
+	info, err := statInfo(root, rel)
+	if err != nil {
+		return FileHash{}, err
+	}
+	sum := sha256.Sum256(data)
+	return FileHash{FileInfo: info, Hash: hex.EncodeToString(sum[:])}, nil
+}
+
+// replace writes a file in one step if it is still what base says: the
+// hash of its bytes last read, or "" for a file that must not exist yet.
+func replace(root string, rel string, data []byte, base string) error {
+	full, err := resolve(root, rel)
+	if err != nil {
+		return err
 	}
 	current, err := readText(root, rel)
 	if err != nil {
-		return FileText{}, err
+		return err
 	}
 	if base == "" && !current.Missing {
-		return FileText{}, fmt.Errorf("%s: %w", rel, ErrExists)
+		return fmt.Errorf("%s: %w", rel, ErrExists)
 	}
 	if base != "" && (current.Missing || current.Hash != base) {
-		return FileText{}, fmt.Errorf("%s: %w", rel, ErrChanged)
+		return fmt.Errorf("%s: %w", rel, ErrChanged)
 	}
 	mode := fs.FileMode(0o644)
 	if stat, err := os.Stat(full); err == nil {
 		mode = stat.Mode().Perm()
 	}
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-		return FileText{}, err
+		return err
 	}
-	if err := writeAtomically(full, []byte(text), mode); err != nil {
-		return FileText{}, err
-	}
-	return readText(root, rel)
+	return writeAtomically(full, data, mode)
 }
 
 // Rename moves a file within the vault, making the folders it needs.
