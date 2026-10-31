@@ -447,11 +447,18 @@ export const Servers = {
     return call("Servers.Close", id);
   },
   /**
-   * Forget signs out of a server on this device: its token leaves the
-   * keychain and the server leaves the list.
+   * Forget signs out of a server on this device: its token and private key
+   * leave the keychain and the server leaves the list.
    */
   forget(address: string): Promise<void> {
     return call("Servers.Forget", address);
+  },
+  /**
+   * Key returns the account's private key for a server, as base64; empty
+   * when this device has none.
+   */
+  key(address: string): Promise<string> {
+    return call("Servers.Key", address);
   },
   /** List returns the servers the user is signed in to, the latest first. */
   list(): Promise<ServerAccount[]> {
@@ -467,6 +474,13 @@ export const Servers = {
   /** Save records a server signed in to, and keeps its token in the keychain. */
   save(account: ServerAccount, token: string): Promise<void> {
     return call("Servers.Save", account, token);
+  },
+  /**
+   * SaveKey keeps the account's private key for a server's encrypted
+   * workspaces in the keychain, as base64.
+   */
+  saveKey(address: string, key: string): Promise<void> {
+    return call("Servers.SaveKey", address, key);
   },
   /** Token returns a server's session token; empty when the keychain has none. */
   token(address: string): Promise<string> {
