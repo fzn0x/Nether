@@ -437,3 +437,84 @@ test("a rollup works out a value from the related rows, and writes it nowhere", 
   await expect(database.getByRole("table").getByRole("rowheader")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test("a formula works out each row's value from its others, and writes it nowhere", async ({
+  page,
+}) => {
+  const errors = errorsOf(page);
+  await openSample(page);
+  await page.keyboard.press("Control+p");
+  await page.keyboard.type("new database");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#note-title")).toHaveText("Untitled database");
+  const database = page.getByRole("region", { name: "Database" });
+  await database.getByRole("button", { name: "Properties" }).click();
+  const name = database.getByRole("textbox", { name: "Property name" });
+  const type = database.getByRole("combobox", { name: "Type of the new property" });
+  const add = database.getByRole("button", { name: "Add a property" });
+  for (const property of ["Price", "Count"]) {
+    await name.fill(property);
+    await type.selectOption("number");
+    await add.click();
+  }
+  await database.getByRole("button", { name: "New row" }).click();
+  await database.getByRole("button", { name: "New row" }).click();
+  for (const [row, price, count] of [
+    ["Untitled", "3", "4"],
+    ["Untitled 2", "2", "5"],
+  ] as const) {
+    for (const [property, value] of [
+      ["Price", price],
+      ["Count", count],
+    ] as const) {
+      await database.getByLabel(`${property} of ${row}`, { exact: true }).fill(value);
+      await database.getByLabel(`${property} of ${row}`, { exact: true }).press("Enter");
+    }
+  }
+
+  // A formula that cannot be read says why, and cannot be added.
+  await name.fill("Total");
+  await type.selectOption("formula");
+  const formula = database.getByRole("textbox", { name: "Formula", exact: true });
+  await formula.fill("Price *");
+  await expect(database.getByText("The formula ends too soon")).toBeVisible();
+  await expect(add).toBeDisabled();
+  await formula.fill("Price * Count");
+  await add.click();
+  const total = database.getByRole("table").locator(".database-rollup");
+  await expect(total).toHaveText(["12", "10"]);
+  await expect
+    .poll(() => fileText(page, "Untitled database/Untitled.md"))
+    .toBe("---\nPrice: 3\nCount: 4\n---\n");
+  // Sorted by what it works out.
+  await database.getByRole("table").getByRole("button", { name: "Total" }).click();
+  await expect(database.getByRole("table").getByRole("rowheader")).toHaveText([
+    "Untitled 2",
+    "Untitled",
+  ]);
+
+  // Changed, and worked out again.
+  const edit = database.getByRole("textbox", { name: "Formula of Total" });
+  await edit.fill("Price + Count");
+  await edit.press("Enter");
+  await expect(total).toHaveText(["7", "7"]);
+  await expect
+    .poll(() => fileText(page, "Untitled database.md"))
+    .toContain("      type: formula\n      formula: Price + Count\n");
+
+  // What cannot be worked out shows in its cells.
+  await name.fill("Bad");
+  await type.selectOption("formula");
+  await formula.fill("Price / 0");
+  await add.click();
+  await expect(database.getByRole("table").locator(".database-error")).toHaveText([
+    "Error: The formula divides by zero",
+    "Error: The formula divides by zero",
+  ]);
+
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((violation) => violation.id)).toEqual([]);
+  expect(errors).toEqual([]);
+});

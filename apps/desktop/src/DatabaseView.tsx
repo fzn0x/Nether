@@ -26,7 +26,9 @@ import {
   linkName,
   rowTitle,
   runView,
+  parseFormula,
   viewIdOf,
+  withFormulas,
   withRollups,
   writeDatabase,
 } from "@nether/database";
@@ -87,6 +89,19 @@ function operatorsFor(type: PropertyType | "$title" | "$created" | "$updated"): 
       return ["contains", "notContains", "isEmpty", "isNotEmpty"];
     case "checkbox":
       return ["equals"];
+    case "formula":
+      return [
+        "equals",
+        "notEquals",
+        "contains",
+        "notContains",
+        "greaterThan",
+        "greaterOrEqual",
+        "lessThan",
+        "lessOrEqual",
+        "isEmpty",
+        "isNotEmpty",
+      ];
     default:
       return [
         "contains",
@@ -99,6 +114,45 @@ function operatorsFor(type: PropertyType | "$title" | "$created" | "$updated"): 
         "isNotEmpty",
       ];
   }
+}
+
+/** A formula's expression, changed when the field is left or Enter is pressed, and kept while it cannot be read. */
+function FormulaField(props: {
+  readonly name: string;
+  readonly formula: string;
+  readonly onChange: (formula: string) => void;
+}) {
+  const { name, formula, onChange } = props;
+  const [draft, setDraft] = useState(formula);
+  useEffect(() => {
+    setDraft(formula);
+  }, [formula]);
+  const problem = formulaProblem(draft);
+  const commit = () => {
+    if (problem === undefined && draft.trim() !== formula) onChange(draft.trim());
+  };
+  return (
+    <>
+      <input
+        className="database-formula"
+        aria-label={t("formulaOf", { name })}
+        aria-invalid={problem !== undefined}
+        spellCheck={false}
+        value={draft}
+        onChange={(event) => {
+          setDraft(event.target.value);
+        }}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commit();
+          } else if (event.key === "Escape") setDraft(formula);
+        }}
+      />
+      {problem === undefined ? null : <span className="database-error">{problem}</span>}
+    </>
+  );
 }
 
 const unary: readonly FilterOperator[] = ["isEmpty", "isNotEmpty"];
@@ -250,12 +304,8 @@ function FilterBar(props: {
   const flat = flatFilter(view.filter);
   if (flat === undefined) return <p className="placeholder">{t("filterTooDeep")}</p>;
   const { join, conditions } = flat;
-  const keys = [
-    "$title",
-    ...schema.properties.map((property) => property.key),
-    "$created",
-    "$updated",
-  ];
+  // The vault knows when a row was last edited, not when it was made.
+  const keys = ["$title", ...schema.properties.map((property) => property.key), "$updated"];
   const typeOf = (key: string): PropertyType | "$title" | "$created" | "$updated" =>
     rollupKind(schema, key) ?? typeOfKey(key);
   const typeOfKey = (key: string) =>
@@ -353,7 +403,11 @@ function FilterBar(props: {
                   const text = event.target.value;
                   replace({
                     ...condition,
-                    value: type === "number" && text !== "" ? Number(text) : text,
+                    value:
+                      (type === "number" && text !== "") ||
+                      (type === "formula" && /^-?\d+(?:\.\d+)?$/.test(text))
+                        ? Number(text)
+                        : text,
                   });
                 }}
               />
@@ -384,13 +438,24 @@ function FilterBar(props: {
   );
 }
 
-/** The form that adds a property to the database and shows it in the view. */
 /** A relation as the form makes it: the database it points to, and the property there that points back. */
 interface NewRelation {
   readonly database: NoteId;
   readonly backlink?: string;
 }
 
+/** Why a formula cannot be read, or undefined when it can. */
+function formulaProblem(text: string): string | undefined {
+  if (text.trim() === "") return t("formulaEmpty");
+  try {
+    parseFormula(text);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+/** The form that adds a property to the database and shows it in the view. */
 function AddProperty(props: {
   readonly taken: readonly string[];
   /** The vault's databases a relation can point to, and this one's name. */
@@ -401,7 +466,7 @@ function AddProperty(props: {
   readonly onAdd: (
     key: string,
     type: PropertyType,
-    more?: { readonly relation?: NewRelation; readonly rollup?: Rollup },
+    more?: { readonly relation?: NewRelation; readonly rollup?: Rollup; readonly formula?: string },
   ) => void;
 }) {
   const { taken, databases, self, relations, onAdd } = props;
@@ -411,6 +476,8 @@ function AddProperty(props: {
   const [twoWay, setTwoWay] = useState(true);
   const [back, setBack] = useState(self);
   const [chosenThrough, setThrough] = useState<string | undefined>();
+  const [expression, setExpression] = useState("");
+  const problem = type === "formula" ? formulaProblem(expression) : undefined;
   // The first there is until one is chosen: the lists change as the vault and schema do.
   const target = databases.some((database) => database.id === chosenTarget)
     ? chosenTarget
@@ -429,7 +496,8 @@ function AddProperty(props: {
     !taken.includes(name) &&
     (type !== "relation" ||
       (target !== undefined && (!twoWay || (backName !== "" && backName !== name)))) &&
-    (type !== "rollup" || through !== undefined);
+    (type !== "rollup" || through !== undefined) &&
+    problem === undefined;
   const sources = relations.find((relation) => relation.key === through)?.properties ?? [];
   return (
     <form
@@ -441,6 +509,9 @@ function AddProperty(props: {
           onAdd(name, type, {
             relation: twoWay ? { database: target, backlink: backName } : { database: target },
           });
+        } else if (type === "formula") {
+          onAdd(name, type, { formula: expression.trim() });
+          setExpression("");
         } else if (type === "rollup" && through !== undefined) {
           onAdd(name, type, {
             rollup: { relation: through, property: source, function: calculate },
@@ -466,7 +537,11 @@ function AddProperty(props: {
           setType(event.target.value as PropertyType);
         }}
       >
-        {[...editableTypes, ...(relations.length > 0 ? (["rollup"] as const) : [])]
+        {[
+          ...editableTypes,
+          ...(relations.length > 0 ? (["rollup"] as const) : []),
+          "formula" as const,
+        ]
           .filter((option) => option !== "relation" || databases.length > 0)
           .map((option) => (
             <option key={option} value={option}>
@@ -474,6 +549,29 @@ function AddProperty(props: {
             </option>
           ))}
       </select>
+      {type === "formula" ? (
+        <>
+          <input
+            className="database-formula"
+            aria-label={t("formulaExpression")}
+            aria-invalid={problem !== undefined && expression !== ""}
+            aria-describedby={
+              problem !== undefined && expression !== "" ? "formula-problem" : undefined
+            }
+            placeholder="price * 2"
+            spellCheck={false}
+            value={expression}
+            onChange={(event) => {
+              setExpression(event.target.value);
+            }}
+          />
+          {problem !== undefined && expression !== "" ? (
+            <span id="formula-problem" className="database-error">
+              {problem}
+            </span>
+          ) : null}
+        </>
+      ) : null}
       {type === "rollup" ? (
         <>
           <select
@@ -779,7 +877,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
       const date =
         current.date ??
         schema.properties.find((property) => property.type === "date")?.key ??
-        "$created";
+        "$updated";
       next = {
         ...next,
         date,
@@ -868,7 +966,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
           properties: note.index.properties,
         };
   };
-  const shown = withRollups(rows, schema, findRow);
+  const shown = withFormulas(withRollups(rows, schema, findRow), schema);
   const result = view === undefined ? undefined : runView(shown, view, schema);
   const visible = (view?.visible ?? [])
     .map((key) => schema.properties.find((property) => property.key === key))
@@ -891,10 +989,16 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
           </th>
           {visible.map((property) => (
             <td key={property.key}>
-              {property.type === "rollup" ? (
-                <span className="database-rollup">
-                  {rollupText(row.properties.find((entry) => entry.key === property.key)?.value)}
-                </span>
+              {property.type === "rollup" || property.type === "formula" ? (
+                row.errors?.has(property.key) === true ? (
+                  <span className="database-error" title={row.errors.get(property.key)}>
+                    {t("formulaError", { error: row.errors.get(property.key) ?? "" })}
+                  </span>
+                ) : (
+                  <span className="database-rollup">
+                    {rollupText(row.properties.find((entry) => entry.key === property.key)?.value)}
+                  </span>
+                )
               ) : (
                 <Cell
                   label={t("cellLabel", { name: property.key, row: title })}
@@ -1002,7 +1106,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
               <label>
                 {t("dateProperty")}
                 <select
-                  value={view.date ?? "$created"}
+                  value={view.date ?? "$updated"}
                   onChange={(event) => {
                     saveView({ ...view, date: event.target.value });
                   }}
@@ -1011,13 +1115,10 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                     ...schema.properties
                       .filter((property) => property.type === "date")
                       .map((property) => property.key),
-                    "$created",
                     "$updated",
                   ].map((key) => (
                     <option key={key} value={key}>
-                      {key.startsWith("$")
-                        ? t(key === "$created" ? "builtIn_created" : "builtIn_updated")
-                        : key}
+                      {key === "$updated" ? t("builtIn_updated") : key}
                     </option>
                   ))}
                 </select>
@@ -1119,21 +1220,38 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
           {panel === "properties" ? (
             <div className="database-properties" role="group" aria-label={t("properties")}>
               {schema.properties.map((property) => (
-                <label key={property.key}>
-                  <input
-                    type="checkbox"
-                    checked={view.visible.includes(property.key)}
-                    onChange={(event) => {
-                      saveView({
-                        ...view,
-                        visible: event.target.checked
-                          ? [...view.visible, property.key]
-                          : view.visible.filter((key) => key !== property.key),
-                      });
-                    }}
-                  />
-                  {property.key}
-                </label>
+                <span key={property.key} className="database-property">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={view.visible.includes(property.key)}
+                      onChange={(event) => {
+                        saveView({
+                          ...view,
+                          visible: event.target.checked
+                            ? [...view.visible, property.key]
+                            : view.visible.filter((key) => key !== property.key),
+                        });
+                      }}
+                    />
+                    {property.key}
+                  </label>
+                  {/* Beside its label, not in it, so the checkbox's name is the property's alone. */}
+                  {property.formula === undefined ? null : (
+                    <FormulaField
+                      name={property.key}
+                      formula={property.formula}
+                      onChange={(formula) => {
+                        saveSchema({
+                          ...schema,
+                          properties: schema.properties.map((item) =>
+                            item.key === property.key ? { ...item, formula } : item,
+                          ),
+                        });
+                      }}
+                    />
+                  )}
+                </span>
               ))}
               <AddProperty
                 taken={schema.properties.map((property) => property.key)}
@@ -1158,6 +1276,18 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                 onAdd={(key, type, more) => {
                   if (more?.relation !== undefined) {
                     addRelation(key, more.relation, view);
+                    return;
+                  }
+                  if (more?.formula !== undefined) {
+                    saveSchema({
+                      properties: [
+                        ...schema.properties,
+                        { key, type: "formula", formula: more.formula },
+                      ],
+                      views: schema.views.map((item) =>
+                        item.id === view.id ? { ...item, visible: [...item.visible, key] } : item,
+                      ),
+                    });
                     return;
                   }
                   if (more?.rollup !== undefined) {
@@ -1216,7 +1346,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
               rows={result.rows}
               visible={visible}
               onOpen={onOpenNote}
-              dateKey={view.date ?? "$created"}
+              dateKey={view.date ?? "$updated"}
               {...(view.date === undefined || view.date.startsWith("$")
                 ? {}
                 : { onCreate: createOn })}
@@ -1227,7 +1357,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
               rows={result.rows}
               visible={visible}
               onOpen={onOpenNote}
-              dateKey={view.date ?? "$created"}
+              dateKey={view.date ?? "$updated"}
               {...(view.end === undefined ? {} : { endKey: view.end })}
             />
           ) : view.layout === "list" ? (

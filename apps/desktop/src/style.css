@@ -2222,3 +2222,23 @@ kbd {
 .database-period button {
   min-block-size: 1.5rem;
 }
+
+/* A formula's expression, in the type it is written in, and what is
+   wrong with it beside it. */
+.database-property {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.database input.database-formula {
+  min-inline-size: 12rem;
+  font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.database-error {
+  color: var(--accent);
+  font-size: 0.8125rem;
+}
