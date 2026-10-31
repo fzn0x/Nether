@@ -16,13 +16,16 @@ shared projects, synced through **a server you control**, or through none.
 
 > [!NOTE]
 > Nether is in early development, and nothing is ready to install yet.
-> [Phase 0](docs/reports/phase-0.md) and [Phase 1](docs/reports/phase-1.md)
-> of six are done: the desktop app keeps a vault of Markdown notes with the
-> block editor, links, backlinks, tags, search, properties, templates, the
-> trash and export, within the performance targets on 50,000 notes.
-> Phase 2, databases and structure, is under way, and the
-> [roadmap](docs/roadmap.md#phase-2-databases-and-structure) ticks it off as
-> it lands. Watch the repository to follow along.
+> [Phase 0](docs/reports/phase-0.md), [Phase 1](docs/reports/phase-1.md)
+> and [Phase 2](docs/reports/phase-2.md) of six are done: the desktop app
+> keeps a vault of Markdown notes with the block editor, links, backlinks,
+> tags, search, templates and export, and databases with six views,
+> relations, rollups, formulas, query blocks, synced blocks, the graph,
+> themes and importers from Obsidian, Notion, Logseq, HTML and CSV, within
+> the performance targets on 50,000 notes. Phase 3, sync and
+> collaboration, the first public release, is under way, and the
+> [roadmap](docs/roadmap.md#phase-3-self-hosted-sync-and-collaboration)
+> ticks it off as it lands. Watch the repository to follow along.
 
 [Documentation](https://fzn0x.github.io/Nether/) ·
 [Roadmap](docs/roadmap.md) · [Requirements](docs/requirements.md) ·

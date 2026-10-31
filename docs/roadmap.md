@@ -80,6 +80,9 @@ The Obsidian core, one feature per pull request, in this order:
 
 ## Phase 2: Databases and structure
 
+Done on 2026-10-31; the [report](reports/phase-2.md) says what shipped,
+what was deferred and the plan for Phase 3.
+
 The Notion core, one feature per pull request, in this order:
 
 - [x] Opening a vault at a note its command line names, which the desktop app's measurements start at (carried over from Phase 1)
@@ -100,3 +103,24 @@ The Notion core, one feature per pull request, in this order:
 - [x] Importers: Notion exports ([ADR 0028](adr/0028-a-notion-export-becomes-pages-and-databases-without-ids.md))
 - [x] Importers: Logseq graphs ([ADR 0029](adr/0029-a-logseq-graph-keeps-its-folders-and-is-written-as-obsidian-writes.md))
 - [x] Importers: HTML ([ADR 0030](adr/0030-web-pages-import-through-the-syntax-tree-tools.md))
+
+## Phase 3: Self-hosted sync and collaboration
+
+The first public release, one feature per pull request, in this order:
+
+- [ ] Headroom in the desktop app's memory: find what Phase 2 added to it at idle, before sync adds its own.
+- [ ] The server's data model in PostgreSQL, with migrations that run on start, and the first-run setup that makes the admin account.
+- [ ] Accounts: email and password with argon2id, magic links and OIDC, with rate limits.
+- [ ] Sync: the Hocuspocus server, Yjs updates kept in PostgreSQL, and the desktop app's provider with its offline queue, so a vault syncs between devices with no conflict dialogs for text.
+- [ ] End-to-end encryption, per vault, with libsodium and a recovery phrase.
+- [ ] Attachments on disk or in S3-compatible storage, deduplicated by hash.
+- [ ] Version history with a diff, and its retention.
+- [ ] Workspaces, teamspaces and private spaces; roles and page permissions inherited down the page tree; guests.
+- [ ] Real-time co-editing with live cursors.
+- [ ] Comments and threads; mentions and notifications, by email through the admin's SMTP.
+- [ ] The web app, served by the server, installable as a PWA, with its content security policy.
+- [ ] Workspace search on the server, by permission.
+- [ ] The canvas, in the JSON Canvas format.
+- [ ] Task assignment: the person property, and "assigned to me".
+- [ ] Backups to disk or S3, with the restore tested in CI; migrations safe across versions.
+- [ ] `docker compose up` with PostgreSQL, Redis and storage.
