@@ -67,6 +67,16 @@
   color-scheme: light;
 }
 
+/* JSON Canvas's preset colors (ADR 0051): red, orange, yellow, green, cyan and purple. */
+:root {
+  --canvas-color-1: #e5484d;
+  --canvas-color-2: #f76b15;
+  --canvas-color-3: #d6a01d;
+  --canvas-color-4: #30a46c;
+  --canvas-color-5: #12a594;
+  --canvas-color-6: #8e4ec6;
+}
+
 /*
  * Made from a theme's own colors, after it: the sidebar a shade off the
  * page, lighter in the dark, and what a control under the pointer shows.
@@ -3426,4 +3436,183 @@ kbd {
 .delete-folder-dialog,
 .move-note-dialog {
   align-self: flex-start;
+}
+
+/* A canvas in its pane (ADR 0051): the board fills it, and moves and scales within. */
+.pane-body.canvas-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+.canvas-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.canvas-toolbar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 1rem;
+  border-block-end: 1px solid var(--rule);
+}
+
+.canvas-title {
+  margin: 0;
+  overflow: hidden;
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-zoom {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+  align-items: center;
+  font-size: 0.8125rem;
+}
+
+.canvas-zoom-level {
+  min-width: 3rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.canvas-pane {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--text) 16%, transparent) 1px,
+    transparent 1.5px
+  );
+  background-size: 20px 20px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.canvas-pane:active {
+  cursor: grabbing;
+}
+
+.canvas-world {
+  position: absolute;
+  inset-block-start: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+
+.canvas-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+}
+
+.canvas-edge-label {
+  fill: var(--text);
+  font-size: 14px;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 6px;
+}
+
+.canvas-nodes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.canvas-node {
+  position: absolute;
+  padding: 0.6rem 0.8rem;
+  overflow: hidden;
+  border: 2px solid var(--node-color, var(--rule));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--node-color, var(--bg)) 7%, var(--bg));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  cursor: default;
+}
+
+.canvas-node.canvas-group {
+  padding: 0;
+  overflow: visible;
+  background: color-mix(in srgb, var(--node-color, var(--muted)) 6%, transparent);
+  box-shadow: none;
+}
+
+.canvas-group-label {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-block-end: 0.3rem;
+  color: var(--node-color, var(--muted));
+  font-size: 1.1rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.canvas-text {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.canvas-link {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.canvas-note {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.canvas-subpath {
+  margin-inline-start: 0.35rem;
+  color: var(--muted);
+  font-weight: normal;
+}
+
+.canvas-file:has(.canvas-image) {
+  padding: 0;
+}
+
+.canvas-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.canvas-missing {
+  margin: 0;
+  color: var(--muted);
+}
+
+.canvas-empty {
+  position: absolute;
+  top: -1rem;
+  left: -8rem;
+  width: 16rem;
+  text-align: center;
+}
+
+/* A canvas in the sidebar's tree, told from a note. */
+.tree-canvas::after {
+  margin-inline-start: 0.4rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  content: "canvas";
 }

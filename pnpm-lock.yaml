@@ -56,6 +56,9 @@ importers:
       '@mygo-plugins/websocket':
         specifier: 0.6.2
         version: 0.6.2(mygo-runtime@0.6.2)
+      '@nether/canvas':
+        specifier: workspace:*
+        version: link:../../packages/canvas
       '@nether/core':
         specifier: workspace:*
         version: link:../../packages/core

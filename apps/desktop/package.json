@@ -23,6 +23,7 @@
     "@mygo-plugins/fetch": "0.6.2",
     "@mygo-plugins/sqlite": "0.6.2",
     "@mygo-plugins/websocket": "0.6.2",
+    "@nether/canvas": "workspace:*",
     "@nether/core": "workspace:*",
     "@nether/database": "workspace:*",
     "@nether/editor": "workspace:*",
