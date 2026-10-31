@@ -84,6 +84,21 @@ export function convertValue(value: JsonValue, type: PropertyType): JsonValue {
   }
 }
 
+/** The entries with `key` moved to just before or after `target`, the others in their order. */
+export function moveProperty<T extends { readonly key: string }>(
+  entries: readonly T[],
+  key: string,
+  target: string,
+  place: "before" | "after",
+): T[] {
+  const moving = entries.find((entry) => entry.key === key);
+  const rest = entries.filter((entry) => entry.key !== key);
+  const at = rest.findIndex((entry) => entry.key === target);
+  if (moving === undefined || at === -1) return [...entries];
+  const index = place === "before" ? at : at + 1;
+  return [...rest.slice(0, index), moving, ...rest.slice(index)];
+}
+
 /** A new property's key: `property`, then `property 2` and so on, clear of those the note has. */
 export function newPropertyKey(taken: readonly string[]): string {
   const keys = new Set(taken.map((key) => key.toLowerCase()));

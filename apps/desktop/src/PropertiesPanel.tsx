@@ -1,11 +1,12 @@
 // A note's properties above it, its frontmatter: each key with a type, the
 // vault's choice or what its value looks like, and an editor for that
-// type. Changes go to the note's document, and from there to its file.
+// type. Changes go to the note's document, and from there to its file, in
+// the order shown, which dragging a property or its arrow keys change.
 import { type JsonValue, type PropertyEntry, type PropertyType, propertyTypes } from "@nether/core";
 import { databaseKey } from "@nether/database";
 import { documentProperties, setDocumentProperties } from "@nether/editor";
 import type { Vault } from "@nether/storage";
-import { type KeyboardEvent, useEffect, useId, useState } from "react";
+import { type DragEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { t } from "./messages.ts";
 import {
@@ -13,9 +14,18 @@ import {
   convertValue,
   editableTypes,
   isListType,
+  moveProperty,
   newPropertyKey,
   typeOf,
 } from "./properties.ts";
+
+/** What a dragged property carries, so other drags pass the panel by. */
+const dragType = "application/x-nether-property";
+
+interface DropAt {
+  readonly key: string;
+  readonly place: "before" | "after";
+}
 
 /** The vault's chosen types, from `.nether/properties.json`, kept only where they are types. */
 function readTypes(data: unknown): PropertyTypes {
@@ -184,6 +194,12 @@ export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vaul
   );
   const [types, setTypes] = useState<PropertyTypes>({});
   const [added, setAdded] = useState<string | undefined>();
+  const [dropAt, setDropAt] = useState<DropAt | undefined>();
+  // The property the arrow keys just moved, whose handle keeps the focus.
+  const [moved, setMoved] = useState<string | undefined>();
+  const [announcement, setAnnouncement] = useState("");
+  const section = useRef<HTMLElement>(null);
+  const hint = useId();
 
   useEffect(() => {
     const refresh = () => {
@@ -222,6 +238,51 @@ export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vaul
     );
   };
 
+  useEffect(() => {
+    if (moved === undefined) return;
+    const handle = [
+      ...(section.current?.querySelectorAll<HTMLElement>(".property-handle") ?? []),
+    ].find((element) => element.dataset.key === moved);
+    handle?.focus();
+    setMoved(undefined);
+  }, [moved, entries]);
+
+  // A database's schema shows as the database below the note, and is kept on every save.
+  const shown = entries.filter((entry) => entry.key !== databaseKey);
+
+  const move = (key: string, target: string, place: DropAt["place"]) => {
+    const next = moveProperty(entries, key, target, place);
+    const position = next
+      .filter((entry) => entry.key !== databaseKey)
+      .findIndex((entry) => entry.key === key);
+    save(next);
+    setAnnouncement(
+      t("propertyMoved", {
+        name: key,
+        position: String(position + 1),
+        count: String(shown.length),
+      }),
+    );
+  };
+
+  const dragOver = (event: DragEvent<HTMLElement>, key: string) => {
+    if (!event.dataTransfer.types.includes(dragType)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const box = event.currentTarget.getBoundingClientRect();
+    const place = event.clientY < box.top + box.height / 2 ? "before" : "after";
+    if (dropAt?.key !== key || dropAt.place !== place) setDropAt({ key, place });
+  };
+
+  const drop = (event: DragEvent<HTMLElement>, target: string) => {
+    const key = event.dataTransfer.getData(dragType);
+    const place = dropAt?.key === target ? dropAt.place : "before";
+    setDropAt(undefined);
+    if (key === "") return;
+    event.preventDefault();
+    if (key !== target) move(key, target, place);
+  };
+
   const add = () => {
     const key = newPropertyKey(keys);
     setAdded(key);
@@ -229,68 +290,117 @@ export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vaul
   };
 
   return (
-    <section className="properties" aria-label={t("properties")}>
-      {/* A database's schema shows as the database below the note, and is kept on every save. */}
-      {entries
-        .filter((entry) => entry.key !== databaseKey)
-        .map((entry) => {
-          const type = typeOf(entry.key, entry.value, types);
-          return (
-            <div key={entry.key} className="property" role="group" aria-label={entry.key}>
-              <KeyField
-                name={entry.key}
-                taken={keys}
-                autoFocus={added === entry.key}
-                onRename={(name) => {
-                  save(
-                    entries.map((item) =>
-                      item.key === entry.key ? { key: name, value: item.value } : item,
-                    ),
-                  );
-                }}
-              />
-              <select
-                className="property-type"
-                aria-label={t("propertyType", { name: entry.key })}
-                value={type}
-                onChange={(event) => {
-                  setType(entry.key, event.target.value as PropertyType);
-                }}
-              >
-                {editableTypes.map((option) => (
-                  <option key={option} value={option}>
-                    {t(`type_${option}`)}
-                  </option>
-                ))}
-              </select>
-              <ValueEditor
-                name={entry.key}
-                type={type}
-                value={entry.value}
-                onChange={(value) => {
-                  save(
-                    entries.map((item) =>
-                      item.key === entry.key ? { key: item.key, value } : item,
-                    ),
-                  );
-                }}
-              />
-              <button
-                type="button"
-                className="quiet property-remove"
-                aria-label={t("removeProperty", { name: entry.key })}
-                onClick={() => {
-                  save(entries.filter((item) => item.key !== entry.key));
-                }}
-              >
-                ×
-              </button>
-            </div>
-          );
-        })}
+    <section
+      ref={section}
+      className="properties"
+      aria-label={t("properties")}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropAt(undefined);
+      }}
+    >
+      {shown.map((entry, index) => {
+        const type = typeOf(entry.key, entry.value, types);
+        return (
+          <div
+            key={entry.key}
+            className="property"
+            role="group"
+            aria-label={entry.key}
+            data-drop={dropAt?.key === entry.key ? dropAt.place : undefined}
+            onDragOver={(event) => {
+              dragOver(event, entry.key);
+            }}
+            onDrop={(event) => {
+              drop(event, entry.key);
+            }}
+          >
+            <button
+              type="button"
+              className="property-handle"
+              data-key={entry.key}
+              draggable
+              aria-label={t("moveProperty", { name: entry.key })}
+              aria-describedby={hint}
+              title={t("movePropertyHint")}
+              onDragStart={(event) => {
+                event.dataTransfer.setData(dragType, entry.key);
+                event.dataTransfer.effectAllowed = "move";
+                const row = event.currentTarget.parentElement;
+                if (row !== null) event.dataTransfer.setDragImage(row, 12, row.offsetHeight / 2);
+              }}
+              onDragEnd={() => {
+                setDropAt(undefined);
+              }}
+              onKeyDown={(event) => {
+                const up = event.key === "ArrowUp";
+                if (!up && event.key !== "ArrowDown") return;
+                event.preventDefault();
+                const neighbour = shown[up ? index - 1 : index + 1];
+                if (neighbour === undefined) return;
+                move(entry.key, neighbour.key, up ? "before" : "after");
+                setMoved(entry.key);
+              }}
+            >
+              <span aria-hidden="true">⠿</span>
+            </button>
+            <KeyField
+              name={entry.key}
+              taken={keys}
+              autoFocus={added === entry.key}
+              onRename={(name) => {
+                save(
+                  entries.map((item) =>
+                    item.key === entry.key ? { key: name, value: item.value } : item,
+                  ),
+                );
+              }}
+            />
+            <select
+              className="property-type"
+              aria-label={t("propertyType", { name: entry.key })}
+              value={type}
+              onChange={(event) => {
+                setType(entry.key, event.target.value as PropertyType);
+              }}
+            >
+              {editableTypes.map((option) => (
+                <option key={option} value={option}>
+                  {t(`type_${option}`)}
+                </option>
+              ))}
+            </select>
+            <ValueEditor
+              name={entry.key}
+              type={type}
+              value={entry.value}
+              onChange={(value) => {
+                save(
+                  entries.map((item) => (item.key === entry.key ? { key: item.key, value } : item)),
+                );
+              }}
+            />
+            <button
+              type="button"
+              className="quiet property-remove"
+              aria-label={t("removeProperty", { name: entry.key })}
+              onClick={() => {
+                save(entries.filter((item) => item.key !== entry.key));
+              }}
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
       <button type="button" className="quiet property-add" onClick={add}>
         {t("addProperty")}
       </button>
+      <span id={hint} hidden>
+        {t("movePropertyHint")}
+      </span>
+      <p className="visually-hidden" aria-live="polite">
+        {announcement}
+      </p>
     </section>
   );
 }

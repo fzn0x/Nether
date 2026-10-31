@@ -1622,10 +1622,50 @@ button {
 }
 
 .property {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(6rem, 10rem) 6.5rem minmax(0, 1fr) auto;
   gap: 0.5rem;
   align-items: center;
+}
+
+/* A property's handle, in the margin before it: dragged, or moved with the
+   arrow keys, it changes the property's place. */
+.property-handle {
+  position: absolute;
+  inset-inline-start: -1.5rem;
+  width: 1.25rem;
+  padding: 0.15rem 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  line-height: 1;
+  cursor: grab;
+  opacity: 0;
+}
+
+.property:hover .property-handle,
+.property-handle:focus-visible {
+  opacity: 1;
+}
+
+.property-handle:hover {
+  background: var(--rule);
+}
+
+.property-handle:active {
+  cursor: grabbing;
+}
+
+/* Where a dragged property will land. */
+.property[data-drop="before"] {
+  box-shadow: 0 -2px 0 var(--accent);
+}
+
+.property[data-drop="after"] {
+  box-shadow: 0 2px 0 var(--accent);
 }
 
 .property input:not([type="checkbox"]),
