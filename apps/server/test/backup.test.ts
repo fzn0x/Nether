@@ -38,10 +38,55 @@ async function folder(): Promise<string> {
   return path;
 }
 
+/** The queries a test's databases have begun and not finished, to name what a stuck step waits on. */
+const pending = new Set<string>();
+
+/** A database whose queries are recorded while they run. */
+function traced(db: Database): Database {
+  const track = async <T>(text: string, work: () => Promise<T>): Promise<T> => {
+    const entry = `${text.replace(/\s+/g, " ").slice(0, 160)} [${String(pending.size)}]`;
+    pending.add(entry);
+    try {
+      return await work();
+    } finally {
+      pending.delete(entry);
+    }
+  };
+  return {
+    query: (text, params) => track(text, () => db.query(text, params)),
+    transaction: (work) =>
+      track("(transaction)", () =>
+        db.transaction((tx) =>
+          work({ query: (text, params) => track(text, () => tx.query(text, params)) }),
+        ),
+      ),
+    close: () => db.close(),
+  };
+}
+
+/** Waits for a step, failing with its name and the queries still running if it takes too long. */
+async function step<T>(name: string, work: Promise<T>, seconds = 12): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        new Error(
+          `${name} took over ${String(seconds)} s; waiting on: ${[...pending].join(" | ") || "no query"}`,
+        ),
+      );
+    }, seconds * 1000);
+  });
+  try {
+    return await Promise.race([work, late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function database(): Promise<Database> {
   const db = await testDatabase();
   cleanups.push(() => db.close());
-  return db;
+  return traced(db);
 }
 
 function noteState(text: string): Uint8Array {
@@ -96,15 +141,23 @@ describe("backups", () => {
     );
 
     const file = join(await folder(), "nether-backup.ndjson.gz");
-    const written = await writeBackupFile(running.db, store, file);
+    const written = await step(
+      "Writing the backup",
+      writeBackupFile(traced(running.db), store, file),
+    );
     expect(written).toMatchObject({ blobs: 1, missing: 0 });
     expect(written.rows).toBeGreaterThan(5);
 
     const restoredDb = await database();
     const restoredStore = new DiskBlobs(await folder());
-    const restored = await restoreBackupLines(restoredDb, restoredStore, backupFileLines(file));
+    const restored = await step(
+      "Restoring the backup",
+      restoreBackupLines(restoredDb, restoredStore, backupFileLines(file)),
+    );
     expect(restored).toEqual({ rows: written.rows, blobs: 1, schema: schemaVersion });
-    expect(await contents(restoredDb)).toEqual(await contents(running.db));
+    expect(await step("Reading the restored rows", contents(restoredDb))).toEqual(
+      await step("Reading the rows", contents(running.db)),
+    );
     expect(await restoredStore.get(`${set.workspaceId}/${hash}`)).toEqual(bytes);
 
     // The sequences go on from where they were: a note stored next gets a newer number.
@@ -137,10 +190,13 @@ describe("backups", () => {
     );
     const file = join(await folder(), "old.ndjson.gz");
     const store = new DiskBlobs(await folder());
-    await writeBackupFile(old, store, file);
+    await step("Writing the old backup", writeBackupFile(old, store, file));
 
     const restoredDb = await database();
-    const restored = await restoreBackupLines(restoredDb, store, backupFileLines(file));
+    const restored = await step(
+      "Restoring the old backup",
+      restoreBackupLines(restoredDb, store, backupFileLines(file)),
+    );
     expect(restored.schema).toBe(8);
     const { rows } = await restoredDb.query(
       "SELECT max(version) AS version FROM schema_migrations",
