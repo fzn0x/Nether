@@ -81,6 +81,14 @@ token as `Authorization: Bearer <token>`. Every error is
 | `GET /api/workspaces/:id/members` | member | The members, with their `role`; guests are refused |
 | `PATCH /api/workspaces/:id/members/:user` | owner, admin | Sets a member's `role`: owners set any, admins move members and guests; a workspace keeps an owner |
 | `DELETE /api/workspaces/:id/members/:user` | owner, admin, self | Removes a member, or leaves; owners remove anyone, admins members and guests |
+| `GET /api/workspaces/:id/units` | member | The units the account opens: `general`, teamspaces and its private space, each with its `level` and vault `document` |
+| `POST /api/workspaces/:id/teamspaces` | member | Makes a teamspace named `name`, its maker at full access |
+| `PATCH /api/workspaces/:id/teamspaces/:unit` | full | Renames it |
+| `DELETE /api/workspaces/:id/teamspaces/:unit` | full | Deletes it, once no note is in it |
+| `PUT /api/workspaces/:id/units/:unit/grants/:user` | full | Gives a member a `level`: `full`, `edit`, `comment` or `view` |
+| `DELETE /api/workspaces/:id/units/:unit/grants/:user` | full | Takes it back; a teamspace keeps someone at full access |
+| `PUT /api/workspaces/:id/private` | member | The account's private space, made the first time |
+| `PUT /api/workspaces/:id/notes/:note/unit` | edit in both | Moves a note into `unit`, or `general` |
 | `POST /api/workspaces` | yes | Makes a workspace the account owns, with `name`; `encryption: "end-to-end"` and the maker's `sealedKey` make it encrypted |
 | `PUT /api/me/keys`, `GET /api/me/keys` | yes | The account's `publicKey`, and its private key in a `recoveryBox` only its recovery phrase opens; kept once |
 | `GET /api/workspaces/:id/key` | member | The account's own sealed copy of an encrypted workspace's key, at its latest `version` |
@@ -121,6 +129,18 @@ An invitation's link is the server's address, `/invite`, and the token
 after a `#`, as `https://nether.example.org/invite#…`: browsers never send
 what follows the `#`, so no log keeps the token. The desktop app makes these
 links and joins with them; the web app will open them.
+
+## Units
+
+A workspace's notes are divided into sync units
+([ADR 0042](../../docs/adr/0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md)): General, which every member but guests
+opens, teamspaces, which their members open, and each member's private
+space. Each has a vault document of its own, `<workspace>/vault` for
+General and `<workspace>/vault.<unit>` for the others, and a note's
+document opens at its unit's level, read-only below edit. Which unit a
+note is in is the server's record: one it does not name is in General.
+Guests open only the pages shared with them, which come next. An encrypted
+workspace has General alone, for now.
 
 ## Sync
 

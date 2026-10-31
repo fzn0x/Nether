@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Sync units on the server: teamspaces and private spaces, each with its
+  own vault document and people, at full access, edit, comment or view;
+  the record of the unit each note is in, changed only by those who edit
+  both units; and every document, list and version kept to the units an
+  account opens ([ADR 0042](docs/adr/0042-spaces-and-shared-pages-are-sync-units-each-with-its-own-vault-document.md)). Guests no longer open the
+  whole workspace: they will open the pages shared with them.
 - Workspace members: owners and admins list them, change their roles and
   remove them, and invite people with a link, which someone joins from the
   desktop app's Servers dialog, into their account there or a new one.
