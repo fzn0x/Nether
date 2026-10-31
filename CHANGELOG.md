@@ -8,6 +8,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Canvases are edited in the desktop app: text cards written in place,
+  notes added, cards moved, resized, colored and removed, arrows drawn
+  between them and labelled, undo and redo, all from the keyboard as well
+  as the pointer; each change is saved to the `.canvas` file a moment after.
 - Canvases in the desktop app: `.canvas` files show in the sidebar's trees
   and open in tabs beside notes, with their cards, groups, images, links and
   arrows, panned and zoomed, read in order by screen readers, and followed
