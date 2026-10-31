@@ -89,10 +89,33 @@ export interface LinkPreview {
   site?: string;
 }
 
+/**
+ * Loopback is where the browser comes back to after signing in with a
+ * provider: an address on 127.0.0.1 with a secret path.
+ */
+export interface Loopback {
+  id: string;
+  redirect: string;
+}
+
 /** PDFPage is the paper a PDF export is laid out on. */
 export interface PDFPage {
   size: string;
   landscape: boolean;
+}
+
+/** ServerAccount is a server the user has signed in to, without its token. */
+export interface ServerAccount {
+  url: string;
+  user: ServerUser;
+}
+
+/** ServerUser is the account the user signed in to a server as. */
+export interface ServerUser {
+  id: string;
+  name: string;
+  email: string;
+  instanceAdmin: boolean;
 }
 
 /**
@@ -406,5 +429,55 @@ export const Updates = {
   /** Settings returns whether the app updates itself, and checks on its own. */
   settings(): Promise<UpdateSettings> {
     return call("Updates.Settings");
+  },
+} as const;
+
+/**
+ * Servers keeps the Nether servers the user has signed in to (ADR 0036):
+ * each server's address and account in servers.json beside the list of
+ * vaults, and its session's token in the system's keychain (the Keychain
+ * on macOS, the Credential Manager on Windows, the Secret Service on
+ * Linux), never in a file. It also waits on a loopback address for the
+ * browser to come back from signing in with a provider, as RFC 8252 has a
+ * native app do.
+ */
+export const Servers = {
+  /** Close stops waiting, as when the user cancels. */
+  close(id: string): Promise<void> {
+    return call("Servers.Close", id);
+  },
+  /**
+   * Forget signs out of a server on this device: its token leaves the
+   * keychain and the server leaves the list.
+   */
+  forget(address: string): Promise<void> {
+    return call("Servers.Forget", address);
+  },
+  /** List returns the servers the user is signed in to, the latest first. */
+  list(): Promise<ServerAccount[]> {
+    return call("Servers.List");
+  },
+  /**
+   * Listen starts waiting on a loopback address, by IP as RFC 8252 asks, for
+   * the browser to come back from a provider.
+   */
+  listen(): Promise<Loopback> {
+    return call("Servers.Listen");
+  },
+  /** Save records a server signed in to, and keeps its token in the keychain. */
+  save(account: ServerAccount, token: string): Promise<void> {
+    return call("Servers.Save", account, token);
+  },
+  /** Token returns a server's session token; empty when the keychain has none. */
+  token(address: string): Promise<string> {
+    return call("Servers.Token", address);
+  },
+  /**
+   * Wait returns the query the browser comes back with, such as its code or
+   * error, then stops listening. It gives up after ten minutes, or when the
+   * page calls Close.
+   */
+  wait(id: string): Promise<Record<string, string>> {
+    return call("Servers.Wait", id);
   },
 } as const;

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/fetch"
 	"github.com/egoist/mygo/plugins/sqlite"
 	"github.com/egoist/mygo/plugins/updater"
 )
@@ -87,6 +88,10 @@ func main() {
 	mygo.Bind(NewImports(vaults))
 	mygo.Bind(NewPreviews())
 	mygo.Bind(Updates{})
+	// The servers signed in to, their tokens in the system's keychain, and
+	// the page's requests to them, which Go makes, outside the page's CORS.
+	mygo.Bind(NewServers(data, mygo.Secrets))
+	mygo.Use(fetch.Plugin)
 	// Checks for updates in the background, when the build has an update key.
 	mygo.Use(updater.Plugin)
 
