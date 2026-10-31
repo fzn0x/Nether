@@ -6,7 +6,7 @@
 // invitation for an email address may be accepted only by that address.
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { type Database, readText, readTextOrNull, readTime } from "./db.ts";
+import { type Database, type Queryable, readText, readTextOrNull, readTime } from "./db.ts";
 import {
   emailField,
   emailKey,
@@ -97,6 +97,73 @@ const acceptBody = {
 
 const noInvitation = "That invitation does not exist, was accepted, or has expired.";
 const otherAddress = "This invitation is for another email address.";
+
+/** An invitation that can still be accepted. */
+export interface OpenInvitation {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly workspaceName: string;
+  readonly role: string;
+  /** The only address that may accept it, if it names one. */
+  readonly email: string | null;
+}
+
+/** The invitation a token's hash names, if it can still be accepted, locked until the transaction ends. */
+export async function openInvitation(
+  tx: Queryable,
+  hash: string,
+): Promise<OpenInvitation | undefined> {
+  const { rows } = await tx.query(
+    `SELECT i.id, i.workspace_id, i.role, i.email, w.name AS workspace_name
+       FROM invitations i JOIN workspaces w ON w.id = i.workspace_id
+      WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.expires_at > now()
+      FOR UPDATE OF i`,
+    [hash],
+  );
+  const row = rows[0];
+  if (row === undefined) return undefined;
+  return {
+    id: readText(row, "id"),
+    workspaceId: readText(row, "workspace_id"),
+    workspaceName: readText(row, "workspace_name"),
+    role: readText(row, "role"),
+    email: readTextOrNull(row, "email"),
+  };
+}
+
+/** Whether an invitation may be accepted by an address. */
+export function invites(invitation: OpenInvitation, email: string): boolean {
+  return invitation.email === null || emailKey(invitation.email) === emailKey(email);
+}
+
+/**
+ * Accepts an invitation into an account, and gives the workspace with the
+ * role the account has there: someone in it already keeps theirs.
+ */
+export async function acceptInvitation(
+  tx: Queryable,
+  invitation: OpenInvitation,
+  userId: string,
+): Promise<{ id: string; name: string; role: string }> {
+  await tx.query(
+    `INSERT INTO memberships (workspace_id, user_id, role) VALUES ($1, $2, $3)
+     ON CONFLICT (workspace_id, user_id) DO NOTHING`,
+    [invitation.workspaceId, userId, invitation.role],
+  );
+  await tx.query("UPDATE invitations SET accepted_by = $1, accepted_at = now() WHERE id = $2", [
+    userId,
+    invitation.id,
+  ]);
+  const { rows } = await tx.query(
+    "SELECT role FROM memberships WHERE workspace_id = $1 AND user_id = $2",
+    [invitation.workspaceId, userId],
+  );
+  return {
+    id: invitation.workspaceId,
+    name: invitation.workspaceName,
+    role: readText(rows[0], "role"),
+  };
+}
 
 export function registerInvitations(app: FastifyInstance, db: Database): void {
   const account = signedIn(db);
@@ -247,20 +314,10 @@ export function registerInvitations(app: FastifyInstance, db: Database): void {
           : undefined;
 
       const outcome = await db.transaction(async (tx) => {
-        const { rows } = await tx.query(
-          `SELECT i.id, i.workspace_id, i.role, i.email, w.name AS workspace_name
-             FROM invitations i JOIN workspaces w ON w.id = i.workspace_id
-            WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.expires_at > now()
-            FOR UPDATE OF i`,
-          [tokenHash(body.token)],
-        );
-        const invitation = rows[0];
+        const invitation = await openInvitation(tx, tokenHash(body.token));
         if (invitation === undefined) return { status: 404, message: noInvitation } as const;
-        const invited = readTextOrNull(invitation, "email");
         const email = me?.email ?? body.email ?? "";
-        if (invited !== null && emailKey(invited) !== emailKey(email)) {
-          return { status: 403, message: otherAddress } as const;
-        }
+        if (!invites(invitation, email)) return { status: 403, message: otherAddress } as const;
 
         let user = me && {
           id: me.id,
@@ -290,33 +347,11 @@ export function registerInvitations(app: FastifyInstance, db: Database): void {
           );
         }
 
-        const workspaceId = readText(invitation, "workspace_id");
-        // Someone in the workspace already keeps the role they have.
-        await tx.query(
-          `INSERT INTO memberships (workspace_id, user_id, role) VALUES ($1, $2, $3)
-           ON CONFLICT (workspace_id, user_id) DO NOTHING`,
-          [workspaceId, user.id, readText(invitation, "role")],
-        );
-        await tx.query(
-          "UPDATE invitations SET accepted_by = $1, accepted_at = now() WHERE id = $2",
-          [user.id, readText(invitation, "id")],
-        );
-        const role = await tx.query(
-          "SELECT role FROM memberships WHERE workspace_id = $1 AND user_id = $2",
-          [workspaceId, user.id],
-        );
+        const workspace = await acceptInvitation(tx, invitation, user.id);
         const session = me === undefined ? await startSession(tx, user.id, request) : undefined;
         return {
           status: me === undefined ? 201 : 200,
-          body: {
-            ...session,
-            user,
-            workspace: {
-              id: workspaceId,
-              name: readText(invitation, "workspace_name"),
-              role: readText(role.rows[0], "role"),
-            },
-          },
+          body: { ...session, user, workspace },
         } as const;
       });
       if ("message" in outcome) return fail(reply, outcome.status, outcome.message);
