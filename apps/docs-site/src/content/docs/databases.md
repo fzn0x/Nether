@@ -66,8 +66,30 @@ sort:
 
 Rows with no date are listed under a calendar or a timeline. To move a
 row to another day, change its date in a table or in the row's
-properties. Lists and galleries group by a property too. Relations between
-databases, rollups and formulas come next.
+properties. Lists and galleries group by a property too.
+
+## Relations
+
+A relation links rows to the rows of another database, or of the same one:
+projects to their clients, tasks to their projects. Add a property of type
+**Notes**, and choose the **Database it links to**. With **Both ways**,
+the other database gets a property that links back, named as you choose;
+link a project to a client, and the client's row lists the project.
+
+Type a row's name in a relation's cell to link it: the related database's
+rows are offered as you type. Each link is a link in the row's
+frontmatter, as Obsidian writes them, so a relation reads the same in any
+Markdown tool:
+
+```yaml
+---
+Client:
+  - "[[Acme]]"
+---
+```
+
+A link that is taken away is taken away at the other end too. Rollups and
+formulas come next.
 
 ## How a database is written
 

@@ -135,6 +135,13 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with a column for each value of a select, multi-select, checkbox or
   person, its cards moved by dragging or by their Move to menu; as a list;
   or as a gallery of cards with a cover a file property names.
+- Relations between databases: a property links a row to rows of another
+  database, or both ways, the other row linking back; each end is a list
+  of links in its row's frontmatter, kept in step as links are added and
+  taken away
+  ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
+  Links in a database's views show as the names of the notes they name,
+  and filters compare them so.
 - Calendars and timelines: a calendar shows a month with each row on the
   day of its date, and makes a row on a day; a timeline shows six weeks
   with each row a bar from its date to its end.
