@@ -45,7 +45,12 @@ import { RenameNoteDialog } from "./RenameNoteDialog.tsx";
 import { TabStrip } from "./TabStrip.tsx";
 import {
   type Layout,
+  type Opened,
   activeNote,
+  activeTab,
+  fileTab,
+  filePathOf,
+  noteOf,
   chooseTab,
   closeNote,
   closeTab,
@@ -77,7 +82,7 @@ import { useTemplateSettings } from "./useTemplateSettings.ts";
 import { useSync } from "./useSync.ts";
 import { usePeople, useNotifications } from "./useNotifications.ts";
 import { queueMention } from "./notify.ts";
-import { useFolders, useNotes, useVault } from "./useVault.ts";
+import { useCanvasFiles, useFolders, useNotes, useVault } from "./useVault.ts";
 
 // The editor and the Markdown parser load on their own, so the vault's notes
 // show while they do. Not through lazy(): a lazy component waits on its
@@ -111,6 +116,7 @@ const loadMergeNote = () => import("./mergeNote.ts");
 const loadDatabases = () => import("./databases.ts");
 // The graph, with Sigma and its layout, loads the first time it opens.
 const ThemeEffect = lazy(() => import("./ThemeEffect.tsx"));
+const CanvasView = lazy(() => import("./CanvasView.tsx"));
 const GraphView = lazy(() => import("./GraphView.tsx"));
 // The import, appearance and servers dialogs, with the importers, load when they open.
 const ImportDialog = lazy(() =>
@@ -260,6 +266,7 @@ export function VaultView(props: {
   const graph = state.status === "open" ? state.indexer.graph : undefined;
   const notes = useNotes(vault);
   const folders = useFolders(vault);
+  const canvases = useCanvasFiles(vault);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const bookmarks = useBookmarks(vault);
   // Where notes are open: tabs in one pane or two (ADR 0046). Commands
@@ -354,6 +361,10 @@ export function VaultView(props: {
   const [newFolderIn, setNewFolderIn] = useState<string | undefined>();
   // The folder with notes or files in it that is asked about before it goes.
   const [deletingFolder, setDeletingFolder] = useState<string | undefined>();
+  // A canvas's menu, open at a point (ADR 0051).
+  const [fileMenu, setFileMenu] = useState<
+    { readonly path: string; readonly at: MenuPoint } | undefined
+  >();
   // A folder's menu, open at a point.
   const [folderMenu, setFolderMenu] = useState<
     { readonly path: string; readonly at: MenuPoint } | undefined
@@ -393,6 +404,22 @@ export function VaultView(props: {
       return key;
     },
     [changeLayout, ask],
+  );
+
+  /** Opens a canvas, by its path, in the focused pane, a new tab or the pane to the right. */
+  const openFile = useCallback(
+    (path: string, where: "here" | "tab" | "right" = "here") => {
+      setGraphShown(false);
+      const tab = fileTab(path);
+      changeLayout((current) =>
+        where === "tab"
+          ? openInNewTab(current, tab)
+          : where === "right"
+            ? openToTheRight(current, tab)
+            : openHere(current, tab),
+      );
+    },
+    [changeLayout],
   );
 
   const showTag = useCallback((name: string) => {
@@ -470,6 +497,38 @@ export function VaultView(props: {
     [vault],
   );
 
+  /** Moves a canvas to the trash, closing its tabs; the notice restores it. */
+  const trashFile = useCallback(
+    (path: string) => {
+      if (vault === undefined) return;
+      const name = path.slice(path.lastIndexOf("/") + 1).replace(/\.canvas$/i, "");
+      vault.removeFile(path).then(
+        (where) => {
+          changeLayout((current) => closeNote(current, fileTab(path)));
+          setNotice({ text: t("movedToTrash", { name }), restore: where });
+        },
+        (error: unknown) => {
+          setNotice({ text: error instanceof Error ? error.message : String(error) });
+        },
+      );
+    },
+    [vault, changeLayout],
+  );
+
+  /** Makes an empty canvas in a folder, named as the first free "Untitled canvas", and opens it. */
+  const newCanvas = useCallback(
+    async (folder: string) => {
+      if (vault === undefined) return;
+      const base = `${folder === "" ? "" : `${folder}/`}${t("newCanvasName")}`;
+      let path = `${base}.canvas`;
+      for (let n = 2; vault.fileInfo(path) !== undefined; n++) path = `${base} ${String(n)}.canvas`;
+      const { emptyCanvas, writeCanvas } = await import("@nether/canvas");
+      await vault.writeFile(path, writeCanvas(emptyCanvas), "");
+      openFile(path);
+    },
+    [vault, openFile],
+  );
+
   /** Renames a note in its folder, once the link index knows every link to it. */
   const renameCurrent = useCallback(
     async (id: NoteId, name: string) => {
@@ -508,17 +567,28 @@ export function VaultView(props: {
         const moves =
           dragged.kind === "note"
             ? pageMoves(open, dragged.path, to)
-            : [
-                ...folderMoves(open, dragged.path, to),
-                ...(open.noteAt(`${dragged.path}.md`) === undefined
-                  ? []
-                  : [{ from: `${dragged.path}.md`, to: `${to}.md` }]),
-              ];
+            : dragged.kind === "file"
+              ? [{ from: dragged.path, to }]
+              : [
+                  ...folderMoves(open, dragged.path, to),
+                  ...(open.noteAt(`${dragged.path}.md`) === undefined
+                    ? []
+                    : [{ from: `${dragged.path}.md`, to: `${to}.md` }]),
+                ];
         await indexer.idle();
         await moveFiles(open, indexer.graph, moves);
+        // Canvases open in tabs follow where they went.
+        changeLayout((current) =>
+          moves.reduce(
+            (layout, move) => replaceNote(layout, fileTab(move.from), fileTab(move.to)),
+            current,
+          ),
+        );
         // The folder goes too, with the folders in it no note is in.
         if (dragged.kind === "folder") await carryFolder(open, dragged.path, to);
-        else await carryFolder(open, pagesFolder(dragged.path), pagesFolder(to));
+        else if (dragged.kind === "note") {
+          await carryFolder(open, pagesFolder(dragged.path), pagesFolder(to));
+        }
       })().catch((error: unknown) => {
         setNotice({ text: error instanceof Error ? error.message : String(error) });
       });
@@ -598,14 +668,14 @@ export function VaultView(props: {
       if (vault === undefined) return;
       const name = path.slice(path.lastIndexOf("/") + 1);
       const trashed: string[] = [];
-      const gone: NoteId[] = [];
+      const gone: Opened[] = [];
       try {
         for (const file of vault.files().filter((other) => other.startsWith(`${path}/`))) {
           const note = vault.noteAt(file);
           trashed.push(
             note === undefined ? await vault.removeFile(file) : await vault.remove(note.id),
           );
-          if (note !== undefined) gone.push(note.id);
+          gone.push(note === undefined ? fileTab(file) : note.id);
         }
       } finally {
         changeLayout((current) => gone.reduce(closeNote, current));
@@ -628,6 +698,40 @@ export function VaultView(props: {
     [vault],
   );
 
+  /** A canvas's menu: opening it, where, and moving it to the trash. */
+  const fileEntries = (path: string): MenuEntry[] => [
+    {
+      label: t("menuOpen"),
+      icon: itemIcons.open,
+      run: () => {
+        openFile(path);
+      },
+    },
+    {
+      label: t("menuOpenNewTab"),
+      icon: itemIcons.openNewTab,
+      run: () => {
+        openFile(path, "tab");
+      },
+    },
+    {
+      label: t("menuOpenRight"),
+      icon: itemIcons.openRight,
+      run: () => {
+        openFile(path, "right");
+      },
+    },
+    "separator",
+    {
+      label: t("moveToTrash"),
+      icon: itemIcons.trash,
+      danger: true,
+      run: () => {
+        trashFile(path);
+      },
+    },
+  ];
+
   /** A folder's menu: notes and folders made in it, and deleting it, asked first unless empty. */
   const folderEntries = (path: string): MenuEntry[] => {
     const inside = (other: string) => other.startsWith(`${path}/`);
@@ -646,6 +750,13 @@ export function VaultView(props: {
         icon: itemIcons.newFolder,
         run: () => {
           setNewFolderIn(path);
+        },
+      },
+      {
+        label: t("newCanvasHere"),
+        icon: commandIcons.newCanvas,
+        run: () => {
+          void newCanvas(path);
         },
       },
       "separator",
@@ -886,6 +997,17 @@ export function VaultView(props: {
             setNewFolderIn("");
           }
         : undefined,
+      newCanvas: open
+        ? () => {
+            const folder =
+              selectedPath?.includes("/") === true
+                ? selectedPath.slice(0, selectedPath.lastIndexOf("/"))
+                : "";
+            void newCanvas(folder).catch((error: unknown) => {
+              setNotice({ text: error instanceof Error ? error.message : String(error) });
+            });
+          }
+        : undefined,
       newDatabase: open
         ? () => {
             const vault = state.vault;
@@ -1124,14 +1246,20 @@ export function VaultView(props: {
       let next =
         stored === null
           ? emptyLayout
-          : readLayout(JSON.parse(stored) as unknown, (id) => vault.note(id) !== undefined);
+          : readLayout(JSON.parse(stored) as unknown, (id) => {
+              const file = filePathOf(id);
+              return file === undefined
+                ? vault.note(id as NoteId) !== undefined
+                : vault.fileInfo(file) !== undefined;
+            });
       const path =
-        startNote ?? (activeNote(next) === undefined ? localStorage.getItem(lastNoteKey) : null);
+        startNote ?? (activeTab(next) === undefined ? localStorage.getItem(lastNoteKey) : null);
       const note = path === null ? undefined : vault.noteAt(path);
       if (note !== undefined) next = openHere(next, note.id);
-      if (activeNote(next) !== undefined) {
-        changeLayout((current) => (activeNote(current) === undefined ? next : current));
-        restored = true;
+      if (activeTab(next) !== undefined) {
+        changeLayout((current) => (activeTab(current) === undefined ? next : current));
+        // A note shown starts the links loading; a canvas does not.
+        restored = activeNote(next) !== undefined;
       }
     } catch {
       // Storage closed to the page, or what it kept unreadable: the vault opens to no note.
@@ -1199,6 +1327,7 @@ export function VaultView(props: {
       "newNote",
       "newFolder",
       "newDatabase",
+      "newCanvas",
       "dayNote",
       "weekNote",
       "monthNote",
@@ -1494,6 +1623,15 @@ export function VaultView(props: {
                     onNewIn={newNoteIn}
                     onMenu={openMenu}
                     folders={folders}
+                    files={canvases}
+                    onOpenFile={(path, newTab) => {
+                      openFile(path, newTab ? "tab" : "here");
+                    }}
+                    onFileMenu={(path, at) => {
+                      setFileMenu({ path, at });
+                    }}
+                    selectedFile={filePathOf(activeTab(layout))}
+                    fileMenuFor={fileMenu?.path}
                     onFolderMenu={openFolderMenu}
                     folderMenuFor={folderMenu?.path}
                     onOpenInNewTab={openInTab}
@@ -1700,6 +1838,16 @@ export function VaultView(props: {
           }}
         />
       ) : null}
+      {fileMenu === undefined || state.status !== "open" ? null : (
+        <ContextMenu
+          label={t("canvasMenu", { name: fileMenu.path })}
+          at={fileMenu.at}
+          entries={fileEntries(fileMenu.path)}
+          onClose={() => {
+            setFileMenu(undefined);
+          }}
+        />
+      )}
       {folderMenu === undefined || state.status !== "open" ? null : (
         <ContextMenu
           label={t("folderMenu", { name: folderMenu.path })}
@@ -1879,7 +2027,9 @@ export function VaultView(props: {
           noteView === undefined ? null : (
             <div className={`panes${layout.panes.length > 1 ? " split" : ""}`}>
               {layout.panes.map((pane, index) => {
-                const id = shownIn(pane);
+                const shown = shownIn(pane);
+                const id = noteOf(shown);
+                const canvas = filePathOf(shown);
                 const paneAsks = asks[pane.key] ?? noAsks;
                 const split = layout.panes.length > 1;
                 const side = index === 0 ? "Left" : "Right";
@@ -1901,22 +2051,41 @@ export function VaultView(props: {
                       label={split ? t(`openNotes${side}`) : t("openNotes")}
                       panelId={panelId}
                       tabId={tabId}
-                      titleOf={(note) => state.vault.note(note)?.title ?? ""}
+                      titleOf={(tab) => {
+                        const file = filePathOf(tab);
+                        return file === undefined
+                          ? (state.vault.note(tab as NoteId)?.title ?? "")
+                          : file.slice(file.lastIndexOf("/") + 1).replace(/\.canvas$/i, "");
+                      }}
                       onChoose={(tab) => {
                         changeLayout((current) => chooseTab(current, index, tab));
                       }}
                       onClose={(tab) => {
                         changeLayout((current) => closeTab(current, index, tab));
                       }}
-                      onMenu={openMenu}
+                      onMenu={(tab, at) => {
+                        const file = filePathOf(tab);
+                        if (file === undefined) openMenu(tab as NoteId, at);
+                        else setFileMenu({ path: file, at });
+                      }}
                     />
                     <div
-                      className="pane-body"
+                      className={`pane-body${canvas === undefined ? "" : " canvas-body"}`}
                       role="tabpanel"
                       id={panelId}
                       aria-labelledby={tabId(pane.active)}
                     >
-                      {id === undefined ? (
+                      {canvas !== undefined ? (
+                        <Suspense fallback={null}>
+                          <CanvasView
+                            key={canvas}
+                            vault={state.vault}
+                            media={state.media}
+                            path={canvas}
+                            onOpenNote={openNote}
+                          />
+                        </Suspense>
+                      ) : id === undefined ? (
                         <p className="placeholder">{t("selectNote")}</p>
                       ) : (
                         <noteView.default

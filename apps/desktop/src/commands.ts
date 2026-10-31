@@ -10,6 +10,7 @@ export const commandIds = [
   "newNote",
   "newFolder",
   "newDatabase",
+  "newCanvas",
   "dayNote",
   "weekNote",
   "monthNote",
