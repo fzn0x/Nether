@@ -1,8 +1,8 @@
 // How the engine syncs documents with the server (ADRs 0037 and 0038):
 // through Hocuspocus for a workspace the server can read, or through the
-// relay, encrypted, for one it cannot. Either keeps the vault document
-// synced while open, syncs a note's document when asked, and says when the
-// server stored a note elsewhere.
+// relay, encrypted, for one it cannot. Either keeps the vault documents of
+// the account's units (ADR 0042) synced while open, syncs a note's document
+// when asked, and says when the server stored a note elsewhere.
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import type * as Y from "yjs";
 
@@ -17,8 +17,13 @@ export interface ChannelEvents {
 }
 
 export interface Channel {
-  /** Whether the vault document is synced with the server's now. */
+  /** Whether the vault documents are synced with the server's now. */
   readonly synced: boolean;
+  /**
+   * Keeps these vault documents synced, by their names after the
+   * workspace's ID, and no others: the units' as the account opens them.
+   */
+  vaults(documents: ReadonlyMap<string, Y.Doc>): void;
   /** Syncs a note's document: both sides get what the other lacks. */
   sync(id: string, document: Y.Doc): Promise<void>;
   /** What the channel keeps between runs, as the sync record's `channel`. */
@@ -58,47 +63,66 @@ function isStored(value: unknown): value is Stored {
 /** Syncing through Hocuspocus, which merges and stores each document itself. */
 export class HocuspocusChannel implements Channel {
   readonly #options: ChannelOptions;
+  readonly #events: ChannelEvents;
   readonly #socket: HocuspocusProviderWebsocket;
-  readonly #vault: HocuspocusProvider;
+  /** Each vault document syncing, by its name. */
+  readonly #vaults = new Map<string, { document: Y.Doc; provider: HocuspocusProvider }>();
   /** How to give up on each document syncing now, when the channel closes. */
   readonly #inflight = new Set<(error: Error) => void>();
   #closed = false;
 
-  constructor(options: ChannelOptions, vaultDocument: Y.Doc, events: ChannelEvents) {
+  constructor(options: ChannelOptions, events: ChannelEvents) {
     this.#options = options;
+    this.#events = events;
     this.#socket = new HocuspocusProviderWebsocket({
       url: socketUrl(options.server, "/api/sync"),
       ...(options.WebSocket === undefined ? {} : { WebSocketPolyfill: options.WebSocket }),
     });
-    this.#vault = new HocuspocusProvider({
-      websocketProvider: this.#socket,
-      name: `${options.workspaceId}/vault`,
-      document: vaultDocument,
-      token: options.token,
-      onSynced: () => {
-        events.onSynced();
-      },
-      onStateless: ({ payload }) => {
-        let stored: unknown;
-        try {
-          stored = JSON.parse(payload);
-        } catch {
-          return;
-        }
-        if (isStored(stored)) events.onStored(stored.document);
-      },
-      onAuthenticationFailed: ({ reason }) => {
-        events.onOffline(reason);
-      },
-      onDisconnect: () => {
-        events.onOffline();
-      },
-    });
-    this.#vault.attach();
   }
 
   get synced(): boolean {
-    return this.#vault.isSynced;
+    if (this.#vaults.size === 0) return false;
+    for (const { provider } of this.#vaults.values()) if (!provider.isSynced) return false;
+    return true;
+  }
+
+  vaults(documents: ReadonlyMap<string, Y.Doc>): void {
+    if (this.#closed) return;
+    for (const [name, vault] of [...this.#vaults]) {
+      if (documents.get(name) === vault.document) continue;
+      vault.provider.destroy();
+      this.#vaults.delete(name);
+    }
+    const events = this.#events;
+    for (const [name, document] of documents) {
+      if (this.#vaults.has(name)) continue;
+      const provider = new HocuspocusProvider({
+        websocketProvider: this.#socket,
+        name: `${this.#options.workspaceId}/${name}`,
+        document,
+        token: this.#options.token,
+        onSynced: () => {
+          events.onSynced();
+        },
+        onStateless: ({ payload }) => {
+          let stored: unknown;
+          try {
+            stored = JSON.parse(payload);
+          } catch {
+            return;
+          }
+          if (isStored(stored)) events.onStored(stored.document);
+        },
+        onAuthenticationFailed: ({ reason }) => {
+          events.onOffline(reason);
+        },
+        onDisconnect: () => {
+          events.onOffline();
+        },
+      });
+      this.#vaults.set(name, { document, provider });
+      provider.attach();
+    }
   }
 
   sync(id: string, document: Y.Doc): Promise<void> {
@@ -145,7 +169,8 @@ export class HocuspocusChannel implements Channel {
     this.#closed = true;
     // A document syncing now gets no answer once the socket is gone.
     for (const giveUp of this.#inflight) giveUp(new Error("Sync stopped."));
-    this.#vault.destroy();
+    for (const { provider } of this.#vaults.values()) provider.destroy();
+    this.#vaults.clear();
     this.#socket.destroy();
   }
 }

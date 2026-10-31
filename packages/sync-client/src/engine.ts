@@ -15,9 +15,15 @@
 //   sending a file's bytes the server lacks, encrypted for an encrypted
 //   workspace, and fetching those this vault lacks.
 //
+// A workspace's notes are divided into sync units (ADR 0042), each with its
+// own vault document; the engine syncs those of the units the account
+// opens, and puts each note and file in the unit whose area holds its path,
+// asking the server first to move a note from one unit to another.
+//
 // What a device knows between runs, the base, the last number seen, the
-// notes changed here and not sent, and the vault document, is kept by the
-// store it is given, so edits made offline are sent when it reconnects.
+// notes changed here and not sent, the units and their vault documents, is
+// kept by the store it is given, so edits made offline are sent when it
+// reconnects.
 import * as Y from "yjs";
 import { type Channel, HocuspocusChannel } from "./channel.ts";
 import { type WorkspaceKey, decryptFile, encryptFile } from "./crypto.ts";
@@ -34,6 +40,7 @@ import {
 } from "./files.ts";
 import { type Paths, reconcilePaths, removeVaultPath, setVaultPath, vaultPaths } from "./paths.ts";
 import { RelayChannel } from "./relayChannel.ts";
+import { type SyncUnit, general, generalOnly, readUnits, unitForPath, writes } from "./units.ts";
 
 /** A note's document, held while it syncs; let go when done. */
 export interface HeldDocument {
@@ -87,6 +94,10 @@ export interface SyncRecord {
   readonly files?: Readonly<Record<string, string>>;
   /** The vault document as last seen. */
   readonly vault: Uint8Array | null;
+  /** The units the account opened, as the server last said (ADR 0042). */
+  readonly units?: readonly SyncUnit[];
+  /** The vault documents of the units besides General, as last seen. */
+  readonly vaults?: Readonly<Record<string, Uint8Array>>;
   /** What the channel keeps, as the relay its documents' numbers and what it sent. */
   readonly channel?: unknown;
 }
@@ -133,7 +144,14 @@ export interface SyncOptions {
 
 export class VaultSync {
   readonly #options: SyncOptions;
+  /** General's vault document. */
   readonly #vaultDocument = new Y.Doc();
+  /** The other units' vault documents, by their IDs. */
+  readonly #documents = new Map<string, Y.Doc>();
+  /** The units the account opens, as the server last said; General alone before it says. */
+  #units: readonly SyncUnit[] = generalOnly;
+  /** Asks for the units again, while there are none to hear from. */
+  #unitsTimer: ReturnType<typeof setTimeout> | undefined;
   #channel: Channel | undefined;
   #cursor = 0;
   /** What this vault and the server last agreed on: each note's path. */
@@ -185,6 +203,7 @@ export class VaultSync {
 
   async #halt(): Promise<void> {
     this.#stopped = true;
+    clearTimeout(this.#unitsTimer);
     this.#unwatch?.();
     this.#channel?.close();
     await this.#queue.catch(() => undefined);
@@ -200,6 +219,10 @@ export class VaultSync {
       this.#fileBase = new Map(Object.entries(record.files ?? {}));
       for (const id of record.pending) this.#pending.add(id);
       if (record.vault !== null) Y.applyUpdate(this.#vaultDocument, record.vault);
+      if (record.units !== undefined) this.#units = readUnits({ units: record.units });
+      for (const [id, state] of Object.entries(record.vaults ?? {})) {
+        if (this.#units.some((unit) => unit.id === id)) Y.applyUpdate(this.#documentOf(id), state);
+      }
     }
     this.#vaultDocument.on("update", () => {
       this.#saveSoon();
@@ -233,13 +256,113 @@ export class VaultSync {
     };
     this.#channel =
       options.encryption === undefined
-        ? new HocuspocusChannel(where, this.#vaultDocument, events)
+        ? new HocuspocusChannel(where, events)
         : new RelayChannel(
             { ...where, ...options.encryption },
             this.#vaultDocument,
             events,
             record?.channel,
           );
+    this.#openUnits();
+    // The first round asks for the units: a guest, refused General, hears nothing until then.
+    this.#schedule();
+  }
+
+  /** A unit's vault document: General's is the vault document of old. */
+  #documentOf(unit: string): Y.Doc {
+    if (unit === general) return this.#vaultDocument;
+    let document = this.#documents.get(unit);
+    if (document === undefined) {
+      document = new Y.Doc();
+      document.on("update", () => {
+        this.#saveSoon();
+        this.#schedule();
+      });
+      this.#documents.set(unit, document);
+    }
+    return document;
+  }
+
+  /** Has the channel sync the vault documents of the units the account opens. */
+  #openUnits(): void {
+    this.#channel?.vaults(
+      new Map(this.#units.map((unit) => [unit.document, this.#documentOf(unit.id)])),
+    );
+  }
+
+  /**
+   * Asks the server for the account's units; true when they changed. They
+   * stay as they were while the server cannot say, and an encrypted
+   * workspace has General alone.
+   */
+  async #refreshUnits(): Promise<boolean> {
+    if (this.#options.encryption !== undefined) return false;
+    let units: SyncUnit[];
+    try {
+      const response = await this.#request("/units", { headers: { accept: "application/json" } });
+      if (!response.ok) return false;
+      units = readUnits(await response.json());
+    } catch {
+      return false;
+    }
+    clearTimeout(this.#unitsTimer);
+    // With none, nothing is heard from the server: it is asked again in a minute.
+    if (units.length === 0 && !this.#stopped) {
+      this.#unitsTimer = setTimeout(() => {
+        this.#schedule();
+      }, 60_000);
+    }
+    const key = (list: readonly SyncUnit[]) =>
+      JSON.stringify(list.map((unit) => [unit.id, unit.level, unit.name, unit.rootNote]));
+    if (key(units) === key(this.#units)) return false;
+    this.#units = units;
+    // A unit no longer opened is let go: its notes leave this vault as removed elsewhere.
+    for (const [id, document] of [...this.#documents]) {
+      if (units.some((unit) => unit.id === id)) continue;
+      document.destroy();
+      this.#documents.delete(id);
+    }
+    this.#openUnits();
+    this.#saveSoon();
+    return true;
+  }
+
+  /** The notes the units' vault documents list: each one's path, and the unit listing it. */
+  #listed(): { readonly paths: Map<string, string>; readonly units: Map<string, string> } {
+    const paths = new Map<string, string>();
+    const units = new Map<string, string>();
+    for (const unit of this.#units) {
+      for (const [id, path] of vaultPaths(this.#documentOf(unit.id))) {
+        if (paths.has(id)) continue;
+        paths.set(id, path);
+        units.set(id, unit.id);
+      }
+    }
+    return { paths, units };
+  }
+
+  /** Where each path belongs: the unit whose area holds it, with the shared pages where they are. */
+  #placer(listed: ReadonlyMap<string, string>): (path: string) => SyncUnit | undefined {
+    const local = this.#options.vault.paths();
+    const pages = new Map<string, string>();
+    for (const unit of this.#units) {
+      if (unit.rootNote === undefined) continue;
+      const path = local.get(unit.rootNote) ?? listed.get(unit.rootNote);
+      if (path !== undefined) pages.set(unit.rootNote, path);
+    }
+    return (path) => unitForPath(path, this.#units, pages);
+  }
+
+  #unit(id: string | undefined): SyncUnit | undefined {
+    return this.#units.find((unit) => unit.id === id);
+  }
+
+  /** Asks the server to put a note in a unit; false when it refuses, as without edit access. */
+  async #place(id: string, unit: string): Promise<boolean> {
+    const response = await this.#request(`/notes/${id}/unit`, { method: "PUT", json: { unit } });
+    if (response.ok) return true;
+    if (response.status === 403 || response.status === 404) return false;
+    throw new Error(`The server answered ${String(response.status)} moving a note.`);
   }
 
   /** Tells of the state, and of a failure until the next success. */
@@ -264,6 +387,9 @@ export class VaultSync {
     this.#queued = true;
     this.#queue = this.#queue.then(async () => {
       this.#queued = false;
+      if (this.#stopped) return;
+      // A unit opened or let go waits for its vault document before the round.
+      await this.#refreshUnits();
       if (!this.#live()) return;
       this.#report({ state: "syncing" });
       try {
@@ -284,27 +410,42 @@ export class VaultSync {
   /** Brings this vault's notes and the server's list together. */
   async #reconcile(): Promise<void> {
     const vault = this.#options.vault;
-    const plan = reconcilePaths(this.#base, vault.paths(), vaultPaths(this.#vaultDocument));
+    const listed = this.#listed();
+    const plan = reconcilePaths(this.#base, vault.paths(), listed.paths);
+    const placer = this.#placer(listed.paths);
     // Each change is agreed on as it is made, so a note moved here while
     // others are fetched is still taken for moved here, not there.
-    this.#vaultDocument.transact(() => {
+    try {
       for (const id of plan.upload) {
         const path = vault.paths().get(id);
-        if (path === undefined) continue;
-        setVaultPath(this.#vaultDocument, id, path);
+        const unit = path === undefined ? undefined : placer(path);
+        // A note in no unit this account may change, as a guest's outside its pages, stays here.
+        if (path === undefined || unit === undefined || !writes(unit)) continue;
+        if (unit.id !== general && !(await this.#place(id, unit.id))) continue;
+        setVaultPath(this.#documentOf(unit.id), id, path);
         this.#base.set(id, path);
+        this.#pending.add(id);
       }
       for (const { id, path } of plan.moveRemote) {
-        setVaultPath(this.#vaultDocument, id, path);
+        if (!(await this.#move(id, path, this.#unit(listed.units.get(id)), placer(path)))) continue;
         this.#base.set(id, path);
       }
       for (const id of plan.removeRemote) {
-        removeVaultPath(this.#vaultDocument, id);
+        const from = this.#unit(listed.units.get(id));
+        if (from === undefined || !writes(from)) continue;
+        removeVaultPath(this.#documentOf(from.id), id);
         this.#base.delete(id);
       }
-    });
-    for (const id of plan.upload) this.#pending.add(id);
-    try {
+      // A note listed in a unit its path is no longer in, as one under a page
+      // just shared on its own, goes to its path's unit.
+      const local = vault.paths();
+      for (const [id, path] of listed.paths) {
+        if (local.get(id) !== path) continue;
+        const from = this.#unit(listed.units.get(id));
+        const to = placer(path);
+        if (from === undefined || to === undefined || from.id === to.id) continue;
+        await this.#move(id, path, from, to);
+      }
       for (const { id, path } of plan.moveLocal) {
         await vault.move(id, path);
         this.#base.set(id, path);
@@ -324,9 +465,29 @@ export class VaultSync {
         }
       });
     } finally {
-      agree(this.#base, vault.paths(), vaultPaths(this.#vaultDocument));
+      agree(this.#base, vault.paths(), this.#listed().paths);
       this.#saveSoon();
     }
+  }
+
+  /**
+   * Lists a note at a path, in the unit that path belongs to: from one unit
+   * to another only once the server agrees. False when it is not moved, as
+   * where the account may not change notes.
+   */
+  async #move(
+    id: string,
+    path: string,
+    from: SyncUnit | undefined,
+    to: SyncUnit | undefined,
+  ): Promise<boolean> {
+    if (from === undefined || to === undefined || !writes(to)) return false;
+    if (from.id !== to.id) {
+      if (!writes(from) || !(await this.#place(id, to.id))) return false;
+      removeVaultPath(this.#documentOf(from.id), id);
+    }
+    setVaultPath(this.#documentOf(to.id), id, path);
+    return true;
   }
 
   /** Lists the notes stored on the server since the last number seen, to sync them. */
@@ -391,27 +552,39 @@ export class VaultSync {
     for (const [path, hash] of this.#refused) {
       if (local.get(path) !== hash) this.#refused.delete(path);
     }
-    let plan = reconcileFiles(this.#fileBase, local, hashes(vaultFiles(this.#vaultDocument)));
+    let listed = this.#listedFiles();
+    let plan = reconcileFiles(this.#fileBase, local, hashes(listed.files));
     if (plan.conflict.length > 0) {
-      const taken = new Set([...local.keys(), ...vaultFiles(this.#vaultDocument).keys()]);
+      const taken = new Set([...local.keys(), ...listed.files.keys()]);
       for (const path of plan.conflict) {
         const aside = besidePath(path, (candidate) => taken.has(candidate));
         taken.add(aside);
         await vault.moveFile(path, aside);
       }
       local = await this.#localFiles();
-      plan = reconcileFiles(this.#fileBase, local, hashes(vaultFiles(this.#vaultDocument)));
+      listed = this.#listedFiles();
+      plan = reconcileFiles(this.#fileBase, local, hashes(listed.files));
     }
-    const remote = vaultFiles(this.#vaultDocument);
+    const remote = listed.files;
+    const placer = this.#placer(this.#listed().paths);
     // Agreed on as each change is made, as notes are.
     const base = this.#fileBase;
     try {
-      this.#vaultDocument.transact(() => {
-        for (const path of plan.removeRemote) {
-          removeVaultFile(this.#vaultDocument, path);
-          base.delete(path);
-        }
-      });
+      for (const path of plan.removeRemote) {
+        const from = this.#unit(listed.units.get(path));
+        if (from === undefined || !writes(from)) continue;
+        removeVaultFile(this.#documentOf(from.id), path);
+        base.delete(path);
+      }
+      // A file listed in a unit its path is no longer in goes to its path's unit.
+      for (const [path, file] of remote) {
+        const from = this.#unit(listed.units.get(path));
+        const to = placer(path);
+        if (from === undefined || to === undefined || from.id === to.id) continue;
+        if (local.get(path) !== file.hash || !writes(from) || !writes(to)) continue;
+        removeVaultFile(this.#documentOf(from.id), path);
+        setVaultFile(this.#documentOf(to.id), path, file);
+      }
       for (const path of plan.removeLocal) {
         await vault.removeFile(path);
         base.delete(path);
@@ -420,6 +593,8 @@ export class VaultSync {
       const blobs = new Map([...remote.values()].map((file) => [file.hash, file.blob]));
       await this.#each(plan.upload, async (path) => {
         if (this.#refused.get(path) === local.get(path)) return;
+        const unit = placer(path);
+        if (unit === undefined || !writes(unit)) return;
         const file = await vault.readFile(path);
         const blob = blobs.get(file.hash) ?? (await this.#send(path, file.bytes));
         if (blob === undefined) {
@@ -427,7 +602,12 @@ export class VaultSync {
           return;
         }
         blobs.set(file.hash, blob);
-        setVaultFile(this.#vaultDocument, path, { hash: file.hash, blob });
+        // Listed where it belongs, and nowhere else.
+        const from = this.#unit(listed.units.get(path));
+        if (from !== undefined && from.id !== unit.id && writes(from)) {
+          removeVaultFile(this.#documentOf(from.id), path);
+        }
+        setVaultFile(this.#documentOf(unit.id), path, { hash: file.hash, blob });
         base.set(path, file.hash);
       });
       // Files here by their hash, to copy rather than fetch.
@@ -440,9 +620,23 @@ export class VaultSync {
         base.set(path, file.hash);
       });
     } finally {
-      agree(base, await this.#localFiles(), hashes(vaultFiles(this.#vaultDocument)));
+      agree(base, await this.#localFiles(), hashes(this.#listedFiles().files));
       this.#saveSoon();
     }
+  }
+
+  /** The files the units' vault documents list: each one, and the unit listing it. */
+  #listedFiles(): { readonly files: Map<string, VaultFile>; readonly units: Map<string, string> } {
+    const files = new Map<string, VaultFile>();
+    const units = new Map<string, string>();
+    for (const unit of this.#units) {
+      for (const [path, file] of vaultFiles(this.#documentOf(unit.id))) {
+        if (files.has(path)) continue;
+        files.set(path, file);
+        units.set(path, unit.id);
+      }
+    }
+    return { files, units };
   }
 
   /** This vault's files that sync, by path, with their hashes. */
@@ -501,12 +695,20 @@ export class VaultSync {
       readonly method?: string;
       readonly headers?: Readonly<Record<string, string>>;
       readonly body?: Uint8Array<ArrayBuffer>;
+      /** A body to send as JSON. */
+      readonly json?: unknown;
     } = {},
   ): Promise<Response> {
     const fetcher = this.#options.fetch ?? fetch;
+    const { json, ...rest } = init;
     return fetcher(`${this.#options.server}/api/workspaces/${this.#options.workspaceId}${path}`, {
-      ...init,
-      headers: { authorization: `Bearer ${this.#options.token}`, ...init.headers },
+      ...rest,
+      headers: {
+        authorization: `Bearer ${this.#options.token}`,
+        ...(json === undefined ? {} : { "content-type": "application/json" }),
+        ...init.headers,
+      },
+      ...(json === undefined ? {} : { body: JSON.stringify(json) }),
     });
   }
 
@@ -546,6 +748,10 @@ export class VaultSync {
       pending: [...this.#pending],
       files: Object.fromEntries(this.#fileBase),
       vault: Y.encodeStateAsUpdate(this.#vaultDocument),
+      units: this.#units,
+      vaults: Object.fromEntries(
+        [...this.#documents].map(([id, document]) => [id, Y.encodeStateAsUpdate(document)]),
+      ),
       channel: this.#channel?.state(),
     });
   }

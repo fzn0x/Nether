@@ -151,7 +151,8 @@ describe("a closed channel", () => {
       onOffline: () => undefined,
     };
     const where = { server: "http://127.0.0.1:9", token: "token", workspaceId: "workspace" };
-    const plain = new HocuspocusChannel(where, new Y.Doc(), events);
+    const plain = new HocuspocusChannel(where, events);
+    plain.vaults(new Map([["vault", new Y.Doc()]]));
     plain.close();
     await expect(plain.sync("note", new Y.Doc())).rejects.toThrow("Sync stopped.");
 

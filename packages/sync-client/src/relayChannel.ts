@@ -356,6 +356,11 @@ export class RelayChannel implements Channel {
     return this.#ready;
   }
 
+  /** An encrypted workspace has General alone (ADR 0042): its vault document syncs from the start. */
+  vaults(): void {
+    // Nothing to add or let go.
+  }
+
   state(): Record<string, DocumentState> {
     return Object.fromEntries(this.#documents);
   }
