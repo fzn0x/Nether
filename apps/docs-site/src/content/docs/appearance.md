@@ -46,6 +46,8 @@ rule for `:root` sets them for light and dark alike;
 | `--rule` | Lines and borders |
 | `--panel-shadow` | The shadow under menus and dialogs |
 | `--mark-bg` | Behind ==highlighted== text |
+| `--sidebar-bg` | The sidebar; a shade off `--bg` unless set |
+| `--hover`, `--pressed` | Behind a control under the pointer, and one pressed |
 | `--code-keyword`, `--code-string`, `--code-number`, `--code-title`, `--code-type` | Highlighted code |
 
 A theme can style anything else in Nether too, though class names may change
@@ -59,6 +61,14 @@ small change of your own, such as a wider page or another font. Under **CSS
 snippets**, tick a snippet to turn it on; snippets apply after the theme, in
 the order you turned them on, so they can adjust it. After you edit a
 snippet's file, click **Reload**.
+
+## The sidebar
+
+Drag the sidebar's edge to make it wider or narrower; a line shows on the
+edge when the pointer is on it. From the keyboard, Tab to the edge and press
+the Left and Right arrows, or Home and End for its narrowest and widest.
+Double-click the edge, or press Enter on it, for its first width. Nether
+remembers the width on this device.
 
 ## Good to know
 

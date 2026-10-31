@@ -8,6 +8,10 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The desktop app's sidebar can be resized by dragging its edge, which
+  shows a line on hover, or with the arrow keys, and remembers its width;
+  it has a shade of its own, lighter in the dark, and buttons, tabs and
+  rows show a background under the pointer.
 - New folders in the desktop app, from the sidebar, the File menu and a
   folder's own menu, which also makes notes and folders in it and deletes
   it while it is empty; the sidebar shows empty folders, and a moved
