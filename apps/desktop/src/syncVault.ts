@@ -1,6 +1,7 @@
 // The vault as the sync engine sees it in the desktop app (ADR 0037): its
-// notes, and the documents its open notes share with the editor. It loads
-// with the engine, only for a vault linked to a workspace.
+// notes, the documents its open notes share with the editor, and its other
+// files (ADR 0040). It loads with the engine, only for a vault linked to a
+// workspace.
 import { type NoteId, newBlockId } from "@nether/core";
 import { documentBlocks, documentProperties } from "@nether/editor";
 import { serializeMarkdown } from "@nether/markdown";
@@ -38,6 +39,7 @@ export class DesktopSyncVault implements SyncVault {
         this.#vault.notes().map((note) => [note.id, `${note.path}\n${String(note.modified)}`]),
       );
     let last = snapshot();
+    let lastFiles = this.#filesSnapshot();
     return this.#vault.subscribe(() => {
       const next = snapshot();
       let listed = next.size !== last.size;
@@ -47,8 +49,23 @@ export class DesktopSyncVault implements SyncVault {
         else if (before !== entry) listener(id);
       }
       last = next;
+      const files = this.#filesSnapshot();
+      if (files !== lastFiles) listed = true;
+      lastFiles = files;
       if (listed) listener();
     });
+  }
+
+  /** The vault's other files, with their sizes and times, as one text to compare. */
+  #filesSnapshot(): string {
+    return this.#vault
+      .attachments()
+      .sort()
+      .map((path) => {
+        const info = this.#vault.fileInfo(path);
+        return `${path}\n${String(info?.size)}\n${String(info?.modified)}`;
+      })
+      .join("\n");
   }
 
   /** Holds the note's document as the editor does, once it has loaded. */
@@ -108,5 +125,31 @@ export class DesktopSyncVault implements SyncVault {
 
   async remove(id: string): Promise<void> {
     if (this.#vault.note(id as NoteId) !== undefined) await this.#vault.remove(id as NoteId);
+  }
+
+  /** The vault's other files and their hashes, from the index where it knows them. */
+  async files(): Promise<Map<string, string>> {
+    const files = new Map<string, string>();
+    for (const path of this.#vault.attachments()) {
+      const hash = await this.#vault.fileHash(path);
+      if (hash !== undefined) files.set(path, hash);
+    }
+    return files;
+  }
+
+  readFile(path: string): Promise<{ bytes: Uint8Array; hash: string }> {
+    return this.#vault.readBytes(path);
+  }
+
+  async writeFile(path: string, data: Uint8Array, base: string): Promise<void> {
+    await this.#vault.writeBytes(path, data, base);
+  }
+
+  moveFile(from: string, to: string): Promise<void> {
+    return this.#vault.moveFile(from, to);
+  }
+
+  async removeFile(path: string): Promise<void> {
+    if (this.#vault.fileInfo(path) !== undefined) await this.#vault.removeFile(path);
   }
 }
