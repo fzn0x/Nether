@@ -136,7 +136,9 @@ export class VaultSync {
   readonly #vaultDocument = new Y.Doc();
   #channel: Channel | undefined;
   #cursor = 0;
+  /** What this vault and the server last agreed on: each note's path. */
   #base = new Map<string, string>();
+  /** And each other file's hash, by its path. */
   #fileBase = new Map<string, string>();
   /** Files the server refused: each one's path, and the hash it refused. */
   readonly #refused = new Map<string, string>();
@@ -283,32 +285,48 @@ export class VaultSync {
   async #reconcile(): Promise<void> {
     const vault = this.#options.vault;
     const plan = reconcilePaths(this.#base, vault.paths(), vaultPaths(this.#vaultDocument));
+    // Each change is agreed on as it is made, so a note moved here while
+    // others are fetched is still taken for moved here, not there.
     this.#vaultDocument.transact(() => {
       for (const id of plan.upload) {
         const path = vault.paths().get(id);
-        if (path !== undefined) setVaultPath(this.#vaultDocument, id, path);
+        if (path === undefined) continue;
+        setVaultPath(this.#vaultDocument, id, path);
+        this.#base.set(id, path);
       }
-      for (const { id, path } of plan.moveRemote) setVaultPath(this.#vaultDocument, id, path);
-      for (const id of plan.removeRemote) removeVaultPath(this.#vaultDocument, id);
+      for (const { id, path } of plan.moveRemote) {
+        setVaultPath(this.#vaultDocument, id, path);
+        this.#base.set(id, path);
+      }
+      for (const id of plan.removeRemote) {
+        removeVaultPath(this.#vaultDocument, id);
+        this.#base.delete(id);
+      }
     });
     for (const id of plan.upload) this.#pending.add(id);
-    for (const { id, path } of plan.moveLocal) await vault.move(id, path);
-    for (const id of plan.removeLocal) await vault.remove(id);
-    await this.#each(plan.download, async ({ id, path }) => {
-      const document = new Y.Doc();
-      try {
-        await this.#sync(id, document);
-        await vault.create(id, path, Y.encodeStateAsUpdate(document));
-      } finally {
-        document.destroy();
+    try {
+      for (const { id, path } of plan.moveLocal) {
+        await vault.move(id, path);
+        this.#base.set(id, path);
       }
-    });
-    // Agreed: what the server lists at the path this vault has it.
-    const local = vault.paths();
-    this.#base = new Map(
-      [...vaultPaths(this.#vaultDocument)].filter(([id, path]) => local.get(id) === path),
-    );
-    this.#saveSoon();
+      for (const id of plan.removeLocal) {
+        await vault.remove(id);
+        this.#base.delete(id);
+      }
+      await this.#each(plan.download, async ({ id, path }) => {
+        const document = new Y.Doc();
+        try {
+          await this.#sync(id, document);
+          await vault.create(id, path, Y.encodeStateAsUpdate(document));
+          this.#base.set(id, path);
+        } finally {
+          document.destroy();
+        }
+      });
+    } finally {
+      agree(this.#base, vault.paths(), vaultPaths(this.#vaultDocument));
+      this.#saveSoon();
+    }
   }
 
   /** Lists the notes stored on the server since the last number seen, to sync them. */
@@ -385,11 +403,19 @@ export class VaultSync {
       plan = reconcileFiles(this.#fileBase, local, hashes(vaultFiles(this.#vaultDocument)));
     }
     const remote = vaultFiles(this.#vaultDocument);
+    // Agreed on as each change is made, as notes are.
+    const base = this.#fileBase;
     try {
       this.#vaultDocument.transact(() => {
-        for (const path of plan.removeRemote) removeVaultFile(this.#vaultDocument, path);
+        for (const path of plan.removeRemote) {
+          removeVaultFile(this.#vaultDocument, path);
+          base.delete(path);
+        }
       });
-      for (const path of plan.removeLocal) await vault.removeFile(path);
+      for (const path of plan.removeLocal) {
+        await vault.removeFile(path);
+        base.delete(path);
+      }
       // Blobs by the hash of their bytes: a file listed once is not sent again.
       const blobs = new Map([...remote.values()].map((file) => [file.hash, file.blob]));
       await this.#each(plan.upload, async (path) => {
@@ -402,6 +428,7 @@ export class VaultSync {
         }
         blobs.set(file.hash, blob);
         setVaultFile(this.#vaultDocument, path, { hash: file.hash, blob });
+        base.set(path, file.hash);
       });
       // Files here by their hash, to copy rather than fetch.
       const copies = new Map([...local].map(([path, hash]) => [hash, path]));
@@ -410,28 +437,12 @@ export class VaultSync {
         if (file === undefined) return;
         const bytes = await this.#fetchFile(path, file, copies.get(file.hash));
         await vault.writeFile(path, bytes, local.get(path) ?? "");
+        base.set(path, file.hash);
       });
     } finally {
-      await this.#agreeFiles();
+      agree(base, await this.#localFiles(), hashes(vaultFiles(this.#vaultDocument)));
+      this.#saveSoon();
     }
-  }
-
-  /**
-   * Records the files this vault and the server agree on now. A file they
-   * do not agree on, as one whose sending failed, keeps what they last
-   * agreed on, so it is not taken for a file made or removed since.
-   */
-  async #agreeFiles(): Promise<void> {
-    const local = await this.#localFiles();
-    const remote = hashes(vaultFiles(this.#vaultDocument));
-    const base = new Map<string, string>();
-    for (const path of new Set([...this.#fileBase.keys(), ...local.keys(), ...remote.keys()])) {
-      const here = local.get(path);
-      const agreed = here === remote.get(path) ? here : this.#fileBase.get(path);
-      if (agreed !== undefined) base.set(path, agreed);
-    }
-    this.#fileBase = base;
-    this.#saveSoon();
   }
 
   /** This vault's files that sync, by path, with their hashes. */
@@ -538,4 +549,24 @@ export class VaultSync {
 /** Files by path: each one's hash. */
 function hashes(files: ReadonlyMap<string, VaultFile>): Map<string, string> {
   return new Map([...files].map(([path, file]) => [path, file.hash]));
+}
+
+/**
+ * Brings what a device and the server agree on up to date: a note or file
+ * the same on both sides now is agreed on so, and one on neither is
+ * forgotten. One they differ on keeps what they last agreed on, as a note
+ * moved here while others were fetched, or a file whose sending failed, so
+ * the next round takes it for changed on the side that changed it.
+ */
+function agree(
+  base: Map<string, string>,
+  local: ReadonlyMap<string, string>,
+  remote: ReadonlyMap<string, string>,
+): void {
+  for (const key of new Set([...base.keys(), ...local.keys(), ...remote.keys()])) {
+    const here = local.get(key);
+    if (here !== remote.get(key)) continue;
+    if (here === undefined) base.delete(key);
+    else base.set(key, here);
+  }
 }

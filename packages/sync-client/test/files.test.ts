@@ -205,6 +205,25 @@ describe("syncing files", () => {
     await until(() => both(phone.vault) && both(laptop));
   });
 
+  it("sends a file changed here as soon as it was fetched, rather than keeping it twice", async () => {
+    const served = await startServer();
+    const laptop = new MemoryVault();
+    laptop.attach("a.png", "one");
+    laptop.attach("b.png", "bee");
+    await device(served, served.token, laptop);
+
+    class Hasty extends MemoryVault {
+      override async writeFile(path: string, data: Uint8Array, base: string): Promise<void> {
+        await super.writeFile(path, data, base);
+        if (path === "a.png") this.attach("a.png", "changed");
+      }
+    }
+    const phone = await device(served, await signIn(served.url), new Hasty());
+    await until(() => laptop.file("a.png") === "changed" && phone.vault.attachments.size === 2);
+    expect([...laptop.attachments.keys()].sort()).toEqual(["a.png", "b.png"]);
+    expect([...phone.vault.attachments.keys()].sort()).toEqual(["a.png", "b.png"]);
+  });
+
   it("passes over a file larger than the server takes, and syncs the rest", async () => {
     const served = await startServer({ NETHER_ATTACHMENT_LIMIT: "1" });
     const laptop = new MemoryVault();

@@ -66,6 +66,25 @@ describe("syncing a vault", () => {
     expect(phone.vault.paths()).toEqual(laptop.paths());
   });
 
+  it("keeps a note moved here while other notes were still being fetched", async () => {
+    const served = await startServer();
+    const laptop = new MemoryVault();
+    const first = laptop.write("First.md", "one");
+    laptop.write("Second.md", "two");
+    await device(served, served.token, laptop);
+
+    // The person moves the first note as soon as it comes, before the round ends.
+    class Hasty extends MemoryVault {
+      override async create(id: string, path: string, state: Uint8Array): Promise<void> {
+        await super.create(id, path, state);
+        if (id === first) this.rename(id, "Archive/First.md");
+      }
+    }
+    const phone = await device(served, await signIn(served.url), new Hasty());
+    await until(() => laptop.paths().get(first) === "Archive/First.md");
+    expect(phone.vault.paths().get(first)).toBe("Archive/First.md");
+  });
+
   it("keeps edits made offline, and sends them when the device is back", async () => {
     const served = await startServer();
     const laptop = new MemoryVault();

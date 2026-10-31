@@ -317,6 +317,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A note moved while sync was still fetching other notes stays where it
+  was moved, where sync could move it back to where it came from.
 - The desktop app keeps what the relay knows of each document of an
   encrypted workspace between runs, where each start asked for every
   update again.
