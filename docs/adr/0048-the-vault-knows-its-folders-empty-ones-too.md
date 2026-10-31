@@ -67,3 +67,7 @@ its name and shortcut on hover and on keyboard focus.
   as they do in Obsidian.
 - Listing the folders walks the vault a second time when it opens, beside
   the first.
+- Amended 2026-11-01, at the maintainer's request: **Delete folder** also
+  takes a folder with notes or files in it, after asking. It moves each to
+  the trash, as the trash holds files, and deletes the emptied folders;
+  restoring puts each file back, its folders made again with it.

@@ -33,8 +33,12 @@ to make folders inside folders at once, as `Projects/Website`. Right-click
 a folder, or press Shift+F10 on it, for its menu:
 
 - **New note here** and **New folder here** make one inside it.
-- **Delete folder** deletes it while it is empty. A folder with notes or
-  files in it stays: move them out, or move them to the trash, first.
+- **Delete folder** deletes it. An empty folder goes at once; for one with
+  notes or files in it, Nether says how many and asks first, then moves
+  each to the trash and deletes the folder. **Restore** in the notice puts
+  them all back where they were, and so does restoring each from the
+  Trash tab. A folder holding hidden files, such as `.obsidian`, stays,
+  with only those in it.
 
 A folder shows in the sidebar from the moment it is made, with or without
 notes in it, and so do the vault's other folders, such as one that holds

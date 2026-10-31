@@ -8,6 +8,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Delete folder takes a folder with notes or files in it, after asking how
+  many go: each moves to the trash, and Restore puts them all back.
 - Two built-in themes: Anime, with katakana and hiragana drifting up in
   rainbow colors, and Pixel grid, whose cells light up around the pointer
   in colors of their own; both keep text readable on panels, and respect
