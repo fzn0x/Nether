@@ -19,6 +19,8 @@ export interface TestServer {
 const baseEnv = {
   NETHER_DATABASE_URL: "postgres://nether@localhost:5432/nether",
   NETHER_LOG_LEVEL: "silent",
+  // The API alone, whether or not the web app was built here.
+  NETHER_WEB_APP: "off",
 };
 
 /** A mailer that keeps what it is sent, for a test to read in order. */

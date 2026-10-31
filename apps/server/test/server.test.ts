@@ -1,14 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp, serverVersion } from "../src/app.ts";
-import { type Config, readConfig } from "../src/config.ts";
+import { type Config, builtWebApp, readConfig } from "../src/config.ts";
 import type { Database } from "../src/db.ts";
 import { type EnterpriseModule, enterpriseFeatures, switchVariable } from "../src/enterprise.ts";
 import { migrate } from "../src/migrations.ts";
 import { testDatabase } from "./database.ts";
 
 const database = { NETHER_DATABASE_URL: "postgres://nether@localhost:5432/nether" };
-const quiet = { ...database, NETHER_LOG_LEVEL: "silent" };
+// The web app is left out, whether or not it was built here.
+const quiet = { ...database, NETHER_LOG_LEVEL: "silent", NETHER_WEB_APP: "off" };
 let app: FastifyInstance | undefined;
 let db: Database | undefined;
 
@@ -44,6 +45,7 @@ describe("readConfig", () => {
       attachmentLimit: 100 * 1024 * 1024,
       historyDays: 30,
       backup: null,
+      webApp: { dir: builtWebApp, named: false },
       enterprise: {
         sso: false,
         scim: false,
@@ -250,6 +252,14 @@ describe("GET /health", () => {
   it("answers no route it does not have", async () => {
     const server = await start(readConfig(quiet));
     expect((await server.inject({ method: "GET", url: "/" })).statusCode).toBe(404);
+  });
+
+  it("reads the web app's build, or none", () => {
+    expect(readConfig({ ...database, NETHER_WEB_APP: "/srv/nether/web" }).webApp).toEqual({
+      dir: "/srv/nether/web",
+      named: true,
+    });
+    expect(readConfig({ ...database, NETHER_WEB_APP: "Off" }).webApp).toBeNull();
   });
 });
 
