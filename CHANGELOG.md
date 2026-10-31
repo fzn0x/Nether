@@ -8,6 +8,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Icons before the names of the desktop app's menus and every menu item,
+  from Lucide (ISC), which the sidebar's buttons use too; the sidebar
+  starts a little wider, 336 pixels, so the menus fit on one line.
 - The desktop app's sidebar can be resized by dragging its edge, which
   shows a line on hover, or with the arrow keys, and remembers its width;
   it has a shade of its own, lighter in the dark, and buttons, tabs and
