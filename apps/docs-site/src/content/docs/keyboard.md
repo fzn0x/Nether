@@ -6,6 +6,21 @@ description: How to run any action from the command palette, the keyboard shortc
 Everything Nether does can be done from the keyboard. On a Mac, read Cmd
 for Ctrl in the shortcuts below.
 
+## The menus
+
+Every command is also in the menus at the top of the sidebar: **File**
+(new notes and databases, today's note, import, export), **Note** (rename,
+bookmark, source, history, comment, trash), **View** (the palette, search,
+the graph, the sidebar's panels, tabs), **Sync** (servers, sync, members,
+spaces, sharing, notifications) and **Settings** (templates, appearance,
+shortcuts, updates). Each item shows its shortcut; those about a note are
+greyed out until one is open.
+
+From the keyboard, Tab to the menus, move between them with Left and
+Right, and open one with Down, Enter or Space. In an open menu, Up and
+Down move between items, Left and Right open the menu beside it, and
+Escape closes it.
+
 ## The command palette
 
 Press **Ctrl+P** to open the command palette. Type part of a command's

@@ -8,6 +8,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Menus at the top of the desktop app's sidebar, File, Note, View, Sync
+  and Settings, with every command and its shortcut, so the graph,
+  databases, import, appearance and sync no longer hide in the command
+  palette; and a New database button beside New note
+  ([ADR 0047](docs/adr/0047-every-command-is-in-a-menu-at-the-top-of-the-sidebar.md)).
 - The foundations of Phase 0: the license, the product requirements, the
   roadmap, the architecture and the first five decision records.
 - `@nether/core`, the data model of notes, blocks, properties, databases,

@@ -48,7 +48,8 @@ once you turn them on in the settings. A week starts on Monday.
 
 ## Settings
 
-Click **Settings** at the top of the sidebar to choose:
+Open the **Settings** menu at the top of the sidebar and choose
+**Templates and periodic notes settings** to set:
 
 - the folder your templates are in, and how `{{date}}` and `{{time}}` are
   written;
