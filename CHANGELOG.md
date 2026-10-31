@@ -421,6 +421,9 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A vault with folders and no notes shows its folders, so the first folder
+  made in an empty vault appears at once, rather than "This vault has no
+  notes yet." until a note is made.
 - The desktop app run with `pnpm dev` reads a vault's links again: its
   link index worker loaded the browser build of an entity decoder, which
   needs a `document` a worker has not, and stopped before its first note,
