@@ -114,6 +114,18 @@ token as `Authorization: Bearer <token>`. Every error is
 | `POST /api/invitations/lookup` | | The workspace and role a `token` invites to |
 | `POST /api/invitations/accept` | either | Accepts a `token`: signed in, into that account; or with `name`, `email` and `password`, as a new account, signed in |
 
+**Sessions in a browser** ([ADR 0053](../../docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)):
+a page signs in with the header `X-Nether-Session: cookie`, on any of the
+routes that sign in. The answer then sets the session's token in the
+`HttpOnly`, `SameSite=Strict` cookie `nether_session` and leaves it out of
+its body, and sets `nether_csrf`, which the page reads and sends back as
+`X-Nether-CSRF` on every request but `GET`, `HEAD` and `OPTIONS`; without
+it such a request is refused with 403. The sync and relay sockets take the
+cookie only when their `Origin` is the server's own. `DELETE
+/api/sessions/current` takes the cookies off. With `NETHER_PUBLIC_URL`
+set, the email with a sign-in code also links to
+`<address>/sign-in#email=…&code=…`.
+
 A session ends when its client signs out, after 30 days unused, or 90
 days after it began. Invitations last seven days and are accepted once.
 A code emailed to sign in works once, within 15 minutes, and five wrong

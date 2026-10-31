@@ -8,6 +8,11 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Sessions in a cookie for the web app: signing in with
+  `X-Nether-Session: cookie` keeps the token in an `HttpOnly` cookie, with
+  a CSRF value sent back on every change; sync and relay sockets take it
+  from the server's own pages; and the sign-in email links to the web app
+  ([ADR 0053](docs/adr/0053-the-web-app-is-the-desktop-page-in-the-browser-signed-in-by-a-cookie.md)).
 - Server backups: scheduled, of the database and every attachment in one
   file, to a folder or an S3-compatible bucket, the newest kept
   (`NETHER_BACKUP`, `NETHER_BACKUP_HOURS`, `NETHER_BACKUP_KEEP`); made and
