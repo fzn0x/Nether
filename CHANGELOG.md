@@ -317,6 +317,8 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Stopping sync no longer waits for ever when it stops while a note is
+  still loading to sync: the note is not synced once sync has stopped.
 - A note moved while sync was still fetching other notes stays where it
   was moved, where sync could move it back to where it came from.
 - The desktop app keeps what the relay knows of each document of an

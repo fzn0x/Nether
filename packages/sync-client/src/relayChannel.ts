@@ -336,6 +336,8 @@ export class RelayChannel implements Channel {
   }
 
   async sync(id: string, document: Y.Doc): Promise<void> {
+    // Closed, no acknowledgement would ever come.
+    if (this.#closed) throw new Error("Sync stopped.");
     if (!this.#ready) throw new Error("Not connected to the server.");
     const name = this.#name(id);
     // Taken before the server's updates apply: only this side's changes are sent.

@@ -62,6 +62,7 @@ export class HocuspocusChannel implements Channel {
   readonly #vault: HocuspocusProvider;
   /** How to give up on each document syncing now, when the channel closes. */
   readonly #inflight = new Set<(error: Error) => void>();
+  #closed = false;
 
   constructor(options: ChannelOptions, vaultDocument: Y.Doc, events: ChannelEvents) {
     this.#options = options;
@@ -101,6 +102,8 @@ export class HocuspocusChannel implements Channel {
   }
 
   sync(id: string, document: Y.Doc): Promise<void> {
+    // The socket is gone: no answer would ever come.
+    if (this.#closed) return Promise.reject(new Error("Sync stopped."));
     return new Promise((resolve, reject) => {
       const provider = new HocuspocusProvider({
         websocketProvider: this.#socket,
@@ -139,6 +142,7 @@ export class HocuspocusChannel implements Channel {
   }
 
   close(): void {
+    this.#closed = true;
     // A document syncing now gets no answer once the socket is gone.
     for (const giveUp of this.#inflight) giveUp(new Error("Sync stopped."));
     this.#vault.destroy();

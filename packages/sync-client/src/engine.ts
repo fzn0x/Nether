@@ -523,9 +523,14 @@ export class VaultSync {
     if (failures.length > 0) throw failures[0];
   }
 
-  /** Syncs a document with the server's: both get what the other lacks. */
+  /**
+   * Syncs a document with the server's: both get what the other lacks. A
+   * round that reaches a note after sync stopped, as one whose note took
+   * long to load, syncs nothing, so stopping does not wait on it.
+   */
   #sync(id: string, document: Y.Doc): Promise<void> {
     if (this.#channel === undefined) return Promise.reject(new Error("Sync has not started."));
+    if (this.#stopped) return Promise.reject(new Error("Sync stopped."));
     return this.#channel.sync(id, document);
   }
 

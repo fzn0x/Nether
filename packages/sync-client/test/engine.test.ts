@@ -1,7 +1,12 @@
 // Two devices syncing one vault through a real Nether server, on PGlite:
 // linking a vault and opening it elsewhere, edits both ways and at once,
-// notes made, moved and removed, and edits made offline.
+// notes made, moved and removed, edits made offline, and stopping.
 import { afterEach, describe, expect, it } from "vitest";
+import * as Y from "yjs";
+import { HocuspocusChannel } from "../src/channel.ts";
+import { newWorkspaceKey } from "../src/crypto.ts";
+import type { HeldDocument } from "../src/engine.ts";
+import { RelayChannel } from "../src/relayChannel.ts";
 import { MemoryVault, device, signIn, startServer, stopAll, until } from "./harness.ts";
 
 afterEach(stopAll);
@@ -85,6 +90,29 @@ describe("syncing a vault", () => {
     expect(phone.vault.paths().get(first)).toBe("Archive/First.md");
   });
 
+  it("stops while a note waits to load, and syncs it no more", async () => {
+    const served = await startServer();
+    let load: () => void = () => undefined;
+    const loaded = new Promise<void>((resolve) => {
+      load = resolve;
+    });
+    let asked = false;
+    class Slow extends MemoryVault {
+      override async hold(id: string): Promise<HeldDocument> {
+        asked = true;
+        await loaded;
+        return super.hold(id);
+      }
+    }
+    const laptop = new Slow();
+    laptop.write("Ideas.md", "one");
+    const { engine } = await device(served, served.token, laptop);
+    await until(() => asked);
+    const stopped = engine.stop();
+    load();
+    await stopped;
+  });
+
   it("keeps edits made offline, and sends them when the device is back", async () => {
     const served = await startServer();
     const laptop = new MemoryVault();
@@ -112,5 +140,25 @@ describe("syncing a vault", () => {
         phone.vault.text(note) === "zero one two" &&
         laptop.text(offline) === "written offline",
     );
+  });
+});
+
+describe("a closed channel", () => {
+  it("syncs nothing more, through Hocuspocus or the relay", async () => {
+    const events = {
+      onSynced: () => undefined,
+      onStored: () => undefined,
+      onOffline: () => undefined,
+    };
+    const where = { server: "http://127.0.0.1:9", token: "token", workspaceId: "workspace" };
+    const plain = new HocuspocusChannel(where, new Y.Doc(), events);
+    plain.close();
+    await expect(plain.sync("note", new Y.Doc())).rejects.toThrow("Sync stopped.");
+
+    const key = await newWorkspaceKey();
+    const keys = { key: { version: 1, key }, keys: new Map([[1, key]]) };
+    const relay = new RelayChannel({ ...where, ...keys }, new Y.Doc(), events, undefined);
+    relay.close();
+    await expect(relay.sync("note", new Y.Doc())).rejects.toThrow("Sync stopped.");
   });
 });
