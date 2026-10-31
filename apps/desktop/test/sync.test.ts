@@ -48,6 +48,39 @@ describe("a vault's link and sync record", () => {
     expect(await store.load()).toBeUndefined();
   });
 
+  it("keeps the units, and each one's vault document, letting go of those gone", async () => {
+    const vault = await openVault();
+    await setVaultLink(vault, link);
+    const store = settingsStore(vault);
+    const units = [
+      { id: "general", kind: "general", level: "full", document: "vault" },
+      { id: "t1", kind: "team", level: "edit", document: "vault.t1", name: "Design" },
+    ] as const;
+    await store.save({
+      cursor: 1,
+      base: {},
+      pending: [],
+      vault: new Uint8Array([1]),
+      units,
+      vaults: { t1: new Uint8Array([2]), t2: new Uint8Array([3]) },
+    });
+    const loaded = await store.load();
+    expect(loaded?.units).toEqual(units);
+    expect(Object.keys(loaded?.vaults ?? {}).sort()).toEqual(["t1", "t2"]);
+    expect([...(loaded?.vaults?.t2 ?? [])]).toEqual([3]);
+
+    await store.save({
+      cursor: 2,
+      base: {},
+      pending: [],
+      vault: null,
+      vaults: { t1: new Uint8Array([4]) },
+    });
+    expect(await vault.settings.setting("sync.vault.t2")).toBeUndefined();
+    await setVaultLink(vault, undefined);
+    expect(await vault.settings.setting("sync.vault.t1")).toBeUndefined();
+  });
+
   it("reads no link from a setting it cannot read", async () => {
     const vault = await openVault();
     await vault.settings.setSetting("sync.link", new TextEncoder().encode("not json"));

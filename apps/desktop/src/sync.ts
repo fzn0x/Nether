@@ -51,7 +51,20 @@ export async function vaultLink(vault: Vault): Promise<VaultLink | undefined> {
 }
 
 /** Links a vault to a workspace, or unlinks it, forgetting what sync knew. */
+/** Where a unit's vault document is kept, besides General's (ADR 0042). */
+function unitVaultKey(unit: string): string {
+  return `${vaultKey}.${unit}`;
+}
+
+/** The units whose vault documents the record kept. */
+function keptUnits(record: unknown): string[] {
+  const ids = (record as { vaultIds?: unknown } | undefined)?.vaultIds;
+  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
+}
+
 export async function setVaultLink(vault: Vault, link: VaultLink | undefined): Promise<void> {
+  const kept = keptUnits(readJson(await vault.settings.setting(recordKey)));
+  for (const unit of kept) await vault.settings.setSetting(unitVaultKey(unit), undefined);
   await vault.settings.setSetting(recordKey, undefined);
   await vault.settings.setSetting(vaultKey, undefined);
   await vault.settings.setSetting(
@@ -67,19 +80,39 @@ export function settingsStore(vault: Vault): SyncStore {
       const record = readJson(await vault.settings.setting(recordKey)) as
         Partial<Omit<SyncRecord, "vault">> | undefined;
       if (record === undefined || typeof record.cursor !== "number") return undefined;
+      const vaults: Record<string, Uint8Array> = {};
+      for (const unit of keptUnits(record)) {
+        const state = await vault.settings.setting(unitVaultKey(unit));
+        if (state !== undefined) vaults[unit] = state;
+      }
       return {
         cursor: record.cursor,
         base: typeof record.base === "object" ? record.base : {},
         pending: Array.isArray(record.pending) ? record.pending : [],
         ...(typeof record.files === "object" ? { files: record.files } : {}),
         vault: (await vault.settings.setting(vaultKey)) ?? null,
+        // The engine reads the units again, leaving out any it cannot use.
+        ...(Array.isArray(record.units) ? { units: record.units } : {}),
+        vaults,
         ...(record.channel === undefined ? {} : { channel: record.channel }),
       };
     },
     async save(record: SyncRecord): Promise<void> {
-      const { vault: document, ...rest } = record;
-      await vault.settings.setSetting(recordKey, encoder.encode(JSON.stringify(rest)));
+      const { vault: document, vaults = {}, ...rest } = record;
+      const before = keptUnits(readJson(await vault.settings.setting(recordKey)));
+      const units = Object.keys(vaults);
+      await vault.settings.setSetting(
+        recordKey,
+        encoder.encode(JSON.stringify({ ...rest, vaultIds: units })),
+      );
       await vault.settings.setSetting(vaultKey, document ?? undefined);
+      for (const [unit, state] of Object.entries(vaults)) {
+        await vault.settings.setSetting(unitVaultKey(unit), state);
+      }
+      // A unit let go takes its vault document with it.
+      for (const unit of before) {
+        if (!units.includes(unit)) await vault.settings.setSetting(unitVaultKey(unit), undefined);
+      }
     },
   };
 }
