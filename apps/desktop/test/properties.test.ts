@@ -48,6 +48,8 @@ describe("convertValue", () => {
     expect(convertValue({ x: 1 }, "text")).toBe('{"x":1}');
     expect(convertValue(null, "url")).toBe("");
     expect(isListType("relation")).toBe(true);
+    expect(isListType("person")).toBe(true);
+    expect(convertValue("Ana, Ben", "person")).toEqual(["Ana", "Ben"]);
     expect(isListType("select")).toBe(false);
   });
 });

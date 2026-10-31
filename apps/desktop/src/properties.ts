@@ -1,7 +1,7 @@
 // A note's properties as the app shows and edits them: each one's type,
 // the vault's choice for its key or else what its value looks like, as
 // Obsidian reads them, and values carried over when a type changes.
-import type { JsonValue, PropertyType } from "@nether/core";
+import { type JsonValue, type PropertyType, propertyTypes } from "@nether/core";
 
 /** The types the app edits, in the order its menu lists them. */
 export const editableTypes: readonly PropertyType[] = [
@@ -54,7 +54,8 @@ function asText(value: JsonValue): string {
 
 /** Whether a type holds a list of values. */
 export function isListType(type: PropertyType): boolean {
-  return type === "multiSelect" || type === "relation";
+  // A person property holds names, as many as work on a thing.
+  return type === "multiSelect" || type === "relation" || type === "person";
 }
 
 /** A value carried over to another type, as near as it goes: `"a, b"` as a list, `"3"` as a number. */
@@ -71,6 +72,7 @@ export function convertValue(value: JsonValue, type: PropertyType): JsonValue {
       return isoDate.test(text) ? text.slice(0, 10) : null;
     case "multiSelect":
     case "relation":
+    case "person":
       return Array.isArray(value)
         ? value.map(asText).filter((item) => item !== "")
         : text === ""
@@ -106,4 +108,14 @@ export function newPropertyKey(taken: readonly string[]): string {
   let n = 2;
   while (keys.has(`property ${String(n)}`)) n++;
   return `property ${String(n)}`;
+}
+
+/** The vault's chosen types, from `.nether/properties.json`, kept only where they are types. */
+export function readPropertyTypes(data: unknown): PropertyTypes {
+  if (typeof data !== "object" || data === null) return {};
+  return Object.fromEntries(
+    Object.entries(data).filter((entry): entry is [string, PropertyType] =>
+      (propertyTypes as readonly unknown[]).includes(entry[1]),
+    ),
+  );
 }
