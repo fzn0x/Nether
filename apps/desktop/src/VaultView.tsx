@@ -2080,6 +2080,7 @@ export function VaultView(props: {
                           <CanvasView
                             key={canvas}
                             vault={state.vault}
+                            graph={state.indexer.graph}
                             media={state.media}
                             path={canvas}
                             onOpenNote={openNote}
