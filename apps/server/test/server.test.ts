@@ -43,6 +43,7 @@ describe("readConfig", () => {
       storage: { kind: "disk", path: "data/attachments" },
       attachmentLimit: 100 * 1024 * 1024,
       historyDays: 30,
+      backup: null,
       enterprise: {
         sso: false,
         scim: false,

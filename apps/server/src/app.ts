@@ -20,6 +20,7 @@ import { registerSync } from "./sync.ts";
 import { registerUnits } from "./units.ts";
 import { purgeVersions, registerVersions } from "./versions.ts";
 import { backfillSearch, registerSearch } from "./search.ts";
+import { backupIfDue, backupTarget, noBlobs } from "./backups.ts";
 import { registerWorkspaces } from "./workspaces.ts";
 
 /** The server's version, from its package.json (one folder up from src/ and dist/ alike). */
@@ -105,7 +106,30 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   };
   const hourly = setInterval(() => void purge(), 3_600_000);
   hourly.unref();
+  // Scheduled backups (ADR 0052): checked as the server starts, then every
+  // ten minutes, one made when the last began longer ago than asked.
+  const backup = config.backup;
+  const backups =
+    backup === null
+      ? undefined
+      : (() => {
+          const target = backupTarget(backup);
+          const check = () => {
+            backupIfDue(services.db, services.blobs ?? noBlobs, target, backup).then(
+              (made) => {
+                if (made !== undefined) app.log.info(made, "Made a backup");
+              },
+              (error: unknown) => {
+                app.log.error({ err: error }, "Could not make a backup");
+              },
+            );
+          };
+          const timer = setInterval(check, 600_000);
+          timer.unref();
+          return { check, timer };
+        })();
   app.addHook("onReady", async () => {
+    backups?.check();
     await purge();
     // What was stored before search was, indexed once (ADR 0050).
     const indexed = await backfillSearch(services.db);
@@ -113,6 +137,7 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   });
   app.addHook("onClose", (_instance, done) => {
     clearInterval(hourly);
+    if (backups !== undefined) clearInterval(backups.timer);
     done();
   });
   if (services.blobs !== undefined) {

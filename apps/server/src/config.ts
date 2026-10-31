@@ -33,6 +33,8 @@ export interface Config {
   readonly attachmentLimit: number;
   /** How many days the server keeps notes' earlier versions (ADR 0041). */
   readonly historyDays: number;
+  /** Scheduled backups (ADR 0052), or none. */
+  readonly backup: BackupConfig | null;
   readonly enterprise: EnterpriseSwitches;
 }
 
@@ -273,6 +275,79 @@ function readAttachmentLimit(env: NodeJS.ProcessEnv): number {
   return Number(value) * 1024 * 1024;
 }
 
+/** Where scheduled backups go, how often, and how many are kept. */
+export interface BackupConfig {
+  readonly target:
+    | { readonly kind: "disk"; readonly path: string }
+    | {
+        readonly kind: "s3";
+        readonly endpoint: string;
+        readonly bucket: string;
+        readonly region: string;
+        readonly accessKey: string;
+        readonly secretKey: string;
+        /** The folder of the bucket the backups go in, ending with a slash. */
+        readonly prefix: string;
+      };
+  readonly hours: number;
+  readonly keep: number;
+}
+
+function readCount(
+  env: NodeJS.ProcessEnv,
+  variable: string,
+  fallback: number,
+  max: number,
+): number {
+  const value = env[variable]?.trim() ?? "";
+  if (value === "") return fallback;
+  if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > max) {
+    throw new ConfigError(
+      variable,
+      `must be a whole number from 1 to ${String(max)}, not "${value}"`,
+    );
+  }
+  return Number(value);
+}
+
+function readBackup(env: NodeJS.ProcessEnv): BackupConfig | null {
+  const kind = (env.NETHER_BACKUP?.trim() ?? "").toLowerCase();
+  if (kind === "" || kind === "off") return null;
+  const hours = readCount(env, "NETHER_BACKUP_HOURS", 24, 8760);
+  const keep = readCount(env, "NETHER_BACKUP_KEEP", 7, 1000);
+  if (kind === "disk") {
+    const path = env.NETHER_BACKUP_PATH?.trim() ?? "";
+    return { target: { kind: "disk", path: path === "" ? "data/backups" : path }, hours, keep };
+  }
+  if (kind !== "s3") {
+    throw new ConfigError("NETHER_BACKUP", `must be off, disk or s3, not "${kind}"`);
+  }
+  const endpoint = readHttpUrl(env, "NETHER_S3_ENDPOINT");
+  if (endpoint === null) {
+    throw new ConfigError("NETHER_S3_ENDPOINT", "must be set when NETHER_BACKUP is s3");
+  }
+  const required = (variable: string): string => {
+    const value = env[variable]?.trim() ?? "";
+    if (value === "") throw new ConfigError(variable, "must be set when NETHER_BACKUP is s3");
+    return value;
+  };
+  const region = env.NETHER_S3_REGION?.trim() ?? "";
+  const prefix = (env.NETHER_BACKUP_S3_PREFIX?.trim() ?? "").replace(/^\/+/, "");
+  return {
+    target: {
+      kind: "s3",
+      endpoint,
+      bucket: required("NETHER_BACKUP_S3_BUCKET"),
+      region: region === "" ? "us-east-1" : region,
+      accessKey: required("NETHER_S3_ACCESS_KEY"),
+      secretKey: required("NETHER_S3_SECRET_KEY"),
+      prefix: prefix === "" ? "nether-backups/" : prefix.endsWith("/") ? prefix : `${prefix}/`,
+    },
+    hours,
+    keep,
+  };
+}
+
 function readHistoryDays(env: NodeJS.ProcessEnv): number {
   const value = env.NETHER_HISTORY_DAYS?.trim() ?? "";
   if (value === "") return 30;
@@ -304,6 +379,7 @@ export function readConfig(env: NodeJS.ProcessEnv): Config {
     storage: readStorage(env),
     attachmentLimit: readAttachmentLimit(env),
     historyDays: readHistoryDays(env),
+    backup: readBackup(env),
     enterprise,
   };
 }
