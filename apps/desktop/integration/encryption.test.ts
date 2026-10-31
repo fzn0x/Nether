@@ -25,6 +25,7 @@ import {
 import { noteDocuments } from "../src/noteDocuments.ts";
 import { settingsStore } from "../src/sync.ts";
 import { DesktopSyncVault } from "../src/syncVault.ts";
+import { freePort } from "@nether/server/test/ports.ts";
 
 const password = "a long password";
 const config = readConfig({
@@ -49,7 +50,7 @@ async function startServer() {
   await migrate(db);
   const setupCode = newSetupCode();
   server = await buildApp(config, { db, setupCode });
-  await server.listen({ host: "127.0.0.1", port: 0 });
+  await server.listen({ host: "127.0.0.1", port: await freePort() });
   const url = `http://127.0.0.1:${String((server.server.address() as AddressInfo).port)}`;
   const response = await fetch(`${url}/api/setup`, {
     method: "POST",

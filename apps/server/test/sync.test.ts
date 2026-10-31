@@ -15,6 +15,7 @@ import { newSetupCode } from "../src/setup.ts";
 import type { Stored } from "../src/sync.ts";
 import { type SetUp, admin, bearer, setUp, signIn } from "./app.ts";
 import { testDatabase } from "./database.ts";
+import { freePort } from "./ports.ts";
 
 const config = readConfig({
   NETHER_DATABASE_URL: "postgres://nether@localhost:5432/nether",
@@ -44,7 +45,7 @@ async function listen(setupCode = newSetupCode()): Promise<FastifyInstance> {
   db ??= await testDatabase();
   await migrate(db);
   server = await buildApp(config, { db, setupCode });
-  await server.listen({ host: "127.0.0.1", port: 0 });
+  await server.listen({ host: "127.0.0.1", port: await freePort() });
   return server;
 }
 

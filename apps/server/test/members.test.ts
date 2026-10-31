@@ -7,6 +7,7 @@ import { HocuspocusProvider } from "@hocuspocus/provider";
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { type SetUp, type TestServer, bearer, setUp, startServer } from "./app.ts";
+import { freePort } from "./ports.ts";
 
 let running: TestServer | undefined;
 const providers: HocuspocusProvider[] = [];
@@ -143,7 +144,7 @@ describe("a workspace's members", () => {
   it("close a removed member's sync connections, which then sign in no more", async () => {
     const test = await start();
     const member = await join(test, "member", "Bea");
-    await test.server.listen({ host: "127.0.0.1", port: 0 });
+    await test.server.listen({ host: "127.0.0.1", port: await freePort() });
     const port = String((test.server.server.address() as AddressInfo).port);
 
     let refused: string | undefined;

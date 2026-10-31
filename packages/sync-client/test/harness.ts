@@ -21,6 +21,7 @@ import {
   VaultSync,
 } from "../src/engine.ts";
 import { sha256 } from "../src/files.ts";
+import { freePort } from "@nether/server/test/ports.ts";
 
 export const password = "a long password";
 
@@ -230,7 +231,7 @@ export async function startServer(env: Record<string, string> = {}) {
     ...env,
   });
   server = await buildApp(config, { db, setupCode, blobs });
-  await server.listen({ host: "127.0.0.1", port: 0 });
+  await server.listen({ host: "127.0.0.1", port: await freePort() });
   const url = `http://127.0.0.1:${String((server.server.address() as AddressInfo).port)}`;
   const setUp = await fetch(`${url}/api/setup`, {
     method: "POST",

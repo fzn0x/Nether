@@ -7,6 +7,7 @@ import { HocuspocusProvider } from "@hocuspocus/provider";
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { type SetUp, type TestServer, bearer, setUp, signIn, startServer } from "./app.ts";
+import { freePort } from "./ports.ts";
 
 let running: TestServer | undefined;
 const sockets: WebSocket[] = [];
@@ -178,7 +179,7 @@ describe("keys and encrypted workspaces", () => {
 /** A relay client: its messages as they come, and a way to wait for one. */
 async function relay(test: TestServer, token: string) {
   const address = test.server.server.address() as AddressInfo | null;
-  if (address === null) await test.server.listen({ host: "127.0.0.1", port: 0 });
+  if (address === null) await test.server.listen({ host: "127.0.0.1", port: await freePort() });
   const port = (test.server.server.address() as AddressInfo).port;
   const socket = new WebSocket(`ws://127.0.0.1:${String(port)}/api/relay`);
   sockets.push(socket);
@@ -365,7 +366,7 @@ describe("the relay", () => {
     const test = await start();
     await keys(test, test.token);
     const workspace = await encryptedWorkspace(test, test.token);
-    await test.server.listen({ host: "127.0.0.1", port: 0 });
+    await test.server.listen({ host: "127.0.0.1", port: await freePort() });
     const port = (test.server.server.address() as AddressInfo).port;
     const refused = await new Promise<string>((resolve) => {
       const provider = new HocuspocusProvider({
