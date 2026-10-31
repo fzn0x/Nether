@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- End-to-end encryption in `@nether/sync-client`: a 24-word recovery
+  phrase that opens an account's private key, workspace keys sealed to
+  each member, and every update of an encrypted workspace encrypted with
+  XChaCha20-Poly1305 for its document before it leaves the device, synced
+  through the server's relay; a device that cannot read an update stops
+  rather than overwrite what it could not read.
 - Encrypted workspaces on the server: accounts keep a public key and a
   private key only their recovery phrase opens, a workspace made encrypted
   holds its key sealed to each member, and its updates sync through
