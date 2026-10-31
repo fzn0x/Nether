@@ -105,3 +105,59 @@ test("a vault's appearance: dark apart from the system, a theme and snippets, ke
   await expect(html).toHaveAttribute("data-mode", "light");
   expect(errors).toEqual([]);
 });
+
+/** What the theme's canvas shows now, to tell whether it moves. */
+function canvasNow(page: Page): Promise<string> {
+  return page.locator("canvas.theme-effect").evaluate((canvas) => {
+    if (!(canvas instanceof HTMLCanvasElement)) return "";
+    return canvas.toDataURL();
+  });
+}
+
+test("the built-in themes draw behind the app, still when motion is reduced", async ({ page }) => {
+  const errors = errorsOf(page);
+  await page.emulateMedia({ colorScheme: "dark" });
+  await openSample(page);
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+  await page.getByRole("menuitem", { name: /^Appearance/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Appearance" });
+  const theme = dialog.getByRole("combobox", { name: "Theme" });
+  await theme.selectOption("nether:anime");
+  const canvas = page.locator("canvas.theme-effect");
+  await expect(canvas).toHaveAttribute("aria-hidden", "true");
+  await expect.poll(() => token(page, "--accent")).toBe("#ff7ac3");
+  // The kana drift.
+  const before = await canvasNow(page);
+  await page.waitForTimeout(300);
+  expect(await canvasNow(page)).not.toBe(before);
+  await expect
+    .poll(
+      async () => JSON.parse((await fileText(page, ".nether/appearance.json")) ?? "{}") as unknown,
+    )
+    .toEqual({ mode: "system", theme: "nether:anime", snippets: [] });
+
+  // With reduced motion they stand still.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.waitForTimeout(100);
+  const still = await canvasNow(page);
+  await page.waitForTimeout(300);
+  expect(await canvasNow(page)).toBe(still);
+
+  // The pixel grid, and the page's colors still pass, the effect behind them.
+  await theme.selectOption("nether:pixels");
+  await expect.poll(() => token(page, "--accent")).toBe("#5ee0c0");
+  await dialog.getByRole("button", { name: "Done" }).click();
+  await page.mouse.move(700, 400);
+  await page.mouse.move(760, 420);
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map((violation) => violation.id)).toEqual([]);
+
+  // Nether's own takes the canvas away.
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+  await page.getByRole("menuitem", { name: /^Appearance/ }).click();
+  await theme.selectOption({ label: "Nether's own" });
+  await expect(canvas).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
