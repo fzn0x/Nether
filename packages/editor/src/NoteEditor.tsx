@@ -1,9 +1,12 @@
 // The editor for one note, in React. It starts from the note's blocks and
 // reports its blocks after every change; the caller decides when to save.
 // The slash menu inserts blocks, the handle beside each block moves it or
-// opens its menu, and rich blocks such as math render in place.
+// opens its menu, and rich blocks such as math render in place. With others
+// editing the note at once, their carets and selections show, each with
+// their name (ADR 0043).
 import { type ContentBlock, newBlockId } from "@nether/core";
 import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCaret from "@tiptap/extension-collaboration-caret";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useMemo, useRef } from "react";
@@ -22,6 +25,13 @@ import { SlashMenu } from "./SlashMenu.tsx";
 import { netherNodeViews } from "./views.tsx";
 import { type EditorWords, englishWords } from "./words.ts";
 import type * as Y from "yjs";
+
+/** Others editing the note at once, and who this person is to them. */
+export interface NoteCollaboration {
+  /** What carries where each person is: a y-protocols awareness of the note's document. */
+  readonly awareness: unknown;
+  readonly user: { readonly name: string; readonly color: string };
+}
 
 export interface NoteEditorProps {
   /**
@@ -57,6 +67,8 @@ export interface NoteEditorProps {
    * A new `key` goes again.
    */
   readonly focus?: NotePart & { readonly key: number };
+  /** Others editing at once, with `document`: the editor is made again when it changes. */
+  readonly collaboration?: NoteCollaboration;
 }
 
 export function NoteEditor(props: NoteEditorProps) {
@@ -73,6 +85,7 @@ export function NoteEditor(props: NoteEditorProps) {
     editable = true,
     focus,
     previews,
+    collaboration,
   } = props;
   // The latest callback, so the editor need not be made again when it changes.
   const changed = useRef(onChange);
@@ -82,44 +95,56 @@ export function NoteEditor(props: NoteEditorProps) {
 
   const commands = useMemo(() => blockCommands(words), [words]);
 
-  const editor = useEditor({
-    extensions: [
-      ...netherExtensions({
-        nodeViews: netherNodeViews(words, files, links, 0, previews),
-        history: document === undefined,
-      }),
-      ...(document === undefined
-        ? []
-        : [Collaboration.configure({ document, field: contentField })]),
-      FileDrop.configure({ files }),
-      Placeholder.configure({ placeholder }),
-      SlashMenu.configure({ commands, words }),
-      LinkMenu.configure({ links, words }),
-      BlockKeys,
-    ],
-    ...(document === undefined ? { content: toEditor(blocks) } : {}),
-    autofocus,
-    editable,
-    editorProps: {
-      attributes: {
-        class: "nether-editor",
-        "aria-label": label,
-        role: "textbox",
-        "aria-multiline": "true",
+  const editor = useEditor(
+    {
+      extensions: [
+        ...netherExtensions({
+          nodeViews: netherNodeViews(words, files, links, 0, previews),
+          history: document === undefined,
+        }),
+        ...(document === undefined
+          ? []
+          : [Collaboration.configure({ document, field: contentField })]),
+        ...(document === undefined || collaboration === undefined
+          ? []
+          : [
+              CollaborationCaret.configure({
+                provider: { awareness: collaboration.awareness },
+                user: collaboration.user,
+              }),
+            ]),
+        FileDrop.configure({ files }),
+        Placeholder.configure({ placeholder }),
+        SlashMenu.configure({ commands, words }),
+        LinkMenu.configure({ links, words }),
+        BlockKeys,
+      ],
+      ...(document === undefined ? { content: toEditor(blocks) } : {}),
+      autofocus,
+      editable,
+      editorProps: {
+        attributes: {
+          class: "nether-editor",
+          "aria-label": label,
+          role: "textbox",
+          "aria-multiline": "true",
+        },
       },
+      onUpdate: ({ editor: current, transaction }) => {
+        // IDs the editor gives blocks as it loads, and other changes kept out of
+        // the undo history, are not the user's edits.
+        if (
+          transaction.getMeta(blockIdsKey) === true ||
+          transaction.getMeta("addToHistory") === false
+        ) {
+          return;
+        }
+        changed.current?.(fromEditor(current.getJSON(), () => newBlockId()));
+      },
+      // Others' carets come with a new editor: the content is the document's, and stays.
     },
-    onUpdate: ({ editor: current, transaction }) => {
-      // IDs the editor gives blocks as it loads, and other changes kept out of
-      // the undo history, are not the user's edits.
-      if (
-        transaction.getMeta(blockIdsKey) === true ||
-        transaction.getMeta("addToHistory") === false
-      ) {
-        return;
-      }
-      changed.current?.(fromEditor(current.getJSON(), () => newBlockId()));
-    },
-  });
+    [collaboration],
+  );
 
   // Goes to the heading or block a link names.
   const focusKey = focus?.key;

@@ -48,7 +48,7 @@ export {
   netherExtensions,
   parseLinkText,
 } from "./schema.ts";
-export { NoteEditor, type NoteEditorProps } from "./NoteEditor.tsx";
+export { type NoteCollaboration, NoteEditor, type NoteEditorProps } from "./NoteEditor.tsx";
 export { SlashMenu, type SlashMenuOptions, slashMenuKey } from "./SlashMenu.tsx";
 export {
   LinkMenu,
