@@ -1,6 +1,6 @@
 // A note's links in the desktop app: how `[[` ranks notes, the path a new
 // note gets from a link, and what a link opens.
-import type { LinkTarget, NoteId } from "@nether/core";
+import type { BlockId, ContentBlock, LinkTarget, NoteId } from "@nether/core";
 import { LinkGraph, indexNote } from "@nether/graph";
 import { parseMarkdown } from "@nether/markdown";
 import { MemoryFiles, MemoryStore, Vault } from "@nether/storage";
@@ -229,5 +229,99 @@ describe("noteLinks.suggestBlocks", () => {
       .poll(async () => (await memory.read("Plan.md")).text)
       .toBe(`New first.\n\nFirst.\n\nSecond. ^${target.block}\n`);
     expect(errors).toEqual([]);
+  });
+});
+
+describe("noteLinks, synced blocks", () => {
+  const source = "# Source\n\nA shared line ^shared\n\nAfter it.\n";
+  async function setUp() {
+    const files: Record<string, string> = {
+      "Board.md": "![[Source#^shared]]\n\nMine. ^mine\n",
+      "Source.md": source,
+    };
+    const memory = new MemoryFiles(files);
+    const vault = new Vault(memory, new MemoryStore());
+    await vault.open();
+    const graph = new LinkGraph();
+    for (const note of vault.notes()) {
+      const parsed = parseMarkdown(files[note.path] ?? "");
+      graph.set(note.id, note.path, indexNote(parsed, parsed.writtenIds));
+    }
+    const board = vault.noteAt("Board.md")?.id;
+    const sourceId = vault.noteAt("Source.md")?.id;
+    if (board === undefined || sourceId === undefined)
+      throw new Error("The notes are not in the vault.");
+    const links = noteLinks(
+      vault,
+      graph,
+      board,
+      () => undefined,
+      () => undefined,
+    );
+    return { memory, vault, links, board, sourceId };
+  }
+  const target: LinkTarget = { title: "Source", block: "shared" as BlockId };
+  const edited = (text: string): ContentBlock => ({
+    id: "shared" as BlockId,
+    type: "paragraph",
+    content: [{ type: "text", text }],
+  });
+
+  it("embeds another note's block as synced, and this note's own block, or a heading, not", async () => {
+    const { links } = await setUp();
+    expect((await links.embed?.(target))?.synced).toBe(true);
+    expect((await links.embed?.({ block: "mine" as BlockId }))?.synced).toBe(false);
+    expect((await links.embed?.({ title: "Source", heading: "Source" }))?.synced).toBe(false);
+  });
+
+  it("writes a synced block's edit to its note, with its ID, and every other byte as it was", async () => {
+    const { memory, links } = await setUp();
+    await links.saveEmbed?.(target, edited("An edited line"));
+    expect((await memory.read("Source.md")).text).toBe(
+      "# Source\n\nAn edited line ^shared\n\nAfter it.\n",
+    );
+    expect((await links.embed?.(target))?.blocks).toEqual([edited("An edited line")]);
+  });
+
+  it("writes it again over what another app changed meanwhile", async () => {
+    const { memory, vault, links } = await setUp();
+    const write = vault.write.bind(vault);
+    let first = true;
+    vault.write = (id, text, base) => {
+      if (first) {
+        first = false;
+        memory.edit("Source.md", `New first line.\n\n${source}`);
+      }
+      return write(id, text, base);
+    };
+    await links.saveEmbed?.(target, edited("An edited line"));
+    expect((await memory.read("Source.md")).text).toBe(
+      "New first line.\n\n# Source\n\nAn edited line ^shared\n\nAfter it.\n",
+    );
+  });
+
+  it("says why it cannot write: a block of this note, or one its note no longer has", async () => {
+    const { memory, links } = await setUp();
+    await expect(links.saveEmbed?.({ block: "mine" as BlockId }, edited("x"))).rejects.toThrow(
+      "Only a block of another note is a synced block.",
+    );
+    memory.edit("Source.md", "# Source\n\nThe line is gone.\n");
+    await expect(links.saveEmbed?.(target, edited("x"))).rejects.toThrow(
+      "Source no longer has the block.",
+    );
+  });
+
+  it("tells an embed when the note it comes from changes, and not for other notes", async () => {
+    const { vault, links, board } = await setUp();
+    const listener = vi.fn();
+    const stop = links.watchEmbed?.(target, listener);
+    await links.saveEmbed?.(target, edited("Once"));
+    expect(listener).toHaveBeenCalledTimes(1);
+    const file = await vault.read(board);
+    await vault.write(board, "Changed.\n", file.hash);
+    expect(listener).toHaveBeenCalledTimes(1);
+    stop?.();
+    await links.saveEmbed?.(target, edited("Twice"));
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

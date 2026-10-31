@@ -907,6 +907,29 @@ button {
   white-space: pre-wrap;
 }
 
+/* A synced block: edited in place, and marked as such where it is edited. */
+.nether-editor .synced-block {
+  border-inline-start-style: dashed;
+}
+
+.nether-editor .synced-block:focus-within {
+  border-inline-start-color: var(--accent);
+}
+
+.nether-editor .synced-block-content:focus {
+  outline: none;
+}
+
+.nether-editor .synced-block-content > :first-child {
+  margin-top: 0;
+}
+
+.nether-editor .embed-failed {
+  margin-top: 0.25rem;
+  color: var(--accent);
+  font-size: 0.8125rem;
+}
+
 /* A query block's notes below its code: a database view's, not the note's tables and headings. */
 .nether-editor .code-query {
   margin-top: 0.5rem;
@@ -1270,6 +1293,9 @@ button {
 }
 
 .nether-editor .note-embed-title {
+  /* A target big enough to click, however short the note's name. */
+  min-block-size: 1.5rem;
+  min-inline-size: 1.5rem;
   padding: 0;
   border: 0;
   background: none;

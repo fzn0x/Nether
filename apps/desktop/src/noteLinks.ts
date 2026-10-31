@@ -3,7 +3,9 @@
 // blocks after `#^`, found by their text; and what a link opens, a note
 // the vault makes first when it has none by that name, as Obsidian does.
 // A link to a block that has no ID writes one, `^id`, after the block in
-// its note's file, as Obsidian does.
+// its note's file, as Obsidian does. A block of another note embedded by its
+// ID is a synced block (ADR 0023): its edits are written to that note's
+// file, and its embeds show the note again whenever it changes.
 import {
   type Block,
   type BlockId,
@@ -12,6 +14,7 @@ import {
   type LinkTarget,
   type NoteId,
   inlineContent,
+  replaceBlock,
   walkBlocks,
 } from "@nether/core";
 import type { LinkSuggestion, NoteLinks } from "@nether/editor";
@@ -171,6 +174,9 @@ export function noteLinks(
   };
   const resolve = (title: string) =>
     graph.resolve(title, from()) ?? vault.noteAt(/\.md$/i.test(title) ? title : `${title}.md`)?.id;
+  /** The note a link names: by its ID, by its title, or this one for a part of it alone. */
+  const noteOf = (target: LinkTarget): NoteId | undefined =>
+    "note" in target ? target.note : "title" in target ? resolve(target.title) : id;
 
   /** Writes a block's ID after it in its note's file, so links to it find it. */
   const writeBlockId = async (
@@ -321,7 +327,7 @@ export function noteLinks(
     },
 
     async embed(target: LinkTarget) {
-      const note = "title" in target ? resolve(target.title) : id;
+      const note = noteOf(target);
       if (note === undefined) return undefined;
       const file = await vault.read(note);
       if (file.missing === true || file.binary === true) return undefined;
@@ -330,7 +336,45 @@ export function noteLinks(
         ...("block" in target ? { block: target.block } : {}),
       });
       const title = vault.note(note)?.title ?? "";
-      return blocks === undefined ? undefined : { title, blocks };
+      // A block of this note is edited where it is, not in its embed.
+      const synced = "block" in target && note !== id;
+      return blocks === undefined ? undefined : { title, blocks, synced };
+    },
+
+    async saveEmbed(target: LinkTarget, block: ContentBlock) {
+      const note = noteOf(target);
+      if (note === undefined || note === id || !("block" in target)) {
+        throw new Error("Only a block of another note is a synced block.");
+      }
+      const title = vault.note(note)?.title ?? "";
+      // Read again and written again when another app changes the note meanwhile.
+      for (;;) {
+        const file = await vault.read(note);
+        if (file.missing === true || file.binary === true) {
+          throw new Error(`${title} is not a note.`);
+        }
+        const parsed = parseMarkdown(file.text);
+        const content = replaceBlock(parsed.content, target.block, block);
+        if (content === undefined) throw new Error(`${title} no longer has the block.`);
+        const text = serializeMarkdown(
+          { ...parsed, content },
+          { source: parsed.source, writeIds: parsed.writtenIds },
+        ).text;
+        try {
+          await vault.write(note, text, file.hash);
+          return;
+        } catch (error) {
+          if (!(error instanceof ChangedOnDisk)) throw error;
+        }
+      }
+    },
+
+    watchEmbed(target: LinkTarget, listener: () => void) {
+      return vault.subscribe((changed) => {
+        // The note the link finds now, which a rename or a new note can change.
+        const note = noteOf(target);
+        if (note !== undefined && changed.includes(note)) listener();
+      });
     },
   };
 }
