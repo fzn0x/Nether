@@ -33,6 +33,7 @@ export default defineConfig({
             "search",
             "export",
             "keyboard",
+            "appearance",
             "markdown",
           ],
         },

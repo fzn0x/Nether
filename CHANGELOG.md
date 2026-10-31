@@ -142,6 +142,12 @@ follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   ([ADR 0019](docs/adr/0019-relations-are-links-both-ways-and-rollups-are-worked-out.md)).
   Links in a database's views show as the names of the notes they name,
   and filters compare them so.
+- Themes and CSS snippets: Appearance, in the command palette, shows a
+  vault light, dark or as the system, with a theme from its
+  `.nether/themes` folder and the snippets turned on from
+  `.nether/snippets`, kept in the vault; the page's `data-mode` says which
+  it shows, and themes set Nether's design tokens
+  ([ADR 0026](docs/adr/0026-themes-and-snippets-are-css-files-of-the-vault.md)).
 - The graph view, Ctrl+G: the vault's notes and their links, every note's or
   those up to three links around the open note, kept to a filter written
   as a search is; drawn by Sigma with WebGL and laid out by ForceAtlas2 in a

@@ -33,3 +33,4 @@ record supersedes it and says so. Start a new one from
 | [0023](0023-synced-blocks-are-block-embeds-edited-in-place.md) | Synced blocks are block embeds, edited in place | Accepted |
 | [0024](0024-unlinked-mentions-found-by-the-index-and-linked-where-written.md) | Unlinked mentions are found by the index and linked where written | Accepted |
 | [0025](0025-graph-view-with-sigma-and-forceatlas2-in-a-worker.md) | The graph view with Sigma, laid out by ForceAtlas2 in a worker | Accepted |
+| [0026](0026-themes-and-snippets-are-css-files-of-the-vault.md) | Themes and snippets are CSS files of the vault | Accepted |
