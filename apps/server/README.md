@@ -289,7 +289,50 @@ The schema is a list of numbered migrations in
 [`src/migrations.ts`](src/migrations.ts). Each start applies the ones the
 database lacks, in one transaction under a lock, so several nodes starting
 at once apply each once and a failed migration changes nothing. A server
-refuses to start on a database a newer server has migrated.
+refuses to start on a database a newer server has migrated. Any number of
+versions may be skipped: a server applies every one in between, in order.
+
+## Backups and restoring
+
+A backup is one file, `nether-backup-<time>.ndjson.gz`, holding the
+database and every attachment, made in one consistent snapshot while the
+server runs ([ADR 0052](../../docs/adr/0052-backups-are-the-server-s-own-files-restored-at-their-schema-then-migrated.md)).
+No `pg_dump` is needed.
+
+**Scheduled backups**: set `NETHER_BACKUP` to `disk` (into
+`NETHER_BACKUP_PATH`) or `s3` (into `NETHER_BACKUP_S3_BUCKET`, with the
+`NETHER_S3_*` endpoint and keys). The server makes one every
+`NETHER_BACKUP_HOURS` and keeps the newest `NETHER_BACKUP_KEEP`; of
+several nodes, one makes each. Its log says when it made one, and why it
+could not.
+
+**By hand**, with the server's environment set:
+
+```sh
+node dist/admin.js backup                       # now, where NETHER_BACKUP keeps them
+node dist/admin.js backup ~/nether.ndjson.gz    # now, into a file
+node dist/admin.js backups                      # those kept
+```
+
+**Restoring**, into a new, empty database:
+
+1. Stop the server.
+2. Make an empty database, as `createdb nether_restored`, and point
+   `NETHER_DATABASE_URL` at it. Point `NETHER_STORAGE` and its settings at
+   where the attachments should go.
+3. Restore a backup kept, by its name, or a file:
+
+   ```sh
+   node dist/admin.js restore nether-backup-2026-11-01T03-00-00Z.ndjson.gz
+   node dist/admin.js restore ~/nether.ndjson.gz
+   ```
+
+4. Start the server on the restored database.
+
+A restore refuses a database that has data, so a backup never overwrites
+one. A backup made by an older server of the same major release restores
+into a newer one, migrated as it is restored; one made by a newer server
+is refused. CI runs these steps on every change, against PostgreSQL.
 
 ## Configuration
 
@@ -314,6 +357,12 @@ refuses to start on a database a newer server has migrated.
 | `NETHER_S3_REGION` | `us-east-1` | The region requests are signed for |
 | `NETHER_ATTACHMENT_LIMIT` | `100` | The largest attachment taken, in MiB |
 | `NETHER_HISTORY_DAYS` | `30` | How many days notes' earlier versions are kept |
+| `NETHER_BACKUP` | `off` | Scheduled backups: `off`, `disk` or `s3` |
+| `NETHER_BACKUP_PATH` | `data/backups` | The folder for `disk` backups |
+| `NETHER_BACKUP_S3_BUCKET` | none, required for `s3` | The bucket for `s3` backups, reached with the `NETHER_S3_*` endpoint, region and keys |
+| `NETHER_BACKUP_S3_PREFIX` | `nether-backups/` | The folder of that bucket they go in |
+| `NETHER_BACKUP_HOURS` | `24` | How many hours apart backups are made |
+| `NETHER_BACKUP_KEEP` | `7` | How many backups are kept, the newest |
 | `NETHER_TRUST_PROXY` | `off` | Behind a reverse proxy, whose `X-Forwarded-For` to believe: `on` for any, or addresses and ranges such as `10.0.0.2, 172.16.0.0/12` or `uniquelocal` |
 | `NETHER_ENTERPRISE_SSO` | `off` | Single sign-on |
 | `NETHER_ENTERPRISE_SCIM` | `off` | Provisioning through SCIM and LDAP |

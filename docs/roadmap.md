@@ -122,5 +122,5 @@ The first public release, one feature per pull request, in this order:
 - [x] Workspace search on the server, by permission: PostgreSQL full text over what the server can read, indexed as notes are stored, and only the units an account opens ([ADR 0050](adr/0050-the-server-searches-what-it-can-read-indexed-as-notes-are-stored.md)).
 - [x] The canvas, in the JSON Canvas format: `.canvas` files read and written as Obsidian keeps them, opened in tabs, edited by pointer and keyboard, with text, note, image, link and group cards ([ADR 0051](adr/0051-canvases-are-json-canvas-files-drawn-with-the-page-s-own-elements.md)).
 - [x] Task assignment: the person property, and "assigned to me": names in person properties, offered as they are typed, and every row and note assigned to the name this device goes by, by database.
-- [ ] Backups to disk or S3, with the restore tested in CI; migrations safe across versions.
+- [x] Backups to disk or S3, with the restore tested in CI; migrations safe across versions: scheduled backups of the database and attachments in one file, restored into an empty database at their schema and migrated on, and the restore run in CI as documented ([ADR 0052](adr/0052-backups-are-the-server-s-own-files-restored-at-their-schema-then-migrated.md)).
 - [ ] `docker compose up` with PostgreSQL, Redis and storage.
