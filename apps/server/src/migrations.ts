@@ -313,6 +313,36 @@ export const migrations: readonly Migration[] = [
       ALTER TABLE users ADD COLUMN email_notifications boolean NOT NULL DEFAULT true;
     `,
   },
+  {
+    version: 12,
+    name: "search",
+    sql: `
+      -- What workspace search reads of each note the server can read
+      -- (ADR 0050): its path and title from its unit's vault document, and
+      -- its text, tags and properties from its own. A note no vault
+      -- document lists has no path, and is not found.
+      CREATE TABLE note_search (
+        workspace_id uuid NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        note text NOT NULL,
+        path text NOT NULL DEFAULT '',
+        title text NOT NULL DEFAULT '',
+        body text NOT NULL DEFAULT '',
+        tags text[] NOT NULL DEFAULT '{}',
+        properties jsonb NOT NULL DEFAULT '{}',
+        search tsvector GENERATED ALWAYS AS (
+          setweight(to_tsvector('simple', title), 'A') ||
+          setweight(to_tsvector('simple', body), 'B')
+        ) STORED,
+        PRIMARY KEY (workspace_id, note)
+      );
+
+      CREATE INDEX note_search_text ON note_search USING gin (search);
+
+      -- The notes stored before this, indexed once as the server starts.
+      CREATE TABLE search_backfill (pending boolean PRIMARY KEY);
+      INSERT INTO search_backfill VALUES (true);
+    `,
+  },
 ];
 
 /** The schema version this server writes and reads. */

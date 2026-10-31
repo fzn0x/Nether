@@ -16,6 +16,7 @@ import type { FastifyInstance } from "fastify";
 import * as Y from "yjs";
 import { type Database, readBytes, readCount, readText } from "./db.ts";
 import { fail, uuidField } from "./http.ts";
+import { indexNote, indexPaths } from "./search.ts";
 import { sessionAccount, signedIn, accountOf } from "./sessions.ts";
 import {
   type VaultEditor,
@@ -82,6 +83,13 @@ export async function storeDocument(
   state: Uint8Array,
 ): Promise<number> {
   return db.transaction(async (tx) => {
+    // A vault document's paths are compared with the state it replaces (ADR 0050).
+    const before = document.startsWith("vault")
+      ? await tx.query("SELECT state FROM documents WHERE workspace_id = $1 AND name = $2", [
+          workspaceId,
+          document,
+        ])
+      : undefined;
     if (!document.startsWith("vault") && !isComments(document)) {
       await tx.query(
         `INSERT INTO document_versions (workspace_id, name, state)
@@ -103,6 +111,14 @@ export async function storeDocument(
        RETURNING seq`,
       [workspaceId, document, state],
     );
+    // What search reads, kept with the state, so the two never disagree.
+    if (before !== undefined) {
+      const unit = document === "vault" ? general : document.slice("vault.".length);
+      const old = before.rows[0] === undefined ? undefined : readBytes(before.rows[0], "state");
+      await indexPaths(tx, workspaceId, unit, state, old);
+    } else if (!isComments(document)) {
+      await indexNote(tx, workspaceId, document, state);
+    }
     return readCount(rows[0], "seq");
   });
 }

@@ -19,6 +19,7 @@ import { registerRelay } from "./relay.ts";
 import { registerSync } from "./sync.ts";
 import { registerUnits } from "./units.ts";
 import { purgeVersions, registerVersions } from "./versions.ts";
+import { backfillSearch, registerSearch } from "./search.ts";
 import { registerWorkspaces } from "./workspaces.ts";
 
 /** The server's version, from its package.json (one folder up from src/ and dist/ alike). */
@@ -91,6 +92,7 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   registerWorkspaces(app, services.db);
   registerVersions(app, services.db);
   registerNotifications(app, services.db, services.mailer);
+  registerSearch(app, services.db);
   // Versions older than the admin keeps them, and old notifications, go on
   // start, then every hour.
   const purge = async () => {
@@ -105,6 +107,9 @@ export async function buildApp(config: Config, services: Services): Promise<Fast
   hourly.unref();
   app.addHook("onReady", async () => {
     await purge();
+    // What was stored before search was, indexed once (ADR 0050).
+    const indexed = await backfillSearch(services.db);
+    if (indexed > 0) app.log.info({ documents: indexed }, "Indexed the stored notes for search");
   });
   app.addHook("onClose", (_instance, done) => {
     clearInterval(hourly);
