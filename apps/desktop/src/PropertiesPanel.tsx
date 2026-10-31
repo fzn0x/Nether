@@ -2,11 +2,21 @@
 // vault's choice or what its value looks like, and an editor for that
 // type. Changes go to the note's document, and from there to its file, in
 // the order shown, which dragging a property or its arrow keys change.
-import { type JsonValue, type PropertyEntry, type PropertyType, propertyTypes } from "@nether/core";
+import type { JsonValue, PropertyEntry, PropertyType } from "@nether/core";
 import { databaseKey } from "@nether/database";
 import { documentProperties, setDocumentProperties } from "@nether/editor";
 import type { Vault } from "@nether/storage";
-import { type DragEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import type { LinkGraph } from "@nether/graph";
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type * as Y from "yjs";
 import { t } from "./messages.ts";
 import {
@@ -16,8 +26,10 @@ import {
   isListType,
   moveProperty,
   newPropertyKey,
+  readPropertyTypes,
   typeOf,
 } from "./properties.ts";
+import { myName, peopleNames, personKeysOf, subscribeMyName } from "./people.ts";
 
 /** What a dragged property carries, so other drags pass the panel by. */
 const dragType = "application/x-nether-property";
@@ -25,16 +37,6 @@ const dragType = "application/x-nether-property";
 interface DropAt {
   readonly key: string;
   readonly place: "before" | "after";
-}
-
-/** The vault's chosen types, from `.nether/properties.json`, kept only where they are types. */
-function readTypes(data: unknown): PropertyTypes {
-  if (typeof data !== "object" || data === null) return {};
-  return Object.fromEntries(
-    Object.entries(data).filter((entry): entry is [string, PropertyType] =>
-      (propertyTypes as readonly unknown[]).includes(entry[1]),
-    ),
-  );
 }
 
 /** A list item as text: strings as they are, other values as JSON. */
@@ -112,12 +114,21 @@ function ValueEditor(props: {
   readonly type: PropertyType;
   readonly value: JsonValue;
   readonly onChange: (value: JsonValue) => void;
+  /** The names a person property offers, for one. */
+  readonly people?: readonly string[];
 }) {
-  const { name, type, value, onChange } = props;
+  const { name, type, value, onChange, people } = props;
   const label = t("propertyValue", { name });
   if (isListType(type)) {
     const values = (Array.isArray(value) ? value : value === null ? [] : [value]).map(itemText);
-    return <ListEditor label={label} values={values} onChange={onChange} />;
+    return (
+      <ListEditor
+        label={label}
+        values={values}
+        onChange={onChange}
+        {...(people === undefined ? {} : { suggestions: people })}
+      />
+    );
   }
   if (type === "checkbox") {
     return (
@@ -187,12 +198,17 @@ function KeyField(props: {
   );
 }
 
-export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vault: Vault }) {
-  const { document, vault } = props;
+export function PropertiesPanel(props: {
+  readonly document: Y.Doc;
+  readonly vault: Vault;
+  readonly graph: LinkGraph;
+}) {
+  const { document, vault, graph } = props;
   const [entries, setEntries] = useState<readonly PropertyEntry[]>(() =>
     documentProperties(document),
   );
   const [types, setTypes] = useState<PropertyTypes>({});
+  const me = useSyncExternalStore(subscribeMyName, myName);
   const [added, setAdded] = useState<string | undefined>();
   const [dropAt, setDropAt] = useState<DropAt | undefined>();
   // The property the arrow keys just moved, whose handle keeps the focus.
@@ -215,7 +231,7 @@ export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vaul
   useEffect(() => {
     let current = true;
     void vault.readData("properties").then((data) => {
-      if (current) setTypes(readTypes(data));
+      if (current) setTypes(readPropertyTypes(data));
     });
     return () => {
       current = false;
@@ -288,6 +304,20 @@ export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vaul
     setAdded(key);
     save([...entries, { key, value: "" }]);
   };
+
+  // The keys of person properties, the vault's and its databases', as a row's
+  // are its database's; and the names they offer, worked out only for a note with one.
+  const personKeys = useMemo(() => personKeysOf(graph, types), [graph, types]);
+  const isPerson = (key: string, value: JsonValue) =>
+    personKeys.has(key) || typeOf(key, value, types) === "person";
+  const hasPerson = entries.some((entry) => isPerson(entry.key, entry.value));
+  const people = useMemo(() => {
+    if (!hasPerson) return [];
+    const names = peopleNames(graph, types);
+    return me === "" || names.some((name) => name.toLowerCase() === me.toLowerCase())
+      ? names
+      : [me, ...names];
+  }, [hasPerson, graph, types, me]);
 
   return (
     <section
@@ -373,6 +403,7 @@ export function PropertiesPanel(props: { readonly document: Y.Doc; readonly vaul
               name={entry.key}
               type={type}
               value={entry.value}
+              {...(isPerson(entry.key, entry.value) ? { people } : {})}
               onChange={(value) => {
                 save(
                   entries.map((item) => (item.key === entry.key ? { key: item.key, value } : item)),

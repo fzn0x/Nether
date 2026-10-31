@@ -36,7 +36,15 @@ import {
 import { setDocumentProperties } from "@nether/editor";
 import type { LinkGraph } from "@nether/graph";
 import type { Vault } from "@nether/storage";
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { myName, peopleNames, subscribeMyName } from "./people.ts";
 import type * as Y from "yjs";
 import {
   BoardLayout,
@@ -193,8 +201,10 @@ function Cell(props: {
     readonly names: readonly string[];
     readonly toValue: (name: string) => string;
   };
+  /** The names a person property offers. */
+  readonly people?: readonly string[] | undefined;
 }) {
-  const { label, property, value, onCommit, related } = props;
+  const { label, property, value, onCommit, related, people } = props;
   const shown =
     value === undefined || value === null || typeof value === "object" ? "" : String(value);
   const [draft, setDraft] = useState(shown);
@@ -225,7 +235,9 @@ function Cell(props: {
           onCommit(next, values);
         }}
         {...(related === undefined
-          ? {}
+          ? property.type === "person" && people !== undefined
+            ? { suggestions: people }
+            : {}
           : { suggestions: related.names, toValue: related.toValue, show: linkName })}
       />
     );
@@ -676,6 +688,7 @@ export function DatabaseView(props: DatabaseProps) {
 function Database(props: DatabaseProps & { readonly entries: readonly PropertyEntry[] }) {
   const { vault, media, exporter, graph, document, path, onOpenNote, entries } = props;
   const version = useGraph(graph);
+  const me = useSyncExternalStore(subscribeMyName, myName);
   const notes = useNotes(vault);
   const [chosen, setChosen] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
@@ -738,6 +751,18 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
   };
   const self = vault.noteAt(path);
   /** The rows a relation's database has, by name, for its cells to offer. */
+  // The names a person column offers, worked out only for a database with one.
+  const hasPerson =
+    "schema" in read &&
+    read.schema?.properties.some((property) => property.type === "person") === true;
+  const people = useMemo(() => {
+    if (!hasPerson) return undefined;
+    const names = peopleNames(graph, {});
+    return me === "" || names.some((name) => name.toLowerCase() === me.toLowerCase())
+      ? names
+      : [me, ...names];
+  }, [hasPerson, graph, version, me]);
+
   const relatedRows = (property: PropertyDefinition) => {
     const database =
       property.relation === undefined ? undefined : graph.note(property.relation.database);
@@ -1016,6 +1041,7 @@ function Database(props: DatabaseProps & { readonly entries: readonly PropertyEn
                   onCommit={(value, base) => {
                     write(row.id, property.key, value, base);
                   }}
+                  people={people}
                   {...(property.type === "relation"
                     ? {
                         related: {

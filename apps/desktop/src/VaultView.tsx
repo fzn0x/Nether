@@ -27,6 +27,9 @@ import { type Menu, MenuBar } from "./MenuBar.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { commandIcons, itemIcons, menuIcons } from "./icons.ts";
 import { NewFolderDialog } from "./NewFolderDialog.tsx";
+import { AssignedPanel } from "./AssignedPanel.tsx";
+import { TextPromptDialog } from "./TextPromptDialog.tsx";
+import { myName, setMyName } from "./people.ts";
 import { DeleteFolderDialog } from "./DeleteFolderDialog.tsx";
 import { commandShown, syncShown } from "./features.ts";
 import { SidebarResizer, useSidebarWidth } from "./SidebarResizer.tsx";
@@ -317,7 +320,9 @@ export function VaultView(props: {
   }, []);
   const focusedKey = layout.panes[layout.focused]?.key ?? 0;
   const mode = (asks[focusedKey] ?? noAsks).mode;
-  const [panel, setPanel] = useState<"notes" | "tags" | "search" | "trash">("notes");
+  const [panel, setPanel] = useState<"notes" | "tags" | "search" | "trash" | "assigned">("notes");
+  // Whether the dialog that asks for the name this device goes by is open.
+  const [namingMe, setNamingMe] = useState(false);
   const [switcher, setSwitcher] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const [tag, setTag] = useState<string | undefined>();
@@ -966,7 +971,7 @@ export function VaultView(props: {
   const run = useMemo((): Readonly<Record<CommandId, (() => void) | undefined>> => {
     const open = state.status === "open";
     const note = open && selected !== undefined ? selected : undefined;
-    const show = (name: "notes" | "tags" | "search" | "trash") => () => {
+    const show = (name: "notes" | "tags" | "search" | "trash" | "assigned") => () => {
       setTag(undefined);
       setPanel(name);
     };
@@ -1120,6 +1125,10 @@ export function VaultView(props: {
       showNotes: open ? show("notes") : undefined,
       showTags: open ? show("tags") : undefined,
       showTrash: open ? show("trash") : undefined,
+      showAssigned: open ? show("assigned") : undefined,
+      myName: () => {
+        setNamingMe(true);
+      },
       openGraph: open
         ? () => {
             setGraphShown(true);
@@ -1356,6 +1365,7 @@ export function VaultView(props: {
       "showNotes",
       "showTags",
       "showTrash",
+      "showAssigned",
       "separator",
       "nextTab",
       "previousTab",
@@ -1375,6 +1385,7 @@ export function VaultView(props: {
       : []),
     menuOf(t("menuSettings"), menuIcons.settings, [
       "templateSettings",
+      "myName",
       "appearance",
       "shortcuts",
       "separator",
@@ -1544,8 +1555,27 @@ export function VaultView(props: {
               >
                 {t("trash")}
               </button>
+              <button
+                type="button"
+                aria-pressed={panel === "assigned"}
+                onClick={() => {
+                  setPanel("assigned");
+                }}
+              >
+                {t("assigned")}
+              </button>
             </div>
-            {panel === "trash" ? (
+            {panel === "assigned" ? (
+              <AssignedPanel
+                vault={state.vault}
+                graph={state.indexer.graph}
+                notes={notes}
+                onOpen={openNote}
+                onSetName={() => {
+                  setNamingMe(true);
+                }}
+              />
+            ) : panel === "trash" ? (
               <TrashPanel vault={state.vault} onRestored={openRestored} />
             ) : panel === "search" ? (
               <SearchPanel
@@ -1874,6 +1904,17 @@ export function VaultView(props: {
           }}
         />
       )}
+      {namingMe ? (
+        <TextPromptDialog
+          title={t("myNameTitle")}
+          label={t("myNameLabel")}
+          value={myName()}
+          onSubmit={setMyName}
+          onClose={() => {
+            setNamingMe(false);
+          }}
+        />
+      ) : null}
       {newFolderIn === undefined || state.status !== "open" ? null : (
         <NewFolderDialog
           folder={newFolderIn}

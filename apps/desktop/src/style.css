@@ -466,6 +466,7 @@ button {
 
 .sidebar-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.25rem;
   padding: 0 0.75rem 0.5rem;
 }
@@ -1946,6 +1947,8 @@ button {
 
 /* A note's properties, above it. */
 .properties {
+  /* The properties fit the room they have, which the outline beside the note narrows too. */
+  container-type: inline-size;
   display: grid;
   gap: 0.25rem;
   margin: 0 0 1.25rem;
@@ -3838,4 +3841,67 @@ kbd {
   color: var(--muted);
   font-size: 0.7rem;
   content: "canvas";
+}
+
+/* What is assigned to me, by database, in the sidebar. */
+.assigned-panel {
+  flex: 1;
+  min-height: 0;
+  padding: 0 0.75rem 0.75rem;
+  overflow-y: auto;
+  font-size: 0.875rem;
+}
+
+.assigned-who {
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+}
+
+.assigned-group h3 {
+  margin: 0.75rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.assigned-group h3 .quiet {
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.assigned-group ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assigned-group li button {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.assigned-group li button:hover {
+  background: var(--hover);
+}
+
+.assigned-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
 }

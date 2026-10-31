@@ -341,6 +341,7 @@ export default function NoteView(props: {
                 key={`properties-${state.document.guid}`}
                 document={state.document}
                 vault={vault}
+                graph={graph}
               />
             ) : (
               <p className="notice" role="status">

@@ -53,6 +53,8 @@ import {
   ToggleRight,
   Trash,
   Trash2,
+  UserRound,
+  UserRoundCheck,
   Users,
 } from "lucide-react";
 import type { CommandId } from "./commands.ts";
@@ -85,6 +87,8 @@ export const commandIcons: Readonly<Record<CommandId, LucideIcon>> = {
   showNotes: FolderTree,
   showTags: Tags,
   showTrash: Trash,
+  showAssigned: UserRoundCheck,
+  myName: UserRound,
   openGraph: Network,
   templateSettings: ScrollText,
   appearance: Palette,
