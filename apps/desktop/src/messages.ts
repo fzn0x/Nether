@@ -230,6 +230,7 @@ export const messages = {
   oneNote: "1 note",
   indexing: "Reading the vault",
   indexingLinks: "Reading links: {done} of {total}",
+  linksFailed: "Links, tags and the outline could not be read: {error}",
   selectNote: "Select a note to read it.",
   noNotes: "This vault has no notes yet.",
   binaryNote: "This file is not UTF-8 text, so Nether leaves it as it is.",

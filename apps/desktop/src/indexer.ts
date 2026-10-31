@@ -88,6 +88,8 @@ export class Indexer {
   #progress: IndexProgress = { done: 0, total: 0 };
   #running = false;
   #stopped = false;
+  /** Why the worker failed, if it did: no note is read after. */
+  #error: string | undefined;
   /** Whether the rows the vault's index kept are still loading. */
   #loading = true;
   #unsubscribe: (() => void) | undefined;
@@ -98,6 +100,12 @@ export class Indexer {
     worker.onmessage = (event: MessageEvent<IndexResponse>) => {
       this.#pending.get(event.data.batch)?.(event.data);
       this.#pending.delete(event.data.batch);
+    };
+    // A worker that cannot load answers nothing; say so rather than wait.
+    worker.onerror = (event: ErrorEvent) => {
+      event.preventDefault();
+      this.#error = event.message === "" ? "The worker stopped." : event.message;
+      for (const listener of this.#listeners) listener();
     };
   }
 
@@ -171,6 +179,11 @@ export class Indexer {
 
   progress(): IndexProgress {
     return this.#progress;
+  }
+
+  /** Why links cannot be read, if they cannot. */
+  error(): string | undefined {
+    return this.#error;
   }
 
   /** Calls `listener` when the progress changes; returns a function that stops it. */

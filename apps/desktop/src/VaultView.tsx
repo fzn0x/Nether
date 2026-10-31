@@ -164,6 +164,17 @@ function IndexStatus(props: { readonly indexer: Indexer }) {
     (listener) => indexer.subscribe(listener),
     () => indexer.progress(),
   );
+  const error = useSyncExternalStore(
+    (listener) => indexer.subscribe(listener),
+    () => indexer.error(),
+  );
+  if (error !== undefined) {
+    return (
+      <p className="count" role="alert">
+        {t("linksFailed", { error })}
+      </p>
+    );
+  }
   if (progress.done >= progress.total) return null;
   return (
     <p className="count" role="status">
