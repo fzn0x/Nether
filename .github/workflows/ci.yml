@@ -165,7 +165,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: nether-desktop-linux-amd64
           path: apps/desktop/build
@@ -192,7 +192,7 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: nether-desktop-linux-amd64
           path: apps/desktop/build
