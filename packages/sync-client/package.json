@@ -14,7 +14,7 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "@hocuspocus/provider": "~4.7.1",
+    "@hocuspocus/provider": "~4.8.0",
     "@scure/bip39": "^2.4.0",
     "libsodium-wrappers": "^0.8.4",
     "y-protocols": "^1.0.7",
@@ -23,7 +23,7 @@
   "devDependencies": {
     "@nether/server": "workspace:*",
     "@types/node": "^24.19.2",
-    "@vitest/coverage-v8": "^5.0.5",
-    "vitest": "^5.0.5"
+    "@vitest/coverage-v8": "^5.1.0",
+    "vitest": "^5.1.0"
   }
 }

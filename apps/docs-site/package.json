@@ -15,8 +15,8 @@
     "typecheck": "astro sync && tsc --noEmit"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.42.6",
-    "astro": "^7.4.2"
+    "@astrojs/starlight": "^0.42.9",
+    "astro": "^7.4.6"
   },
   "devDependencies": {
     "typescript": "~6.0.3"
